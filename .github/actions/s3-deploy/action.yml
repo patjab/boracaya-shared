@@ -1,0 +1,61 @@
+name: Build and Deploy to S3
+description: Install, build, sync to S3, and invalidate CloudFront
+
+inputs:
+  bucket:
+    description: S3 bucket name
+    required: true
+  build-dir:
+    description: Build output directory (e.g. build/ or out/)
+    required: true
+  distribution-id:
+    description: CloudFront distribution ID
+    required: true
+  aws-access-key-id:
+    description: AWS Access Key ID
+    required: true
+  aws-secret-access-key:
+    description: AWS Secret Access Key
+    required: true
+  node-version:
+    description: Node.js version
+    required: false
+    default: '20'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+
+    - name: Configure git credentials
+      run: git config --global url."https://x-access-token:${{ github.token }}@github.com/".insteadOf "https://github.com/"
+      shell: bash
+
+    - name: Install dependencies
+      run: npm ci
+      shell: bash
+
+    - name: Build
+      run: npm run build
+      shell: bash
+      env:
+        CI: "false"
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        aws-region: us-east-1
+
+    - name: Deploy to S3
+      run: aws s3 sync ${{ inputs.build-dir }} s3://${{ inputs.bucket }} --delete
+      shell: bash
+
+    - name: Invalidate CloudFront
+      run: aws cloudfront create-invalidation --distribution-id ${{ inputs.distribution-id }} --paths "/*"
+      shell: bash
