@@ -52,4 +52,8 @@ export const ApiConstants = {
     // Media upload (share app)
     INITIATE_UPLOAD: 'https://fj7gzz4jjg.execute-api.us-east-1.amazonaws.com/production/initiate',
     COMPLETE_UPLOAD: 'https://fj7gzz4jjg.execute-api.us-east-1.amazonaws.com/production/complete',
+
+    // Moments gallery
+    MOMENTS_ADMIN: 'https://s2yz8yv7ec.execute-api.us-east-1.amazonaws.com/production/moments',
+    MOMENTS_PUBLIC: 'https://s05qxqhozf.execute-api.us-east-1.amazonaws.com/production/moments/public',
 } as const;
