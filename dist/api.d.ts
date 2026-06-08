@@ -7,6 +7,8 @@ export declare const ApiConstants: Readonly<{
     GET_AND_PUT_ADMIN_ADDED_DATA_TO_RSVPS: string;
     GET_PRECHECKINS: string;
     GET_SAVE_THE_DATE_RECORDS: string;
+    SAVE_THE_DATE_RECORD: string;
+    GUEST_AUTH: string;
     GET_ALL_SURVEYS: string;
     GET_SURVEY_COUNTS: string;
     GET_IP_ADDRESSES: string;

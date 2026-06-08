@@ -16,6 +16,8 @@ export const ApiConstants = {
 
     // Save the date
     GET_SAVE_THE_DATE_RECORDS: 'https://yueask9uzc.execute-api.us-east-1.amazonaws.com/production/records',
+    SAVE_THE_DATE_RECORD: 'https://yueask9uzc.execute-api.us-east-1.amazonaws.com/production/record',
+    GUEST_AUTH: 'https://yueask9uzc.execute-api.us-east-1.amazonaws.com/production/guest?guest=',
 
     // Surveys
     GET_ALL_SURVEYS: 'https://survey.pdaboracay.com/surveys',
