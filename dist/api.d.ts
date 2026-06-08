@@ -6,6 +6,8 @@ export declare const ApiConstants: Readonly<{
     GET_RSVPS: string;
     GET_AND_PUT_ADMIN_ADDED_DATA_TO_RSVPS: string;
     GET_PRECHECKINS: string;
+    SEND_CODE: string;
+    VERIFY_CODE: string;
     GET_SAVE_THE_DATE_RECORDS: string;
     SAVE_THE_DATE_RECORD: string;
     GUEST_AUTH: string;
@@ -13,7 +15,12 @@ export declare const ApiConstants: Readonly<{
     GET_SURVEY_COUNTS: string;
     GET_IP_ADDRESSES: string;
     LOGIN: string;
+    ADMIN_EVENTS: string;
+    TEMPLATES: string;
+    EMAIL_TEMPLATE: string;
     WISHES: string;
+    EVENTS: string;
+    SURVEY: string;
     INITIATE_UPLOAD: string;
     COMPLETE_UPLOAD: string;
 }>;
