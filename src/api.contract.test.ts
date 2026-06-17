@@ -51,6 +51,10 @@ const EXPECTED_PATHS: Record<keyof typeof ApiConstants, string> = {
     COMPLETE_UPLOAD: '/complete',
     MOMENTS_ADMIN: '/moments',
     MOMENTS_PUBLIC: '/moments/public',
+    FACES_CONTROL: '/',
+    FACES_BOX: '/',
+    MOMENTS_OFFICIAL_MANIFEST: '/uploads/official/manifest.json',
+    MOMENTS_OFFICIAL_BOOT: '/uploads/official/_boot.json',
 };
 
 const entries = Object.entries(ApiConstants) as [keyof typeof ApiConstants, string][];

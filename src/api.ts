@@ -56,4 +56,14 @@ export const ApiConstants = {
     // Moments gallery
     MOMENTS_ADMIN: 'https://s2yz8yv7ec.execute-api.us-east-1.amazonaws.com/production/moments',
     MOMENTS_PUBLIC: 'https://s05qxqhozf.execute-api.us-east-1.amazonaws.com/production/moments/public',
+
+    // Faces — face-recognition box control plane + box base (admin only).
+    // FACES_BOX is an EPHEMERAL on-demand instance and is usually off, so it is
+    // excluded from live smoke checks (see api.smoke.test.ts).
+    FACES_CONTROL: 'https://jif6kxnpyj.execute-api.us-east-1.amazonaws.com',
+    FACES_BOX: 'https://faces.pdaboracay.com',
+
+    // Moments "Official" gallery — static objects served by CloudFront.
+    MOMENTS_OFFICIAL_MANIFEST: 'https://moments.pdaboracay.com/uploads/official/manifest.json',
+    MOMENTS_OFFICIAL_BOOT: 'https://moments.pdaboracay.com/uploads/official/_boot.json',
 } as const;
