@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ApiConstants } from './api';
+import { SiteUrls } from './siteUrls';
 
 /**
  * Contract tests — no network. They lock the *shape* of the endpoint config so a
@@ -72,5 +73,13 @@ describe('ApiConstants — endpoint contract', () => {
 
     it.each(entries)('%s resolves to its agreed resource path (host-agnostic)', (key, url) => {
         expect(resourcePath(url)).toBe(EXPECTED_PATHS[key]);
+    });
+});
+
+describe('SiteUrls — site/page links', () => {
+    it.each(Object.entries(SiteUrls) as [string, string][])('%s is a valid https:// URL', (_key, url) => {
+        const u = new URL(url);
+        expect(u.protocol).toBe('https:');
+        expect(u.host).not.toBe('');
     });
 });
