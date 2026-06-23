@@ -6,5 +6,4 @@ exports.SiteUrls = void 0;
 exports.SiteUrls = {
     PUBLIC: 'https://pdaboracay.com',
     EVENTS_PAGE: 'https://pdaboracay.com/events',
-    RESERVATIONS: 'https://reservations.pdaboracay.com',
 };

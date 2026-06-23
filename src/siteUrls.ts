@@ -3,5 +3,4 @@
 export const SiteUrls = {
     PUBLIC: 'https://pdaboracay.com',
     EVENTS_PAGE: 'https://pdaboracay.com/events',
-    RESERVATIONS: 'https://reservations.pdaboracay.com',
 } as const;
