@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { authHeaders } from '../auth';
 
 type ApiState<T> = {
     data: T | null;
@@ -12,7 +13,13 @@ export const useApi = <T>(url: string, defaultOptions?: RequestInit) => {
     const execute = useCallback(async (overrideOptions?: RequestInit): Promise<T> => {
         setState(s => ({ ...s, isLoading: true, error: null }));
         try {
-            const response = await fetch(url, { ...defaultOptions, ...overrideOptions });
+            // Attach the Cognito ID token (when signed in) so gated endpoints accept
+            // the call; callers can still override any header. #161.
+            const response = await fetch(url, {
+                ...defaultOptions,
+                ...overrideOptions,
+                headers: { ...authHeaders(), ...defaultOptions?.headers, ...overrideOptions?.headers },
+            });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json() as T;
             setState({ data, isLoading: false, error: null });
