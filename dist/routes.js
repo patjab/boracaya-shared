@@ -22,7 +22,6 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'PATCH', path: '/templates' },
     { label: 'admin', method: 'POST', path: '/' },
     { label: 'admin', method: 'POST', path: '/email-template' },
-    { label: 'admin', method: 'POST', path: '/login' },
     { label: 'admin', method: 'POST', path: '/scramble' },
     { label: 'admin', method: 'PUT', path: '/templates' },
     { label: 'moments', method: 'POST', path: '/complete' },
