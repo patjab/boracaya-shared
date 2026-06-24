@@ -27,10 +27,12 @@ const isTestEnv = typeof window !== 'undefined' &&
 // ids are CDK-generated — fill them from the auth-stack outputs once deployed
 // (CheckinClientId / AdminClientId, per env). #161.
 const REGION = 'us-east-1';
-const POOL_ID = isTestEnv ? 'TODO_TEST_POOL_ID' : 'TODO_PROD_POOL_ID';
+// Pool id + app client ids from the auth-stack outputs (public identifiers, used in
+// the browser). Testing filled; prod TODO until the prod promotion deploys it. #161.
+const POOL_ID = isTestEnv ? 'us-east-1_4OB4OSUvB' : 'TODO_PROD_POOL_ID';
 const DOMAIN = `https://${isTestEnv ? 'pda-boracay-auth-testing' : 'pda-boracay-auth'}.auth.${REGION}.amazoncognito.com`;
 const CLIENT_IDS = isTestEnv
-    ? { checkin: 'TODO_TEST_CHECKIN_CLIENT_ID', admin: 'TODO_TEST_ADMIN_CLIENT_ID' }
+    ? { checkin: 'shupmht1gp9vfk9fmb958cffs', admin: '4o2qckho2j261tmg4ev1iferj1' }
     : { checkin: 'TODO_PROD_CHECKIN_CLIENT_ID', admin: 'TODO_PROD_ADMIN_CLIENT_ID' };
 const TOKEN_KEY = 'pdab_id_token';
 const VERIFIER_KEY = 'pdab_pkce_verifier';
