@@ -41,7 +41,10 @@ export function initAuth(app: App): void {
   clientId = CLIENT_IDS[app];
 }
 
-const redirectUri = () => (typeof window !== 'undefined' ? window.location.origin + '/' : '');
+// Return to the page sign-in was started from (e.g. /check-in), not the site root,
+// so the app component that runs completeSignIn() is mounted on return. This exact
+// URL must be a registered Cognito callback URL. #161.
+const redirectUri = () => (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '');
 const userPool = () => new CognitoUserPool({ UserPoolId: POOL_ID, ClientId: clientId });
 
 // ---- token storage -------------------------------------------------------
