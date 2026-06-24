@@ -4,7 +4,7 @@
 // Update deliberately when adding/removing an endpoint.
 
 export interface ApiRoute {
-  /** which API: public | admin | reservations | savethedate | moments */
+  /** which API: public | admin | reservations | moments */
   label: string;
   method: string;
   /** resource path, no host/stage (e.g. /events/{eventId}) */
@@ -52,8 +52,4 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'reservations', method: 'POST', path: '/verify-code' },
   { label: 'reservations', method: 'PUT', path: '/organize' },
   { label: 'reservations', method: 'PUT', path: '/rsvp' },
-  { label: 'savethedate', method: 'GET', path: '/guest' },
-  { label: 'savethedate', method: 'GET', path: '/records' },
-  { label: 'savethedate', method: 'PATCH', path: '/record' },
-  { label: 'savethedate', method: 'PUT', path: '/record' },
 ];
