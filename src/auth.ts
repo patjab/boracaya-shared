@@ -1,51 +1,55 @@
-// Unified sign-in for the pda-boracay frontends (#161).
+// Sign-in for the pda-boracay frontends via Google Identity Services (GIS) (#161).
 //
-// Two ways in, both yielding a Cognito ID token that the apps send on gated API
-// calls (the API authorizers verify it + the RSVP-table membership):
-//   - Google: hosted-UI redirect with PKCE (no SDK, no client secret).
-//   - Email OTP: Cognito CUSTOM_AUTH via amazon-cognito-identity-js.
-//
-// The target environment is picked at runtime from the hostname (same rule as
-// api.ts): *.test.pdaboracay.com -> the testing pool; everything else -> prod.
-// Each app calls `initAuth('checkin' | 'admin')` once at startup to select its
-// app client; tokens live in sessionStorage and are attached by useApi.
-import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
+// The browser obtains a Google ID token directly from Google (no Cognito); the apps
+// send it on gated API calls and the API authorizer verifies it (Google JWKS, aud =
+// our client) against the RSVP guest list. One Google OAuth Web client serves test
+// and prod (its Authorized JavaScript origins list every app origin). Google-only —
+// no email OTP. Token lives in sessionStorage and is attached by useApi.
+import * as React from 'react';
+
+const CLIENT_ID = '129809912902-gudslqiduqd2opdk7n1rat829msgtias.apps.googleusercontent.com';
+const TOKEN_KEY = 'pdab_id_token';
+const GSI_SRC = 'https://accounts.google.com/gsi/client';
 
 type App = 'checkin' | 'admin';
 
-const isTestEnv =
-  typeof window !== 'undefined' &&
-  /(^|\.)test\.pdaboracay\.com$/.test(window.location.hostname);
-
-// Cognito config per env. Domain prefix + region are deterministic; the app client
-// ids are CDK-generated — fill them from the auth-stack outputs once deployed
-// (CheckinClientId / AdminClientId, per env). #161.
-const REGION = 'us-east-1';
-// Pool id + app client ids from the auth-stack outputs (public identifiers, used in
-// the browser). Testing filled; prod TODO until the prod promotion deploys it. #161.
-const POOL_ID = isTestEnv ? 'us-east-1_4OB4OSUvB' : 'TODO_PROD_POOL_ID';
-const DOMAIN = `https://${isTestEnv ? 'pda-boracay-auth-testing' : 'pda-boracay-auth'}.auth.${REGION}.amazoncognito.com`;
-const CLIENT_IDS: Record<App, string> = isTestEnv
-  ? { checkin: 'shupmht1gp9vfk9fmb958cffs', admin: '4o2qckho2j261tmg4ev1iferj1' }
-  : { checkin: 'TODO_PROD_CHECKIN_CLIENT_ID', admin: 'TODO_PROD_ADMIN_CLIENT_ID' };
-
-const TOKEN_KEY = 'pdab_id_token';
-const VERIFIER_KEY = 'pdab_pkce_verifier';
-
-let currentApp: App = 'checkin';
-let clientId = CLIENT_IDS.checkin;
-let pendingOtpUser: CognitoUser | null = null;
-
-export function initAuth(app: App): void {
-  currentApp = app;
-  clientId = CLIENT_IDS[app];
+interface GsiId {
+  initialize(cfg: { client_id: string; callback: (r: { credential?: string }) => void; auto_select?: boolean }): void;
+  renderButton(el: HTMLElement, opts: Record<string, unknown>): void;
+  disableAutoSelect(): void;
 }
+const gsi = (): GsiId | undefined =>
+  (typeof window !== 'undefined' ? (window as unknown as { google?: { accounts?: { id?: GsiId } } }).google?.accounts?.id : undefined);
 
-// Return to the page sign-in was started from (e.g. /check-in), not the site root,
-// so the app component that runs completeSignIn() is mounted on return. This exact
-// URL must be a registered Cognito callback URL. #161.
-const redirectUri = () => (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '');
-const userPool = () => new CognitoUserPool({ UserPoolId: POOL_ID, ClientId: clientId });
+// Load + initialize GIS once. `initAuth(app?)` keeps the old call sites working —
+// GIS uses a single Google client for both apps, so the arg is ignored.
+let gsiPromise: Promise<void> | null = null;
+export function initAuth(_app?: App): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (gsiPromise) return gsiPromise;
+  gsiPromise = new Promise<void>((resolve, reject) => {
+    if (gsi()) return resolve();
+    const s = document.createElement('script');
+    s.src = GSI_SRC;
+    s.async = true;
+    s.defer = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+    document.head.appendChild(s);
+  }).then(() => {
+    gsi()!.initialize({
+      client_id: CLIENT_ID,
+      auto_select: false,
+      callback: (r) => {
+        if (r.credential) {
+          sessionStorage.setItem(TOKEN_KEY, r.credential);
+          window.dispatchEvent(new Event('pdab-auth-change'));
+        }
+      },
+    });
+  });
+  return gsiPromise;
+}
 
 // ---- token storage -------------------------------------------------------
 export function getIdToken(): string | null {
@@ -67,114 +71,54 @@ export function authHeaders(): Record<string, string> {
   const t = getIdToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
-function setToken(t: string) {
-  sessionStorage.setItem(TOKEN_KEY, t);
-}
 
-// ---- Google (hosted UI + PKCE) ------------------------------------------
-function b64url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-async function sha256(s: string): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
-}
-function randomString(): string {
-  const a = new Uint8Array(48);
-  crypto.getRandomValues(a);
-  return b64url(a);
-}
-
-export async function signInWithGoogle(): Promise<void> {
-  const verifier = randomString();
-  sessionStorage.setItem(VERIFIER_KEY, verifier);
-  const challenge = b64url(await sha256(verifier));
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: 'code',
-    scope: 'openid email profile',
-    redirect_uri: redirectUri(),
-    identity_provider: 'Google',
-    code_challenge: challenge,
-    code_challenge_method: 'S256',
-  });
-  window.location.assign(`${DOMAIN}/oauth2/authorize?${params.toString()}`);
-}
-
-/** Call once on load. If we returned from the hosted UI with ?code=, exchange it. */
-export async function completeSignIn(): Promise<boolean> {
-  const code = new URLSearchParams(window.location.search).get('code');
-  if (code) {
-    try {
-      const body = new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: clientId,
-        code,
-        redirect_uri: redirectUri(),
-        code_verifier: sessionStorage.getItem(VERIFIER_KEY) || '',
-      });
-      const res = await fetch(`${DOMAIN}/oauth2/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      });
-      if (res.ok) {
-        const tok = await res.json();
-        if (tok.id_token) setToken(tok.id_token);
-      }
-    } finally {
-      sessionStorage.removeItem(VERIFIER_KEY);
-      window.history.replaceState({}, '', redirectUri());
-    }
+/** Email claim from the current Google ID token (for display / scoping), or null. */
+export function getEmail(): string | null {
+  const t = getIdToken();
+  if (!t) return null;
+  try {
+    return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email ?? null;
+  } catch {
+    return null;
   }
-  return isAuthenticated();
 }
 
-// ---- Email OTP (Cognito CUSTOM_AUTH) ------------------------------------
-// First send creates the user if needed (gated by the PreSignUp trigger to the
-// RSVP guest list), then starts the custom-auth challenge which emails the code.
-export function sendOtp(email: string): Promise<void> {
-  const pool = userPool();
-  return new Promise((resolve, reject) => {
-    const start = () => {
-      const user = new CognitoUser({ Username: email, Pool: pool });
-      user.setAuthenticationFlowType('CUSTOM_AUTH');
-      user.initiateAuth(new AuthenticationDetails({ Username: email }), {
-        onSuccess: () => resolve(), // shouldn't happen before a challenge
-        onFailure: (err) => reject(err),
-        customChallenge: () => {
-          pendingOtpUser = user;
-          resolve();
-        },
+// ---- React sign-in button ------------------------------------------------
+// Renders the official Google button; on success the token is stored and
+// `onSignIn` fires (and a window 'pdab-auth-change' event is dispatched).
+export function GoogleSignInButton(props: { onSignIn?: () => void; text?: string }): React.ReactElement {
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    initAuth().then(() => {
+      if (cancelled || !ref.current) return;
+      gsi()!.renderButton(ref.current, {
+        type: 'standard',
+        theme: 'filled_blue',
+        size: 'large',
+        text: props.text ?? 'continue_with',
+        shape: 'pill',
+        logo_alignment: 'left',
       });
+    });
+    const onChange = () => props.onSignIn?.();
+    window.addEventListener('pdab-auth-change', onChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('pdab-auth-change', onChange);
     };
-    // Ensure the user exists (PreSignUp enforces the allowlist). Ignore "exists".
-    const randomPw = randomString() + 'Aa1!';
-    pool.signUp(email, randomPw, [], [], (err) => {
-      if (err && (err as { code?: string }).code !== 'UsernameExistsException') return reject(err);
-      start();
-    });
-  });
-}
-
-export function confirmOtp(code: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (!pendingOtpUser) return reject(new Error('No code was requested'));
-    pendingOtpUser.sendCustomChallengeAnswer(code, {
-      onSuccess: (session) => {
-        setToken(session.getIdToken().getJwtToken());
-        pendingOtpUser = null;
-        resolve();
-      },
-      onFailure: (err) => reject(err),
-      customChallenge: () => reject(new Error('Incorrect or expired code')),
-    });
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return React.createElement('div', { ref });
 }
 
 // ---- sign out ------------------------------------------------------------
 export function signOut(): void {
   sessionStorage.removeItem(TOKEN_KEY);
-  window.location.assign(
-    `${DOMAIN}/logout?client_id=${encodeURIComponent(clientId)}&logout_uri=${encodeURIComponent(redirectUri())}`,
-  );
+  try {
+    gsi()?.disableAutoSelect();
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new Event('pdab-auth-change'));
 }

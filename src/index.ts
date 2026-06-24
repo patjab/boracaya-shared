@@ -7,12 +7,10 @@ export { useLoading } from './hooks/useLoading';
 export { useApi } from './hooks/useApi';
 export {
   initAuth,
-  signInWithGoogle,
-  completeSignIn,
-  sendOtp,
-  confirmOtp,
   signOut,
   getIdToken,
   isAuthenticated,
   authHeaders,
+  getEmail,
+  GoogleSignInButton,
 } from './auth';
