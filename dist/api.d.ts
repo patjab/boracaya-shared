@@ -3,6 +3,7 @@ export declare const ApiConstants: {
     readonly GET_INVITE: `${string}/invite`;
     readonly CREATE_INVITES_BY_CSV_UPLOAD: `${string}/scramble`;
     readonly INCREMENT_COUNT_OF_INVITE_SENT: `${string}/scramble/increment`;
+    readonly SET_INVITED_BY: `${string}/invite`;
     readonly GET_RSVPS: `${string}/rsvp`;
     readonly GET_AND_PUT_ADMIN_ADDED_DATA_TO_RSVPS: `${string}/organize`;
     readonly GET_PRECHECKINS: `${string}/pda-boracay-precheckins`;

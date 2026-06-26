@@ -35,6 +35,9 @@ exports.ApiConstants = {
     GET_INVITE: `${PUBLIC_API}/invite`,
     CREATE_INVITES_BY_CSV_UPLOAD: `${ADMIN_API}/scramble`,
     INCREMENT_COUNT_OF_INVITE_SENT: `${ADMIN_API}/scramble/increment`,
+    // Admin 'Tag' edit: set invitedBy on an existing invite by userId (#194 2b).
+    // Replaces the email-keyed /organize write as guest_organizer is retired.
+    SET_INVITED_BY: `${ADMIN_API}/invite`,
     // RSVP
     GET_RSVPS: `${RESERVATIONS_API}/rsvp`,
     // Organizer / admin data
