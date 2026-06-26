@@ -23,6 +23,8 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/pages/order' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/subevents' },
+  { label: 'admin', method: 'GET', path: '/pda-boracay-precheckins' },
+  { label: 'admin', method: 'GET', path: '/rsvp' },
   { label: 'admin', method: 'PATCH', path: '/invite' },
   { label: 'admin', method: 'PATCH', path: '/moments' },
   { label: 'admin', method: 'PATCH', path: '/scramble/increment' },

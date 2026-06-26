@@ -38,12 +38,17 @@ exports.ApiConstants = {
     // Admin 'Tag' edit: set invitedBy on an existing invite by userId (#194 2b).
     // Replaces the email-keyed /organize write as guest_organizer is retired.
     SET_INVITED_BY: `${ADMIN_API}/invite`,
-    // RSVP
+    // RSVP — public reservations route is link-read only (?userId=/?email=); the admin
+    // console needs the FULL list, which requires admin auth, so it uses the admin-api
+    // mirror (same lambda; the admin authorizer supplies isAdmin -> get_all_rsvps).
     GET_RSVPS: `${RESERVATIONS_API}/rsvp`,
+    GET_ALL_RSVPS: `${ADMIN_API}/rsvp`,
     // Organizer / admin data
     GET_AND_PUT_ADMIN_ADDED_DATA_TO_RSVPS: `${RESERVATIONS_API}/organize`,
-    // Pre-checkins (reservations)
+    // Pre-checkins — public reservations route for guest link reads + the shangrila POST;
+    // admin-api mirror for the admin console's full-list read (admin-authed).
     GET_PRECHECKINS: `${RESERVATIONS_API}/pda-boracay-precheckins`,
+    GET_ALL_PRECHECKINS: `${ADMIN_API}/pda-boracay-precheckins`,
     // OTP login (reservations)
     SEND_CODE: `${RESERVATIONS_API}/send-code`,
     VERIFY_CODE: `${RESERVATIONS_API}/verify-code`,

@@ -32,6 +32,8 @@ const EXPECTED_PATHS: Record<keyof typeof ApiConstants, string> = {
     INCREMENT_COUNT_OF_INVITE_SENT: '/scramble/increment',
     SET_INVITED_BY: '/invite',
     GET_RSVPS: '/rsvp',
+    GET_ALL_RSVPS: '/rsvp',
+    GET_ALL_PRECHECKINS: '/pda-boracay-precheckins',
     GET_AND_PUT_ADMIN_ADDED_DATA_TO_RSVPS: '/organize',
     GET_PRECHECKINS: '/pda-boracay-precheckins',
     SEND_CODE: '/send-code',
