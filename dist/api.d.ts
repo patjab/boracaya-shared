@@ -8,8 +8,6 @@ export declare const ApiConstants: {
     readonly GET_ALL_RSVPS: `${string}/rsvp`;
     readonly GET_PRECHECKINS: `${string}/pda-boracay-precheckins`;
     readonly GET_ALL_PRECHECKINS: `${string}/pda-boracay-precheckins`;
-    readonly SEND_CODE: `${string}/send-code`;
-    readonly VERIFY_CODE: `${string}/verify-code`;
     readonly GET_SAVE_THE_DATE_RECORDS: `${string}/records`;
     readonly SAVE_THE_DATE_RECORD: `${string}/record`;
     readonly GUEST_AUTH: `${string}/guest?guest=`;

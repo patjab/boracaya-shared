@@ -46,9 +46,6 @@ exports.ApiConstants = {
     // admin-api mirror for the admin console's full-list read (admin-authed).
     GET_PRECHECKINS: `${RESERVATIONS_API}/pda-boracay-precheckins`,
     GET_ALL_PRECHECKINS: `${ADMIN_API}/pda-boracay-precheckins`,
-    // OTP login (reservations)
-    SEND_CODE: `${RESERVATIONS_API}/send-code`,
-    VERIFY_CODE: `${RESERVATIONS_API}/verify-code`,
     // Save the date
     GET_SAVE_THE_DATE_RECORDS: `${SAVETHEDATE_API}/records`,
     SAVE_THE_DATE_RECORD: `${SAVETHEDATE_API}/record`,
