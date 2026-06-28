@@ -42,8 +42,6 @@ exports.ApiConstants = {
     // mirror (same lambda; the admin authorizer supplies isAdmin -> get_all_rsvps).
     GET_RSVPS: `${RESERVATIONS_API}/rsvp`,
     GET_ALL_RSVPS: `${ADMIN_API}/rsvp`,
-    // Organizer / admin data
-    GET_AND_PUT_ADMIN_ADDED_DATA_TO_RSVPS: `${RESERVATIONS_API}/organize`,
     // Pre-checkins — public reservations route for guest link reads + the shangrila POST;
     // admin-api mirror for the admin console's full-list read (admin-authed).
     GET_PRECHECKINS: `${RESERVATIONS_API}/pda-boracay-precheckins`,
