@@ -45,7 +45,5 @@ exports.ApiRoutes = [
     { label: 'reservations', method: 'GET', path: '/pda-boracay-precheckins/{email}' },
     { label: 'reservations', method: 'GET', path: '/rsvp' },
     { label: 'reservations', method: 'POST', path: '/pda-boracay-precheckins' },
-    { label: 'reservations', method: 'POST', path: '/send-code' },
-    { label: 'reservations', method: 'POST', path: '/verify-code' },
     { label: 'reservations', method: 'PUT', path: '/rsvp' },
 ];
