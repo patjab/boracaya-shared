@@ -34,7 +34,6 @@ const EXPECTED_PATHS: Record<keyof typeof ApiConstants, string> = {
     GET_RSVPS: '/rsvp',
     GET_ALL_RSVPS: '/rsvp',
     GET_ALL_PRECHECKINS: '/pda-boracay-precheckins',
-    GET_AND_PUT_ADMIN_ADDED_DATA_TO_RSVPS: '/organize',
     GET_PRECHECKINS: '/pda-boracay-precheckins',
     SEND_CODE: '/send-code',
     VERIFY_CODE: '/verify-code',
