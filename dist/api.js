@@ -25,6 +25,9 @@ const ADMIN_API = host('admin-api');
 const RESERVATIONS_API = host('reservations-api');
 const SAVETHEDATE_API = host('savethedate-api');
 const SHARE_API = host('share-api');
+// Moments upload API: prod = share-api.pdaboracay.com; testing = moments-api.test.pdaboracay.com
+// (no share-api.test host exists). Same lambda either way; only the fronting domain differs.
+const UPLOAD_API = isTestEnv ? host('moments-api') : SHARE_API;
 const FACES_CONTROL_API = host('faces-control');
 const FACES_BOX_BASE = host('faces');
 const MOMENTS_BASE = host('moments');
@@ -69,9 +72,11 @@ exports.ApiConstants = {
     EVENTS: `${PUBLIC_API}/events`,
     // Visit analytics
     SURVEY: `${PUBLIC_API}/survey`,
-    // Media upload (share app)
-    INITIATE_UPLOAD: `${SHARE_API}/initiate`,
-    COMPLETE_UPLOAD: `${SHARE_API}/complete`,
+    // Media upload (share app). Prod serves this on share-api; the testing mirror serves
+    // it on moments-api (the share-api.test domain doesn't exist). Pick per-env so guest
+    // uploads work under test instead of failing closed on a non-resolving host.
+    INITIATE_UPLOAD: `${UPLOAD_API}/initiate`,
+    COMPLETE_UPLOAD: `${UPLOAD_API}/complete`,
     // Moments gallery
     MOMENTS_ADMIN: `${ADMIN_API}/moments`,
     MOMENTS_PUBLIC: `${PUBLIC_API}/moments/public`,
