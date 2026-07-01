@@ -14,3 +14,4 @@ export {
   getEmail,
   GoogleSignInButton,
 } from './auth';
+export { ensureGuestToken, guestAuthHeaders, clearGuestToken } from './guestAuth';

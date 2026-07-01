@@ -6,3 +6,4 @@ export type { Companion } from './types';
 export { useLoading } from './hooks/useLoading';
 export { useApi } from './hooks/useApi';
 export { initAuth, signOut, getIdToken, isAuthenticated, authHeaders, getEmail, GoogleSignInButton, } from './auth';
+export { ensureGuestToken, guestAuthHeaders, clearGuestToken } from './guestAuth';

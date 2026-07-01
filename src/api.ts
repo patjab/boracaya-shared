@@ -43,6 +43,10 @@ export const ApiConstants = {
     // Replaces the email-keyed /organize write as guest_organizer is retired.
     SET_INVITED_BY: `${ADMIN_API}/invite`,
 
+    // Guest token exchange (#296 / #100 Phase 1): a ?invited=<userId> link is exchanged
+    // here for a short-lived, guest-scoped JWT the reservations calls send as a Bearer.
+    AUTH_EXCHANGE: `${PUBLIC_API}/auth/exchange`,
+
     // RSVP — public reservations route is link-read only (?userId=/?email=); the admin
     // console needs the FULL list, which requires admin auth, so it uses the admin-api
     // mirror (same lambda; the admin authorizer supplies isAdmin -> get_all_rsvps).
