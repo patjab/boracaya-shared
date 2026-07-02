@@ -42,8 +42,8 @@ exports.ApiError = ApiError;
  * Read primitive: GET the URL, guard `res.ok`, parse JSON. The signed-in Google
  * token (when present) is attached automatically — same behavior consumers get
  * from the admin's patched fetch, made explicit. Throws ApiError on any failure.
- * A successful empty response (204, or 200 with no body) resolves to undefined
- * rather than failing JSON parse.
+ * A successful empty response (204, or 200 with a blank body) resolves to
+ * undefined — reflected in the return type — rather than failing JSON parse.
  */
 async function getJson(url, opts = {}) {
     var _a;
@@ -58,7 +58,7 @@ async function getJson(url, opts = {}) {
     if (!res.ok)
         throw new ApiError(label, `${label}: HTTP ${res.status}`, res.status);
     const text = await res.text().catch(() => '');
-    if (!text)
+    if (!text.trim())
         return undefined;
     try {
         return JSON.parse(text);
@@ -74,8 +74,9 @@ async function getJson(url, opts = {}) {
  * independently reinvented, homed.)
  */
 async function jsonOr(url, label, fallback, opts = {}) {
+    var _a;
     try {
-        return await getJson(url, { ...opts, label });
+        return (_a = (await getJson(url, { ...opts, label }))) !== null && _a !== void 0 ? _a : fallback;
     }
     catch (e) {
         console.error(`data: ${label} failed to load:`, e);
@@ -86,7 +87,8 @@ async function jsonOr(url, label, fallback, opts = {}) {
  * Write primitive: JSON body, ok-guard, and error mapping that prefers the
  * server's own message — a non-2xx with `{ "error": "..." }` surfaces that text
  * (e.g. a 409 "template already exists") instead of a bare status code.
- * Returns the parsed response body, or undefined when the response has none.
+ * Returns the parsed response body, or undefined when the response has none
+ * (reflected in the return type).
  */
 async function sendJson(url, opts) {
     var _a, _b;
@@ -120,7 +122,7 @@ async function sendJson(url, opts) {
         }
         throw new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status);
     }
-    if (!text)
+    if (!text.trim())
         return undefined;
     try {
         return JSON.parse(text);

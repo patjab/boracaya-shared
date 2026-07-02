@@ -19,10 +19,10 @@ interface CallOptions {
  * Read primitive: GET the URL, guard `res.ok`, parse JSON. The signed-in Google
  * token (when present) is attached automatically — same behavior consumers get
  * from the admin's patched fetch, made explicit. Throws ApiError on any failure.
- * A successful empty response (204, or 200 with no body) resolves to undefined
- * rather than failing JSON parse.
+ * A successful empty response (204, or 200 with a blank body) resolves to
+ * undefined — reflected in the return type — rather than failing JSON parse.
  */
-export declare function getJson<T>(url: string, opts?: CallOptions): Promise<T>;
+export declare function getJson<T>(url: string, opts?: CallOptions): Promise<T | undefined>;
 /**
  * Resilient read: like getJson but NEVER throws — a failure logs and returns
  * the fallback, so one failing endpoint degrades only its own slice of a
@@ -39,9 +39,10 @@ interface SendOptions extends CallOptions {
  * Write primitive: JSON body, ok-guard, and error mapping that prefers the
  * server's own message — a non-2xx with `{ "error": "..." }` surfaces that text
  * (e.g. a 409 "template already exists") instead of a bare status code.
- * Returns the parsed response body, or undefined when the response has none.
+ * Returns the parsed response body, or undefined when the response has none
+ * (reflected in the return type).
  */
-export declare function sendJson<T = void>(url: string, opts: SendOptions): Promise<T>;
+export declare function sendJson<T = void>(url: string, opts: SendOptions): Promise<T | undefined>;
 /**
  * Defensive text coercion, homed here so every surface handles response-shape
  * quirks the same way. Coerce before trimming: joined API rows occasionally

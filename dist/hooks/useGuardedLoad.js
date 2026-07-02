@@ -19,14 +19,20 @@ const data_1 = require("../data");
 function useGuardedLoad(load, errorMessage, deps = []) {
     const [state, setState] = (0, react_1.useState)({ data: null, isLoading: true, error: null });
     const runId = (0, react_1.useRef)(0);
+    // Always call the latest load/errorMessage, not the ones captured when deps
+    // last changed — `run` stays stable per deps, but never goes stale.
+    const loadRef = (0, react_1.useRef)(load);
+    loadRef.current = load;
+    const errorMessageRef = (0, react_1.useRef)(errorMessage);
+    errorMessageRef.current = errorMessage;
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const run = (0, react_1.useCallback)(() => {
         runId.current += 1;
         const id = runId.current;
-        void (0, data_1.runGuarded)(load, (next) => {
+        void (0, data_1.runGuarded)(() => loadRef.current(), (next) => {
             if (runId.current === id)
                 setState(next);
-        }, errorMessage);
+        }, errorMessageRef.current);
     }, deps);
     (0, react_1.useEffect)(() => {
         run();

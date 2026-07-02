@@ -47,10 +47,10 @@ interface CallOptions {
  * Read primitive: GET the URL, guard `res.ok`, parse JSON. The signed-in Google
  * token (when present) is attached automatically — same behavior consumers get
  * from the admin's patched fetch, made explicit. Throws ApiError on any failure.
- * A successful empty response (204, or 200 with no body) resolves to undefined
- * rather than failing JSON parse.
+ * A successful empty response (204, or 200 with a blank body) resolves to
+ * undefined — reflected in the return type — rather than failing JSON parse.
  */
-export async function getJson<T>(url: string, opts: CallOptions = {}): Promise<T> {
+export async function getJson<T>(url: string, opts: CallOptions = {}): Promise<T | undefined> {
   const label = opts.label ?? url;
   let res: Response;
   try {
@@ -60,7 +60,7 @@ export async function getJson<T>(url: string, opts: CallOptions = {}): Promise<T
   }
   if (!res.ok) throw new ApiError(label, `${label}: HTTP ${res.status}`, res.status);
   const text = await res.text().catch(() => '');
-  if (!text) return undefined as T;
+  if (!text.trim()) return undefined;
   try {
     return JSON.parse(text) as T;
   } catch {
@@ -76,7 +76,7 @@ export async function getJson<T>(url: string, opts: CallOptions = {}): Promise<T
  */
 export async function jsonOr<T>(url: string, label: string, fallback: T, opts: CallOptions = {}): Promise<T> {
   try {
-    return await getJson<T>(url, { ...opts, label });
+    return (await getJson<T>(url, { ...opts, label })) ?? fallback;
   } catch (e) {
     console.error(`data: ${label} failed to load:`, e);
     return fallback;
@@ -93,9 +93,10 @@ interface SendOptions extends CallOptions {
  * Write primitive: JSON body, ok-guard, and error mapping that prefers the
  * server's own message — a non-2xx with `{ "error": "..." }` surfaces that text
  * (e.g. a 409 "template already exists") instead of a bare status code.
- * Returns the parsed response body, or undefined when the response has none.
+ * Returns the parsed response body, or undefined when the response has none
+ * (reflected in the return type).
  */
-export async function sendJson<T = void>(url: string, opts: SendOptions): Promise<T> {
+export async function sendJson<T = void>(url: string, opts: SendOptions): Promise<T | undefined> {
   const label = opts.label ?? url;
   let res: Response;
   try {
@@ -123,7 +124,7 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
     }
     throw new ApiError(label, serverMessage ?? `${label}: HTTP ${res.status}`, res.status);
   }
-  if (!text) return undefined as T;
+  if (!text.trim()) return undefined;
   try {
     return JSON.parse(text) as T;
   } catch {

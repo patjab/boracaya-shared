@@ -22,16 +22,23 @@ export function useGuardedLoad<T>(
   const [state, setState] = useState<GuardedState<T>>({ data: null, isLoading: true, error: null });
   const runId = useRef(0);
 
+  // Always call the latest load/errorMessage, not the ones captured when deps
+  // last changed — `run` stays stable per deps, but never goes stale.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const errorMessageRef = useRef(errorMessage);
+  errorMessageRef.current = errorMessage;
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const run = useCallback(() => {
     runId.current += 1;
     const id = runId.current;
     void runGuarded(
-      load,
+      () => loadRef.current(),
       (next) => {
         if (runId.current === id) setState(next);
       },
-      errorMessage,
+      errorMessageRef.current,
     );
   }, deps);
 

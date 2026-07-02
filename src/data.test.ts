@@ -48,6 +48,13 @@ describe('getJson', () => {
     await expect(getJson('https://x/y')).resolves.toBeUndefined();
     fetchMock().mockResolvedValue(new Response('', { status: 200 }));
     await expect(getJson('https://x/y')).resolves.toBeUndefined();
+    fetchMock().mockResolvedValue(new Response(' \n ', { status: 200 }));
+    await expect(getJson('https://x/y')).resolves.toBeUndefined();
+  });
+
+  it('jsonOr returns the fallback when the body is empty', async () => {
+    fetchMock().mockResolvedValue(new Response('', { status: 200 }));
+    await expect(jsonOr('https://x/y', 'nums', [7])).resolves.toEqual([7]);
   });
 });
 
