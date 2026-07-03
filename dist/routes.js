@@ -9,6 +9,7 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'GET', path: '/events' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/subevents' },
+    { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
     { label: 'admin', method: 'GET', path: '/invite' },
     { label: 'admin', method: 'GET', path: '/moments' },
     { label: 'admin', method: 'GET', path: '/moments/public' },
@@ -33,6 +34,7 @@ exports.ApiRoutes = [
     // the bare public GET /events (list) was REMOVED (cdk#352): unused by every UI and a
     // tenant-enumeration surface; the admin list stays (Valet's access-gate probe, #310).
     { label: 'public', method: 'GET', path: '/events/{eventId}' },
+    { label: 'public', method: 'GET', path: '/events/{eventId}/about' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/subevents' },
     { label: 'public', method: 'GET', path: '/invite' },
     { label: 'public', method: 'GET', path: '/moments' },
