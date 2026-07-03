@@ -17,3 +17,5 @@ export {
   GoogleSignInButton,
 } from './auth';
 export { ensureGuestToken, guestAuthHeaders, clearGuestToken } from './guestAuth';
+export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA } from './about';
+export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree } from './about';
