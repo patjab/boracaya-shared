@@ -37,6 +37,10 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys/count' },
   { label: 'admin', method: 'GET', path: '/events' },
+  // events CRUD (cdk#424): create mints the event row + the creator's OWNER
+  // membership edge atomically; DELETE is a soft-archive (cdk#442 D1).
+  { label: 'admin', method: 'POST', path: '/events' },
+  { label: 'admin', method: 'DELETE', path: '/events/{eventId}' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}' },
   { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}' },
@@ -48,6 +52,9 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // the bare public GET /events (list) was REMOVED (cdk#352): unused by every UI and a
   // tenant-enumeration surface; the admin list stays (Valet's access-gate probe, #310).
   { label: 'public', method: 'GET', path: '/events/{eventId}' },
+  // sanitized per-event bootstrap (cdk#424, #442 D2): allowlisted display config +
+  // pages; 404 on unknown/archived. The unsanitized sibling above retires at cdk#426.
+  { label: 'public', method: 'GET', path: '/events/{eventId}/config' },
   { label: 'public', method: 'GET', path: '/events/{eventId}/about' },
   { label: 'public', method: 'GET', path: '/invite' },
   { label: 'public', method: 'GET', path: '/moments' },
