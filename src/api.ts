@@ -110,3 +110,33 @@ export const ApiConstants = {
     MOMENTS_OFFICIAL_MANIFEST: `${MOMENTS_BASE}/uploads/official/manifest.json`,
     MOMENTS_OFFICIAL_BOOT: `${MOMENTS_BASE}/uploads/official/_boot.json`,
 } as const;
+
+/**
+ * Event-scoped admin endpoints (cdk#396 / admin#101): the URL names the TARGET event;
+ * the caller's Google ID token plus the server-side membership check authorize it
+ * (the shipped About-PUT pattern, generalized). One builder per lane so no consumer
+ * ever hand-assembles a path; eventId/templateId/email are URI-encoded here.
+ * The flat ApiConstants forms above remain until the Valet migration completes
+ * (cdk#405 removes them).
+ */
+export const AdminEventApi = {
+    config: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}`,
+    pagesOrder: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/pages/order`,
+    about: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/about`,
+    rsvps: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/rsvp`,
+    invites: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invite`,
+    scramble: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble`,
+    scrambleIncrement: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble/increment`,
+    precheckins: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/precheckins`,
+    precheckinByEmail: (eventId: string, email: string) =>
+        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/precheckins/${encodeURIComponent(email)}`,
+    moments: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/moments`,
+    momentsPublic: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/moments/public`,
+    templates: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/templates`,
+    template: (eventId: string, templateId: string) =>
+        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/templates/${encodeURIComponent(templateId)}`,
+    emailTemplate: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/email-template`,
+    surveys: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys`,
+    surveyCounts: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys/count`,
+} as const;
+

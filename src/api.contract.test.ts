@@ -84,3 +84,50 @@ describe('SiteUrls — site/page links', () => {
         expect(u.host).not.toBe('');
     });
 });
+
+// ── Event-scoped admin lanes (cdk#396 / admin#101) ────────────────────────────
+// Lock each builder's resource path (host-independent, like the blocks above) and
+// the URI-encoding of caller-supplied segments — the URL names the target event,
+// so a raw '/' or '?' in an id must never restructure the path.
+import { AdminEventApi } from './api';
+
+describe('AdminEventApi contract', () => {
+    const EXPECTED_EVENT_PATHS: Record<string, string> = {
+        config: '/events/e-1',
+        pagesOrder: '/events/e-1/pages/order',
+        about: '/events/e-1/about',
+        rsvps: '/events/e-1/rsvp',
+        invites: '/events/e-1/invite',
+        scramble: '/events/e-1/scramble',
+        scrambleIncrement: '/events/e-1/scramble/increment',
+        precheckins: '/events/e-1/precheckins',
+        moments: '/events/e-1/moments',
+        momentsPublic: '/events/e-1/moments/public',
+        templates: '/events/e-1/templates',
+        emailTemplate: '/events/e-1/email-template',
+        surveys: '/events/e-1/surveys',
+        surveyCounts: '/events/e-1/surveys/count',
+    };
+
+    it('covers every single-argument builder', () => {
+        const singleArg = Object.keys(AdminEventApi).filter(
+            (k) => !['precheckinByEmail', 'template'].includes(k));
+        expect(singleArg.sort()).toEqual(Object.keys(EXPECTED_EVENT_PATHS).sort());
+    });
+
+    it.each(Object.entries(EXPECTED_EVENT_PATHS))('%s -> %s', (key, path) => {
+        const url = (AdminEventApi as Record<string, (id: string) => string>)[key]('e-1');
+        expect(resourcePath(url)).toBe(path);
+        expect(new URL(url).hostname).toMatch(/^admin-api\./);
+    });
+
+    it('two-argument builders place both encoded segments', () => {
+        expect(resourcePath(AdminEventApi.template('e-1', 't 1'))).toBe('/events/e-1/templates/t%201');
+        expect(resourcePath(AdminEventApi.precheckinByEmail('e-1', 'a+b@x.co')))
+            .toBe('/events/e-1/precheckins/a%2Bb%40x.co');
+    });
+
+    it('URI-encodes hostile eventIds instead of restructuring the path', () => {
+        expect(resourcePath(AdminEventApi.rsvps('a/b?c'))).toBe('/events/a%2Fb%3Fc/rsvp');
+    });
+});

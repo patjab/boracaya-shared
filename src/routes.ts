@@ -12,6 +12,26 @@ export interface ApiRoute {
 }
 
 export const ApiRoutes: readonly ApiRoute[] = [
+  // Event-scoped admin lanes (cdk#396 / admin#101): the URL names the target event,
+  // the JWT + server-side membership check authorizes it (the shipped About pattern).
+  // The flat legacy forms below remain until the Valet migration completes (cdk#405).
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/rsvp' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/invite' },
+  { label: 'admin', method: 'PATCH', path: '/events/{eventId}/invite' },
+  { label: 'admin', method: 'POST', path: '/events/{eventId}/scramble' },
+  { label: 'admin', method: 'PATCH', path: '/events/{eventId}/scramble/increment' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/precheckins' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/precheckins/{email}' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/moments' },
+  { label: 'admin', method: 'PATCH', path: '/events/{eventId}/moments' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/moments/public' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/templates' },
+  { label: 'admin', method: 'PUT', path: '/events/{eventId}/templates' },
+  { label: 'admin', method: 'PATCH', path: '/events/{eventId}/templates' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/templates/{templateId}' },
+  { label: 'admin', method: 'POST', path: '/events/{eventId}/email-template' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys/count' },
   { label: 'admin', method: 'GET', path: '/events' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}' },
   { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
