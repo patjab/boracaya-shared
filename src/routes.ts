@@ -14,7 +14,6 @@ export interface ApiRoute {
 export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'admin', method: 'GET', path: '/events' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}' },
-  { label: 'admin', method: 'GET', path: '/events/{eventId}/subevents' },
   { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
   { label: 'admin', method: 'GET', path: '/invite' },
   { label: 'admin', method: 'GET', path: '/moments' },
@@ -23,7 +22,6 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'admin', method: 'GET', path: '/templates/{templateId}' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/pages/order' },
-  { label: 'admin', method: 'PATCH', path: '/events/{eventId}/subevents' },
   { label: 'admin', method: 'GET', path: '/pda-boracay-precheckins' },
   { label: 'admin', method: 'GET', path: '/rsvp' },
   { label: 'admin', method: 'PATCH', path: '/invite' },
@@ -41,7 +39,6 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // tenant-enumeration surface; the admin list stays (Valet's access-gate probe, #310).
   { label: 'public', method: 'GET', path: '/events/{eventId}' },
   { label: 'public', method: 'GET', path: '/events/{eventId}/about' },
-  { label: 'public', method: 'GET', path: '/events/{eventId}/subevents' },
   { label: 'public', method: 'GET', path: '/invite' },
   { label: 'public', method: 'GET', path: '/moments' },
   { label: 'public', method: 'GET', path: '/moments/public' },
