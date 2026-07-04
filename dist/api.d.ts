@@ -5,6 +5,7 @@ export declare const ApiConstants: {
     readonly INCREMENT_COUNT_OF_INVITE_SENT: `${string}/scramble/increment`;
     readonly SET_INVITED_BY: `${string}/invite`;
     readonly AUTH_EXCHANGE: `${string}/auth/exchange`;
+    readonly AUTH_CLAIM: `${string}/auth/claim`;
     readonly GET_RSVPS: `${string}/rsvp`;
     readonly GET_ALL_RSVPS: `${string}/rsvp`;
     readonly GET_PRECHECKINS: `${string}/pda-boracay-precheckins`;

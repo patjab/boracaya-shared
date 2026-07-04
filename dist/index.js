@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.clearGuestToken = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.SiteUrls = exports.AdminEventApi = exports.ApiConstants = void 0;
+exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.claimIdentity = exports.clearGuestToken = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.SiteUrls = exports.AdminEventApi = exports.ApiConstants = void 0;
 var api_1 = require("./api");
 Object.defineProperty(exports, "ApiConstants", { enumerable: true, get: function () { return api_1.ApiConstants; } });
 Object.defineProperty(exports, "AdminEventApi", { enumerable: true, get: function () { return api_1.AdminEventApi; } });
@@ -33,6 +33,7 @@ var guestAuth_1 = require("./guestAuth");
 Object.defineProperty(exports, "ensureGuestToken", { enumerable: true, get: function () { return guestAuth_1.ensureGuestToken; } });
 Object.defineProperty(exports, "guestAuthHeaders", { enumerable: true, get: function () { return guestAuth_1.guestAuthHeaders; } });
 Object.defineProperty(exports, "clearGuestToken", { enumerable: true, get: function () { return guestAuth_1.clearGuestToken; } });
+Object.defineProperty(exports, "claimIdentity", { enumerable: true, get: function () { return guestAuth_1.claimIdentity; } });
 var about_1 = require("./about");
 Object.defineProperty(exports, "ABOUT_BLOCK_TYPES", { enumerable: true, get: function () { return about_1.ABOUT_BLOCK_TYPES; } });
 Object.defineProperty(exports, "ABOUT_PAGE_FIELDS", { enumerable: true, get: function () { return about_1.ABOUT_PAGE_FIELDS; } });

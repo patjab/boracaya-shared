@@ -9,6 +9,7 @@ export { useGuardedLoad } from './hooks/useGuardedLoad';
 export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data';
 export type { GuardedState } from './data';
 export { initAuth, signOut, getIdToken, authHeaders, getEmail, GoogleSignInButton, } from './auth';
-export { ensureGuestToken, guestAuthHeaders, clearGuestToken } from './guestAuth';
+export { ensureGuestToken, guestAuthHeaders, clearGuestToken, claimIdentity } from './guestAuth';
+export type { ClaimCandidate, ClaimResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree } from './about';

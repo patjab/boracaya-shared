@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureGuestToken = ensureGuestToken;
 exports.guestAuthHeaders = guestAuthHeaders;
+exports.claimIdentity = claimIdentity;
 exports.clearGuestToken = clearGuestToken;
 // Guest token for the reservations API (pda-boracay-cdk #296 / #100 Phase 1).
 //
@@ -35,7 +36,13 @@ function readValid(userId) {
 }
 // Dedup concurrent exchanges for the same userId (several reservations calls fire on mount).
 const inFlight = new Map();
+// A claim supersedes any in-flight exchange (#439 review): reservations calls firing on
+// mount can have an exchange for the OLD identity in flight while claimIdentity() lands
+// the canonical one — a stale exchange must not clobber the freshly claimed cache entry.
+// Each claim bumps the generation; an exchange only writes if its snapshot still matches.
+let cacheGeneration = 0;
 async function exchange(userId) {
+    const generation = cacheGeneration;
     try {
         const res = await fetch(api_1.ApiConstants.AUTH_EXCHANGE, {
             method: 'POST',
@@ -47,8 +54,10 @@ async function exchange(userId) {
         if (!res.ok)
             return null;
         const { token, exp } = (await res.json());
-        sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId }));
-        return token;
+        if (generation === cacheGeneration) {
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId }));
+        }
+        return token; // still valid for THIS caller's request even when superseded
     }
     catch (_a) {
         return null;
@@ -75,6 +84,35 @@ async function ensureGuestToken(userId) {
 async function guestAuthHeaders(userId) {
     const token = await ensureGuestToken(userId);
     return token ? { Authorization: `Bearer ${token}` } : {};
+}
+async function claimIdentity(params) {
+    try {
+        const res = await fetch(api_1.ApiConstants.AUTH_CLAIM, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+        });
+        if (res.status === 200) {
+            // The response's userId is the CANONICAL identity — after a merge it differs
+            // from params.userId (the invite link's provisional id); never conflate them.
+            const { token, exp, userId: canonicalUserId, claimed } = (await res.json());
+            cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId: canonicalUserId }));
+            return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true };
+        }
+        if (res.status === 404)
+            return { kind: 'none' };
+        if (res.status === 401)
+            return { kind: 'invalid' };
+        if (res.status === 409) {
+            const { candidates } = (await res.json());
+            return { kind: 'chooser', candidates: Array.isArray(candidates) ? candidates : [] };
+        }
+        return { kind: 'error' };
+    }
+    catch (_a) {
+        return { kind: 'error' };
+    }
 }
 /** Drop the cached guest token (e.g. on identity change / sign-out). */
 function clearGuestToken() {
