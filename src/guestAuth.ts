@@ -22,16 +22,21 @@ interface StoredToken {
   token: string;
   exp: number; // unix seconds (from the exchange response)
   userId: string;
+  /** The event the token was minted against (cdk#427): tokens are event-scoped —
+   *  a cached one must never satisfy a DIFFERENT event's calls, or a stale entry
+   *  would suppress the fresh (membership-validating) exchange for that event. */
+  eventId: string;
 }
 
-function readValid(userId: string): string | null {
+function readValid(eventId: string, userId: string): string | null {
   const raw = sessionStorage.getItem(TOKEN_KEY);
   if (!raw) return null;
   try {
     const s = JSON.parse(raw) as StoredToken;
-    if (s.userId === userId && s.token && s.exp * 1000 - SKEW_MS > Date.now()) return s.token;
+    if (s.eventId === eventId && s.userId === userId && s.token
+        && s.exp * 1000 - SKEW_MS > Date.now()) return s.token;
   } catch {
-    /* corrupt entry -> treat as absent */
+    /* corrupt entry (incl. pre-#427 entries without eventId) -> treat as absent */
   }
   return null;
 }
@@ -58,7 +63,7 @@ async function exchange(eventId: string, userId: string): Promise<string | null>
     if (!res.ok) return null;
     const { token, exp } = (await res.json()) as { token: string; exp: number };
     if (generation === cacheGeneration) {
-      sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId } as StoredToken));
+      sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId } as StoredToken));
     }
     return token; // still valid for THIS caller's request even when superseded
   } catch {
@@ -77,7 +82,7 @@ export async function ensureGuestToken(
   userId: string | null | undefined,
 ): Promise<string | null> {
   if (!eventId || !userId) return null;
-  const cached = readValid(userId);
+  const cached = readValid(eventId, userId);
   if (cached) return cached;
   const flightKey = `${eventId}:${userId}`;
   let p = inFlight.get(flightKey);
@@ -153,7 +158,7 @@ export async function claimIdentity(params: {
       cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
       sessionStorage.setItem(
         TOKEN_KEY,
-        JSON.stringify({ token, exp, userId: canonicalUserId } as StoredToken),
+        JSON.stringify({ token, exp, userId: canonicalUserId, eventId } as StoredToken),
       );
       return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true };
     }

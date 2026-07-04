@@ -22,17 +22,18 @@ const TOKEN_KEY = 'pdab_guest_token';
 // Refresh a little before the real edge so an in-flight request never carries a token that
 // expires mid-flight.
 const SKEW_MS = 30000;
-function readValid(userId) {
+function readValid(eventId, userId) {
     const raw = sessionStorage.getItem(TOKEN_KEY);
     if (!raw)
         return null;
     try {
         const s = JSON.parse(raw);
-        if (s.userId === userId && s.token && s.exp * 1000 - SKEW_MS > Date.now())
+        if (s.eventId === eventId && s.userId === userId && s.token
+            && s.exp * 1000 - SKEW_MS > Date.now())
             return s.token;
     }
     catch (_a) {
-        /* corrupt entry -> treat as absent */
+        /* corrupt entry (incl. pre-#427 entries without eventId) -> treat as absent */
     }
     return null;
 }
@@ -57,7 +58,7 @@ async function exchange(eventId, userId) {
             return null;
         const { token, exp } = (await res.json());
         if (generation === cacheGeneration) {
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId }));
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId }));
         }
         return token; // still valid for THIS caller's request even when superseded
     }
@@ -74,7 +75,7 @@ async function exchange(eventId, userId) {
 async function ensureGuestToken(eventId, userId) {
     if (!eventId || !userId)
         return null;
-    const cached = readValid(userId);
+    const cached = readValid(eventId, userId);
     if (cached)
         return cached;
     const flightKey = `${eventId}:${userId}`;
@@ -103,7 +104,7 @@ async function claimIdentity(params) {
             // from params.userId (the invite link's provisional id); never conflate them.
             const { token, exp, userId: canonicalUserId, claimed } = (await res.json());
             cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId: canonicalUserId }));
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId: canonicalUserId, eventId }));
             return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true };
         }
         if (res.status === 404)
