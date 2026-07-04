@@ -33,7 +33,8 @@ function readValid(eventId, userId) {
             return s.token;
     }
     catch (_a) {
-        /* corrupt entry (incl. pre-#427 entries without eventId) -> treat as absent */
+        /* corrupt entry -> treat as absent (a pre-#427 entry without eventId parses
+           fine and is rejected by the eventId equality check above instead) */
     }
     return null;
 }
@@ -78,7 +79,8 @@ async function ensureGuestToken(eventId, userId) {
     const cached = readValid(eventId, userId);
     if (cached)
         return cached;
-    const flightKey = `${eventId}:${userId}`;
+    // JSON-encoded composite: collision-free even if an id ever contained ':'.
+    const flightKey = JSON.stringify([eventId, userId]);
     let p = inFlight.get(flightKey);
     if (!p) {
         p = exchange(eventId, userId).finally(() => inFlight.delete(flightKey));
