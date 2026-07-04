@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.clearGuestToken = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.SiteUrls = exports.ApiConstants = void 0;
+exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.clearGuestToken = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.SiteUrls = exports.AdminEventApi = exports.ApiConstants = void 0;
 var api_1 = require("./api");
 Object.defineProperty(exports, "ApiConstants", { enumerable: true, get: function () { return api_1.ApiConstants; } });
+Object.defineProperty(exports, "AdminEventApi", { enumerable: true, get: function () { return api_1.AdminEventApi; } });
 var siteUrls_1 = require("./siteUrls");
 Object.defineProperty(exports, "SiteUrls", { enumerable: true, get: function () { return siteUrls_1.SiteUrls; } });
 var routes_1 = require("./routes");
