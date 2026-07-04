@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AdminEventApi = exports.ApiConstants = void 0;
+exports.GuestEventApi = exports.AdminEventApi = exports.ApiConstants = void 0;
 // API endpoints. Each REST API is fronted by a stable per-frontend custom domain
 // with an EMPTY base path (e.g. public-api.pdaboracay.com), so the request path
 // the Lambda sees stays `/events/…` (no base-path prefix — a base path would be
@@ -123,4 +123,26 @@ exports.AdminEventApi = {
     emailTemplate: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/email-template`,
     surveys: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys`,
     surveyCounts: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys/count`,
+};
+/**
+ * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
+ * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
+ * path segment, never a server-pinned default. The guest-authed lanes
+ * (rsvp/precheckins/uploads) are additionally validated server-side: the token's
+ * guest must have a PROFILE row in the path event (fail closed). The public lanes
+ * (auth/invite/moments-public/wishes/survey) take the path event directly.
+ * The flat ApiConstants forms above remain until the cdk#427 contract step deletes
+ * the flat routes.
+ */
+exports.GuestEventApi = {
+    exchange: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/exchange`,
+    claim: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/claim`,
+    invite: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/invite`,
+    momentsPublic: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/moments/public`,
+    wishes: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/wishes`,
+    survey: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/survey`,
+    rsvp: (eventId) => `${RESERVATIONS_API}/events/${encodeURIComponent(eventId)}/rsvp`,
+    precheckins: (eventId) => `${RESERVATIONS_API}/events/${encodeURIComponent(eventId)}/precheckins`,
+    initiateUpload: (eventId) => `${UPLOAD_API}/events/${encodeURIComponent(eventId)}/initiate`,
+    completeUpload: (eventId) => `${UPLOAD_API}/events/${encodeURIComponent(eventId)}/complete`,
 };

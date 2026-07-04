@@ -70,4 +70,21 @@ exports.ApiRoutes = [
     { label: 'reservations', method: 'GET', path: '/rsvp' },
     { label: 'reservations', method: 'POST', path: '/pda-boracay-precheckins' },
     { label: 'reservations', method: 'PUT', path: '/rsvp' },
+    // Event-scoped GUEST + public lanes (cdk#427 / #386 SI-5): the URL names the target
+    // event. Guest-authed lanes (rsvp/precheckins/uploads) also validate the token's
+    // guest against the path event server-side; the public lanes take the path event
+    // directly. The flat guest forms above retire at the cdk#427 contract step.
+    { label: 'public', method: 'POST', path: '/events/{eventId}/auth/exchange' },
+    { label: 'public', method: 'POST', path: '/events/{eventId}/auth/claim' },
+    { label: 'public', method: 'GET', path: '/events/{eventId}/invite' },
+    { label: 'public', method: 'GET', path: '/events/{eventId}/moments/public' },
+    { label: 'public', method: 'GET', path: '/events/{eventId}/wishes' },
+    { label: 'public', method: 'PUT', path: '/events/{eventId}/wishes' },
+    { label: 'public', method: 'PUT', path: '/events/{eventId}/survey' },
+    { label: 'reservations', method: 'GET', path: '/events/{eventId}/rsvp' },
+    { label: 'reservations', method: 'PUT', path: '/events/{eventId}/rsvp' },
+    { label: 'reservations', method: 'GET', path: '/events/{eventId}/precheckins' },
+    { label: 'reservations', method: 'POST', path: '/events/{eventId}/precheckins' },
+    { label: 'moments', method: 'POST', path: '/events/{eventId}/initiate' },
+    { label: 'moments', method: 'POST', path: '/events/{eventId}/complete' },
 ];

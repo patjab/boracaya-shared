@@ -146,3 +146,26 @@ export const AdminEventApi = {
     surveyCounts: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys/count`,
 } as const;
 
+/**
+ * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
+ * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
+ * path segment, never a server-pinned default. The guest-authed lanes
+ * (rsvp/precheckins/uploads) are additionally validated server-side: the token's
+ * guest must have a PROFILE row in the path event (fail closed). The public lanes
+ * (auth/invite/moments-public/wishes/survey) take the path event directly.
+ * The flat ApiConstants forms above remain until the cdk#427 contract step deletes
+ * the flat routes.
+ */
+export const GuestEventApi = {
+    exchange: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/exchange`,
+    claim: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/claim`,
+    invite: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/invite`,
+    momentsPublic: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/moments/public`,
+    wishes: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/wishes`,
+    survey: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/survey`,
+    rsvp: (eventId: string) => `${RESERVATIONS_API}/events/${encodeURIComponent(eventId)}/rsvp`,
+    precheckins: (eventId: string) => `${RESERVATIONS_API}/events/${encodeURIComponent(eventId)}/precheckins`,
+    initiateUpload: (eventId: string) => `${UPLOAD_API}/events/${encodeURIComponent(eventId)}/initiate`,
+    completeUpload: (eventId: string) => `${UPLOAD_API}/events/${encodeURIComponent(eventId)}/complete`,
+} as const;
+

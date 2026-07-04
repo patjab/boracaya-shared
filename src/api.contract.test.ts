@@ -133,3 +133,39 @@ describe('AdminEventApi contract', () => {
         expect(resourcePath(AdminEventApi.rsvps('a/b?c'))).toBe('/events/a%2Fb%3Fc/rsvp');
     });
 });
+
+// ── Event-scoped guest/public lanes (cdk#427 / #386 SI-5) ─────────────────────
+// Same contract style: lock each builder's resource path and its target API host,
+// and the URI-encoding of the caller-supplied eventId.
+import { GuestEventApi } from './api';
+
+describe('GuestEventApi contract', () => {
+    // builder -> [resource path for eventId 'e-1', expected host prefix]
+    const EXPECTED: Record<keyof typeof GuestEventApi, [string, RegExp]> = {
+        exchange: ['/events/e-1/auth/exchange', /^public-api\./],
+        claim: ['/events/e-1/auth/claim', /^public-api\./],
+        invite: ['/events/e-1/invite', /^public-api\./],
+        momentsPublic: ['/events/e-1/moments/public', /^public-api\./],
+        wishes: ['/events/e-1/wishes', /^public-api\./],
+        survey: ['/events/e-1/survey', /^public-api\./],
+        rsvp: ['/events/e-1/rsvp', /^reservations-api\./],
+        precheckins: ['/events/e-1/precheckins', /^reservations-api\./],
+        // Node (no window) resolves the prod host: share-api fronts the moments lambda.
+        initiateUpload: ['/events/e-1/initiate', /^share-api\./],
+        completeUpload: ['/events/e-1/complete', /^share-api\./],
+    };
+
+    it('covers every builder', () => {
+        expect(Object.keys(GuestEventApi).sort()).toEqual(Object.keys(EXPECTED).sort());
+    });
+
+    it.each(Object.entries(EXPECTED))('%s -> %s', (key, [path, hostRe]) => {
+        const url = (GuestEventApi as Record<string, (id: string) => string>)[key]('e-1');
+        expect(resourcePath(url)).toBe(path);
+        expect(new URL(url).hostname).toMatch(hostRe);
+    });
+
+    it('URI-encodes hostile eventIds instead of restructuring the path', () => {
+        expect(resourcePath(GuestEventApi.rsvp('a/b?c'))).toBe('/events/a%2Fb%3Fc/rsvp');
+    });
+});

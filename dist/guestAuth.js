@@ -6,10 +6,12 @@ exports.claimIdentity = claimIdentity;
 exports.clearGuestToken = clearGuestToken;
 // Guest token for the reservations API (pda-boracay-cdk #296 / #100 Phase 1).
 //
-// A guest arrives via a ?invited=<userId> link. This module exchanges that userId for a
-// short-lived, guest-scoped JWT (POST /auth/exchange) and caches it in sessionStorage, so
-// the reservations calls (RSVP / pre-check-in) can send `Authorization: Bearer <jwt>`. The
-// invite link IS the credential — same trust model as the link itself.
+// A guest arrives via a /e/<eventId>/?invited=<userId> link. This module exchanges that
+// userId for a short-lived, guest-scoped JWT (POST /events/{eventId}/auth/exchange,
+// cdk#427: the exchange is event-scoped — the path names the event whose membership
+// authorizes the mint) and caches it in sessionStorage, so the reservations calls
+// (RSVP / pre-check-in) can send `Authorization: Bearer <jwt>`. The invite link IS the
+// credential — same trust model as the link itself.
 //
 // Distinct from auth.ts: that holds the Google ID token (the admin / check-in sign-in);
 // this is the per-guest reservations token, keyed to the invited userId. sessionStorage is
@@ -41,10 +43,10 @@ const inFlight = new Map();
 // the canonical one — a stale exchange must not clobber the freshly claimed cache entry.
 // Each claim bumps the generation; an exchange only writes if its snapshot still matches.
 let cacheGeneration = 0;
-async function exchange(userId) {
+async function exchange(eventId, userId) {
     const generation = cacheGeneration;
     try {
-        const res = await fetch(api_1.ApiConstants.AUTH_EXCHANGE, {
+        const res = await fetch(api_1.GuestEventApi.exchange(eventId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
@@ -64,33 +66,37 @@ async function exchange(userId) {
     }
 }
 /**
- * Return a valid guest token for this userId, exchanging + caching if needed. Never throws;
- * returns null when there's no userId or the exchange fails.
+ * Return a valid guest token for this userId, exchanging + caching if needed. The exchange
+ * is event-scoped (cdk#427): `eventId` is the SPA's path tenant, and the mint succeeds only
+ * if the userId resolves to an invitation in THAT event. Never throws; returns null when
+ * either id is missing or the exchange fails.
  */
-async function ensureGuestToken(userId) {
-    if (!userId)
+async function ensureGuestToken(eventId, userId) {
+    if (!eventId || !userId)
         return null;
     const cached = readValid(userId);
     if (cached)
         return cached;
-    let p = inFlight.get(userId);
+    const flightKey = `${eventId}:${userId}`;
+    let p = inFlight.get(flightKey);
     if (!p) {
-        p = exchange(userId).finally(() => inFlight.delete(userId));
-        inFlight.set(userId, p);
+        p = exchange(eventId, userId).finally(() => inFlight.delete(flightKey));
+        inFlight.set(flightKey, p);
     }
     return p;
 }
 /** Authorization header for a reservations call, or {} when no token is available. */
-async function guestAuthHeaders(userId) {
-    const token = await ensureGuestToken(userId);
+async function guestAuthHeaders(eventId, userId) {
+    const token = await ensureGuestToken(eventId, userId);
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 async function claimIdentity(params) {
     try {
-        const res = await fetch(api_1.ApiConstants.AUTH_CLAIM, {
+        const { eventId, ...body } = params;
+        const res = await fetch(api_1.GuestEventApi.claim(eventId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params),
+            body: JSON.stringify(body),
         });
         if (res.status === 200) {
             // The response's userId is the CANONICAL identity — after a merge it differs

@@ -60,3 +60,25 @@ export declare const AdminEventApi: {
     readonly surveys: (eventId: string) => string;
     readonly surveyCounts: (eventId: string) => string;
 };
+/**
+ * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
+ * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
+ * path segment, never a server-pinned default. The guest-authed lanes
+ * (rsvp/precheckins/uploads) are additionally validated server-side: the token's
+ * guest must have a PROFILE row in the path event (fail closed). The public lanes
+ * (auth/invite/moments-public/wishes/survey) take the path event directly.
+ * The flat ApiConstants forms above remain until the cdk#427 contract step deletes
+ * the flat routes.
+ */
+export declare const GuestEventApi: {
+    readonly exchange: (eventId: string) => string;
+    readonly claim: (eventId: string) => string;
+    readonly invite: (eventId: string) => string;
+    readonly momentsPublic: (eventId: string) => string;
+    readonly wishes: (eventId: string) => string;
+    readonly survey: (eventId: string) => string;
+    readonly rsvp: (eventId: string) => string;
+    readonly precheckins: (eventId: string) => string;
+    readonly initiateUpload: (eventId: string) => string;
+    readonly completeUpload: (eventId: string) => string;
+};
