@@ -15,6 +15,7 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'POST', path: '/events/{eventId}/scramble' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/scramble/increment' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/precheckins' },
+    { label: 'admin', method: 'POST', path: '/events/{eventId}/precheckins' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/precheckins/{email}' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/moments' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/moments' },
