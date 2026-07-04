@@ -66,6 +66,9 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'public', method: 'GET', path: '/surveys/count' },
   { label: 'public', method: 'GET', path: '/wishes' },
   { label: 'public', method: 'POST', path: '/auth/exchange' },
+  // identity claim (cdk#438, #373 D2/D3): reconciles the invite-link identity with a
+  // verified Google email — bind / merge / chooser-409; same lambda as the exchange.
+  { label: 'public', method: 'POST', path: '/auth/claim' },
   { label: 'public', method: 'PUT', path: '/survey' },
   { label: 'public', method: 'PUT', path: '/wishes' },
   { label: 'reservations', method: 'GET', path: '/pda-boracay-precheckins' },
