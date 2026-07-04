@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ApiConstants = void 0;
+exports.AdminEventApi = exports.ApiConstants = void 0;
 // API endpoints. Each REST API is fronted by a stable per-frontend custom domain
 // with an EMPTY base path (e.g. public-api.pdaboracay.com), so the request path
 // the Lambda sees stays `/events/…` (no base-path prefix — a base path would be
@@ -91,4 +91,30 @@ exports.ApiConstants = {
     // Moments "Official" gallery — static objects served by CloudFront.
     MOMENTS_OFFICIAL_MANIFEST: `${MOMENTS_BASE}/uploads/official/manifest.json`,
     MOMENTS_OFFICIAL_BOOT: `${MOMENTS_BASE}/uploads/official/_boot.json`,
+};
+/**
+ * Event-scoped admin endpoints (cdk#396 / admin#101): the URL names the TARGET event;
+ * the caller's Google ID token plus the server-side membership check authorize it
+ * (the shipped About-PUT pattern, generalized). One builder per lane so no consumer
+ * ever hand-assembles a path; eventId/templateId/email are URI-encoded here.
+ * The flat ApiConstants forms above remain until the Valet migration completes
+ * (cdk#405 removes them).
+ */
+exports.AdminEventApi = {
+    config: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}`,
+    pagesOrder: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/pages/order`,
+    about: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/about`,
+    rsvps: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/rsvp`,
+    invites: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invite`,
+    scramble: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble`,
+    scrambleIncrement: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble/increment`,
+    precheckins: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/precheckins`,
+    precheckinByEmail: (eventId, email) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/precheckins/${encodeURIComponent(email)}`,
+    moments: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/moments`,
+    momentsPublic: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/moments/public`,
+    templates: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/templates`,
+    template: (eventId, templateId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/templates/${encodeURIComponent(templateId)}`,
+    emailTemplate: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/email-template`,
+    surveys: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys`,
+    surveyCounts: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys/count`,
 };

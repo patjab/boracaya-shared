@@ -1,4 +1,4 @@
-export { ApiConstants } from './api';
+export { ApiConstants, AdminEventApi } from './api';
 export { SiteUrls } from './siteUrls';
 export { ApiRoutes } from './routes';
 export type { ApiRoute } from './routes';

@@ -31,3 +31,29 @@ export declare const ApiConstants: {
     readonly MOMENTS_OFFICIAL_MANIFEST: `${string}/uploads/official/manifest.json`;
     readonly MOMENTS_OFFICIAL_BOOT: `${string}/uploads/official/_boot.json`;
 };
+/**
+ * Event-scoped admin endpoints (cdk#396 / admin#101): the URL names the TARGET event;
+ * the caller's Google ID token plus the server-side membership check authorize it
+ * (the shipped About-PUT pattern, generalized). One builder per lane so no consumer
+ * ever hand-assembles a path; eventId/templateId/email are URI-encoded here.
+ * The flat ApiConstants forms above remain until the Valet migration completes
+ * (cdk#405 removes them).
+ */
+export declare const AdminEventApi: {
+    readonly config: (eventId: string) => string;
+    readonly pagesOrder: (eventId: string) => string;
+    readonly about: (eventId: string) => string;
+    readonly rsvps: (eventId: string) => string;
+    readonly invites: (eventId: string) => string;
+    readonly scramble: (eventId: string) => string;
+    readonly scrambleIncrement: (eventId: string) => string;
+    readonly precheckins: (eventId: string) => string;
+    readonly precheckinByEmail: (eventId: string, email: string) => string;
+    readonly moments: (eventId: string) => string;
+    readonly momentsPublic: (eventId: string) => string;
+    readonly templates: (eventId: string) => string;
+    readonly template: (eventId: string, templateId: string) => string;
+    readonly emailTemplate: (eventId: string) => string;
+    readonly surveys: (eventId: string) => string;
+    readonly surveyCounts: (eventId: string) => string;
+};
