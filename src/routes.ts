@@ -53,7 +53,8 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // tenant-enumeration surface; the admin list stays (Valet's access-gate probe, #310).
   // The unsanitized public GET /events/{eventId} was REMOVED (cdk#442 D3, at the
   // cdk#426 contract tail): it returned the full event row; the sanitized /config
-  // below is the only public per-event read.
+  // below is the only public read of the event CONFIG row (the /about tree below
+  // is a separate, already-public content read).
   // sanitized per-event bootstrap (cdk#424, #442 D2): allowlisted display config +
   // pages; 404 on unknown/archived.
   { label: 'public', method: 'GET', path: '/events/{eventId}/config' },
