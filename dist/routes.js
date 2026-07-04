@@ -8,7 +8,9 @@ exports.ApiRoutes = void 0;
 exports.ApiRoutes = [
     // Event-scoped admin lanes (cdk#396 / admin#101): the URL names the target event,
     // the JWT + server-side membership check authorizes it (the shipped About pattern).
-    // The flat legacy forms below remain until the Valet migration completes (cdk#405).
+    // The flat legacy admin forms were REMOVED (cdk#405) once the Valet migration
+    // (admin#104) stopped calling them; POST / (geo-IP proxy) stays — it is not
+    // event data.
     { label: 'admin', method: 'GET', path: '/events/{eventId}/rsvp' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/invite' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/invite' },
@@ -30,23 +32,9 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'GET', path: '/events' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}' },
     { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
-    { label: 'admin', method: 'GET', path: '/invite' },
-    { label: 'admin', method: 'GET', path: '/moments' },
-    { label: 'admin', method: 'GET', path: '/moments/public' },
-    { label: 'admin', method: 'GET', path: '/templates' },
-    { label: 'admin', method: 'GET', path: '/templates/{templateId}' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/pages/order' },
-    { label: 'admin', method: 'GET', path: '/pda-boracay-precheckins' },
-    { label: 'admin', method: 'GET', path: '/rsvp' },
-    { label: 'admin', method: 'PATCH', path: '/invite' },
-    { label: 'admin', method: 'PATCH', path: '/moments' },
-    { label: 'admin', method: 'PATCH', path: '/scramble/increment' },
-    { label: 'admin', method: 'PATCH', path: '/templates' },
     { label: 'admin', method: 'POST', path: '/' },
-    { label: 'admin', method: 'POST', path: '/email-template' },
-    { label: 'admin', method: 'POST', path: '/scramble' },
-    { label: 'admin', method: 'PUT', path: '/templates' },
     { label: 'moments', method: 'POST', path: '/complete' },
     { label: 'moments', method: 'POST', path: '/initiate' },
     { label: 'moments', method: 'POST', path: '/upload' },
