@@ -18,6 +18,7 @@ exports.ABOUT_BLOCK_TYPES = {
     textSection: {
         type: 'textSection',
         label: 'Text sections',
+        description: 'A stack of headings with paragraphs of text, each with an optional icon.',
         itemNoun: 'section',
         fields: [
             { key: 'icon', label: 'Icon', type: 'icon', help: 'Icon name (e.g. favorite, flight)' },
@@ -28,6 +29,7 @@ exports.ABOUT_BLOCK_TYPES = {
     accordionItem: {
         type: 'accordionItem',
         label: 'Q&A accordion',
+        description: 'Collapsible question-and-answer rows guests tap to expand.',
         itemNoun: 'question',
         fields: [
             { key: 'question', label: 'Question', type: 'text', required: true },
@@ -37,6 +39,7 @@ exports.ABOUT_BLOCK_TYPES = {
     card: {
         type: 'card',
         label: 'Cards',
+        description: 'A grid of tiles, each with an image or icon, a heading, and optional link.',
         itemNoun: 'card',
         fields: [
             { key: 'image', label: 'Image URL', type: 'image', help: 'Shown above the text when set' },
@@ -49,6 +52,7 @@ exports.ABOUT_BLOCK_TYPES = {
     milestone: {
         type: 'milestone',
         label: 'Timeline milestones',
+        description: 'Dated moments laid out along a vertical timeline.',
         itemNoun: 'milestone',
         fields: [
             { key: 'date', label: 'Date', type: 'text', required: true, help: 'Free text, e.g. "Aug 2016"' },
@@ -60,6 +64,7 @@ exports.ABOUT_BLOCK_TYPES = {
     itineraryCard: {
         type: 'itineraryCard',
         label: 'Itinerary cards',
+        description: 'Schedule stops with a date, venue, details, and an optional map.',
         itemNoun: 'stop',
         fields: [
             { key: 'date', label: 'Date', type: 'text', required: true },
@@ -72,6 +77,7 @@ exports.ABOUT_BLOCK_TYPES = {
     galleryImage: {
         type: 'galleryImage',
         label: 'Photo gallery',
+        description: 'A grid of captioned photos guests can open full-size.',
         itemNoun: 'photo',
         fields: [
             { key: 'image', label: 'Image URL', type: 'image', required: true },
@@ -82,6 +88,7 @@ exports.ABOUT_BLOCK_TYPES = {
     video: {
         type: 'video',
         label: 'Videos',
+        description: 'Embedded YouTube videos with an optional title and description.',
         itemNoun: 'video',
         fields: [
             { key: 'title', label: 'Title', type: 'text' },
