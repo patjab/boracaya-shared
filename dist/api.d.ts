@@ -49,6 +49,19 @@ export declare const AdminEventApi: {
     readonly surveyCounts: (eventId: string) => string;
 };
 /**
+ * Account/registration lane (cdk#387, decision cdk#464): identity-level admin-api
+ * endpoints — the caller is any VERIFIED Google identity, membership NOT required
+ * (the identity authorizer verifies the token; the handlers do the rest).
+ * `me` is Valet's post-login probe ({registered, email, events: [...]}) — a
+ * zero-membership sign-in gets a 200 with an empty list instead of the pre-#387
+ * 403 dead end. `register` idempotently upserts the caller's account (PROFILE row
+ * in the memberships table); Valet auto-calls it when `me` reports no account.
+ */
+export declare const AccountApi: {
+    readonly me: `${string}/accounts/me`;
+    readonly register: `${string}/accounts`;
+};
+/**
  * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
  * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
  * path segment, never a server-pinned default. The guest-authed lanes

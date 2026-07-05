@@ -157,3 +157,25 @@ describe('GuestEventApi contract', () => {
         expect(resourcePath(GuestEventApi.rsvp('a/b?c'))).toBe('/events/a%2Fb%3Fc/rsvp');
     });
 });
+
+// ── Account/registration lane (cdk#387, decision cdk#464) ─────────────────────
+// Identity-level admin-api endpoints (no eventId): lock the resource paths and
+// the admin-api host, same style as the blocks above.
+import { AccountApi } from './api';
+
+describe('AccountApi contract', () => {
+    const EXPECTED: Record<keyof typeof AccountApi, string> = {
+        me: '/accounts/me',
+        register: '/accounts',
+    };
+
+    it('covers every endpoint', () => {
+        expect(Object.keys(AccountApi).sort()).toEqual(Object.keys(EXPECTED).sort());
+    });
+
+    it.each(Object.entries(EXPECTED))('%s -> %s', (key, path) => {
+        const url = AccountApi[key as keyof typeof AccountApi];
+        expect(resourcePath(url)).toBe(path);
+        expect(new URL(url).hostname).toMatch(/^admin-api\./);
+    });
+});

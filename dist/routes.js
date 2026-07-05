@@ -34,6 +34,14 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys/count' },
     { label: 'admin', method: 'GET', path: '/events' },
+    // Account/registration lane (cdk#387, decision cdk#464): identity-level routes —
+    // any verified Google identity, no membership required. POST /accounts registers
+    // (idempotent PROFILE upsert); GET /accounts/me is Valet's post-login probe
+    // ({registered, email, events}). POST /events below also rides this lane (a
+    // zero-membership account creates its first event) with a registered-account
+    // guard in the handler.
+    { label: 'admin', method: 'POST', path: '/accounts' },
+    { label: 'admin', method: 'GET', path: '/accounts/me' },
     // events CRUD (cdk#424): create mints the event row + the creator's OWNER
     // membership edge atomically; DELETE is a soft-archive (cdk#442 D1).
     { label: 'admin', method: 'POST', path: '/events' },

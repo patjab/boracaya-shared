@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GuestEventApi = exports.AdminEventApi = exports.ApiConstants = void 0;
+exports.GuestEventApi = exports.AccountApi = exports.AdminEventApi = exports.ApiConstants = void 0;
 // API endpoints. Each REST API is fronted by a stable per-frontend custom domain
 // with an EMPTY base path (e.g. public-api.pdaboracay.com), so the request path
 // the Lambda sees stays `/events/…` (no base-path prefix — a base path would be
@@ -111,6 +111,19 @@ exports.AdminEventApi = {
     emailTemplate: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/email-template`,
     surveys: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys`,
     surveyCounts: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys/count`,
+};
+/**
+ * Account/registration lane (cdk#387, decision cdk#464): identity-level admin-api
+ * endpoints — the caller is any VERIFIED Google identity, membership NOT required
+ * (the identity authorizer verifies the token; the handlers do the rest).
+ * `me` is Valet's post-login probe ({registered, email, events: [...]}) — a
+ * zero-membership sign-in gets a 200 with an empty list instead of the pre-#387
+ * 403 dead end. `register` idempotently upserts the caller's account (PROFILE row
+ * in the memberships table); Valet auto-calls it when `me` reports no account.
+ */
+exports.AccountApi = {
+    me: `${ADMIN_API}/accounts/me`,
+    register: `${ADMIN_API}/accounts`,
 };
 /**
  * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the

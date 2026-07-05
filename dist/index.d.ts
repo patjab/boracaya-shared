@@ -1,4 +1,4 @@
-export { ApiConstants, AdminEventApi, GuestEventApi } from './api';
+export { ApiConstants, AdminEventApi, GuestEventApi, AccountApi } from './api';
 export { SiteUrls } from './siteUrls';
 export { ApiRoutes } from './routes';
 export type { ApiRoute } from './routes';
