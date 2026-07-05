@@ -14,6 +14,10 @@ export interface AboutBlockDef {
     type: string;
     /** organizer-facing name of the block type */
     label: string;
+    /** one-line, guest's-eye description of what this block renders as on the
+     *  site — shown in the content-type picker so the (pick-once) choice is
+     *  informed, not a guess (cdk#487). */
+    description: string;
     /** what one repeated item is called in the editor ("Add <itemNoun>") */
     itemNoun: string;
     fields: AboutFieldDef[];

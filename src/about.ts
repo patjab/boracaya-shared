@@ -29,6 +29,10 @@ export interface AboutBlockDef {
   type: string;
   /** organizer-facing name of the block type */
   label: string;
+  /** one-line, guest's-eye description of what this block renders as on the
+   *  site — shown in the content-type picker so the (pick-once) choice is
+   *  informed, not a guess (cdk#487). */
+  description: string;
   /** what one repeated item is called in the editor ("Add <itemNoun>") */
   itemNoun: string;
   fields: AboutFieldDef[];
@@ -39,6 +43,7 @@ export const ABOUT_BLOCK_TYPES: Record<string, AboutBlockDef> = {
   textSection: {
     type: 'textSection',
     label: 'Text sections',
+    description: 'A stack of headings with paragraphs of text, each with an optional icon.',
     itemNoun: 'section',
     fields: [
       { key: 'icon', label: 'Icon', type: 'icon', help: 'Icon name (e.g. favorite, flight)' },
@@ -49,6 +54,7 @@ export const ABOUT_BLOCK_TYPES: Record<string, AboutBlockDef> = {
   accordionItem: {
     type: 'accordionItem',
     label: 'Q&A accordion',
+    description: 'Collapsible question-and-answer rows guests tap to expand.',
     itemNoun: 'question',
     fields: [
       { key: 'question', label: 'Question', type: 'text', required: true },
@@ -58,6 +64,7 @@ export const ABOUT_BLOCK_TYPES: Record<string, AboutBlockDef> = {
   card: {
     type: 'card',
     label: 'Cards',
+    description: 'A grid of tiles, each with an image or icon, a heading, and optional link.',
     itemNoun: 'card',
     fields: [
       { key: 'image', label: 'Image URL', type: 'image', help: 'Shown above the text when set' },
@@ -70,6 +77,7 @@ export const ABOUT_BLOCK_TYPES: Record<string, AboutBlockDef> = {
   milestone: {
     type: 'milestone',
     label: 'Timeline milestones',
+    description: 'Dated moments laid out along a vertical timeline.',
     itemNoun: 'milestone',
     fields: [
       { key: 'date', label: 'Date', type: 'text', required: true, help: 'Free text, e.g. "Aug 2016"' },
@@ -81,6 +89,7 @@ export const ABOUT_BLOCK_TYPES: Record<string, AboutBlockDef> = {
   itineraryCard: {
     type: 'itineraryCard',
     label: 'Itinerary cards',
+    description: 'Schedule stops with a date, venue, details, and an optional map.',
     itemNoun: 'stop',
     fields: [
       { key: 'date', label: 'Date', type: 'text', required: true },
@@ -93,6 +102,7 @@ export const ABOUT_BLOCK_TYPES: Record<string, AboutBlockDef> = {
   galleryImage: {
     type: 'galleryImage',
     label: 'Photo gallery',
+    description: 'A grid of captioned photos guests can open full-size.',
     itemNoun: 'photo',
     fields: [
       { key: 'image', label: 'Image URL', type: 'image', required: true },
@@ -103,6 +113,7 @@ export const ABOUT_BLOCK_TYPES: Record<string, AboutBlockDef> = {
   video: {
     type: 'video',
     label: 'Videos',
+    description: 'Embedded YouTube videos with an optional title and description.',
     itemNoun: 'video',
     fields: [
       { key: 'title', label: 'Title', type: 'text' },
