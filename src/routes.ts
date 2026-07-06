@@ -28,6 +28,11 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'admin', method: 'GET', path: '/events/{eventId}/precheckins' },
   { label: 'admin', method: 'POST', path: '/events/{eventId}/precheckins' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}/precheckins/{email}' },
+  // Custom-stage definitions + responses (cdk#466/#513): the generic stages lane.
+  { label: 'admin', method: 'POST', path: '/events/{eventId}/stages' },
+  { label: 'admin', method: 'PATCH', path: '/events/{eventId}/stages/{stageId}' },
+  { label: 'admin', method: 'DELETE', path: '/events/{eventId}/stages/{stageId}' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/stages/{stageId}/responses' },
   { label: 'admin', method: 'POST', path: '/events/{eventId}/assets' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}/moments' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/moments' },
@@ -84,6 +89,9 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'reservations', method: 'PUT', path: '/events/{eventId}/rsvp' },
   { label: 'reservations', method: 'GET', path: '/events/{eventId}/precheckins' },
   { label: 'reservations', method: 'POST', path: '/events/{eventId}/precheckins' },
+  // The guest's own custom-stage submission (cdk#466/#513).
+  { label: 'reservations', method: 'GET', path: '/events/{eventId}/stages/{stageId}' },
+  { label: 'reservations', method: 'POST', path: '/events/{eventId}/stages/{stageId}' },
   { label: 'moments', method: 'POST', path: '/events/{eventId}/initiate' },
   { label: 'moments', method: 'POST', path: '/events/{eventId}/complete' },
 ];

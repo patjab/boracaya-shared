@@ -90,6 +90,7 @@ describe('AdminEventApi contract', () => {
         scramble: '/events/e-1/scramble',
         scrambleIncrement: '/events/e-1/scramble/increment',
         precheckins: '/events/e-1/precheckins',
+        stages: '/events/e-1/stages',
         assets: '/events/e-1/assets',
         moments: '/events/e-1/moments',
         momentsPublic: '/events/e-1/moments/public',
@@ -101,7 +102,7 @@ describe('AdminEventApi contract', () => {
 
     it('covers every single-argument builder', () => {
         const singleArg = Object.keys(AdminEventApi).filter(
-            (k) => !['precheckinByEmail', 'template'].includes(k));
+            (k) => !['precheckinByEmail', 'template', 'stage', 'stageResponses'].includes(k));
         expect(singleArg.sort()).toEqual(Object.keys(EXPECTED_EVENT_PATHS).sort());
     });
 
@@ -115,6 +116,10 @@ describe('AdminEventApi contract', () => {
         expect(resourcePath(AdminEventApi.template('e-1', 't 1'))).toBe('/events/e-1/templates/t%201');
         expect(resourcePath(AdminEventApi.precheckinByEmail('e-1', 'a+b@x.co')))
             .toBe('/events/e-1/precheckins/a%2Bb%40x.co');
+        expect(resourcePath(AdminEventApi.stage('e-1', 'PRE CHECK')))
+            .toBe('/events/e-1/stages/PRE%20CHECK');
+        expect(resourcePath(AdminEventApi.stageResponses('e-1', 'PRECHECKIN')))
+            .toBe('/events/e-1/stages/PRECHECKIN/responses');
     });
 
     it('URI-encodes hostile eventIds instead of restructuring the path', () => {
@@ -144,7 +149,8 @@ describe('GuestEventApi contract', () => {
     };
 
     it('covers every builder', () => {
-        expect(Object.keys(GuestEventApi).sort()).toEqual(Object.keys(EXPECTED).sort());
+        expect(Object.keys(GuestEventApi).sort())
+            .toEqual([...Object.keys(EXPECTED), 'stage'].sort());
     });
 
     it.each(Object.entries(EXPECTED))('%s -> %s', (key, [path, hostRe]) => {
@@ -155,6 +161,12 @@ describe('GuestEventApi contract', () => {
 
     it('URI-encodes hostile eventIds instead of restructuring the path', () => {
         expect(resourcePath(GuestEventApi.rsvp('a/b?c'))).toBe('/events/a%2Fb%3Fc/rsvp');
+    });
+
+    it('stage submission builder places both encoded segments (cdk#513)', () => {
+        const url = GuestEventApi.stage('e-1', 'PRE CHECK');
+        expect(resourcePath(url)).toBe('/events/e-1/stages/PRE%20CHECK');
+        expect(new URL(url).hostname).toMatch(/^reservations-api\./);
     });
 });
 
