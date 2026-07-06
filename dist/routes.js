@@ -27,6 +27,7 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/stages/{stageId}' },
     { label: 'admin', method: 'DELETE', path: '/events/{eventId}/stages/{stageId}' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/stages/{stageId}/responses' },
+    { label: 'admin', method: 'PATCH', path: '/events/{eventId}/stages/{stageId}/responses/{userId}' },
     { label: 'admin', method: 'POST', path: '/events/{eventId}/assets' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/moments' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/moments' },

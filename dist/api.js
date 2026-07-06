@@ -107,6 +107,9 @@ exports.AdminEventApi = {
     stages: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/stages`,
     stage: (eventId, stageId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
     stageResponses: (eventId, stageId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/responses`,
+    // Admin merge-write on ONE guest's stage response (cdk#529) - the room-block
+    // lane's home after the bespoke precheckin routes retire.
+    stageResponse: (eventId, stageId, userId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/responses/${encodeURIComponent(userId)}`,
     precheckinByEmail: (eventId, email) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/precheckins/${encodeURIComponent(email)}`,
     /** Organizer asset-upload presign (cdk#394): admin-authorized, tenant-prefixed key. */
     assets: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/assets`,

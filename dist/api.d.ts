@@ -41,6 +41,7 @@ export declare const AdminEventApi: {
     readonly stages: (eventId: string) => string;
     readonly stage: (eventId: string, stageId: string) => string;
     readonly stageResponses: (eventId: string, stageId: string) => string;
+    readonly stageResponse: (eventId: string, stageId: string, userId: string) => string;
     readonly precheckinByEmail: (eventId: string, email: string) => string;
     /** Organizer asset-upload presign (cdk#394): admin-authorized, tenant-prefixed key. */
     readonly assets: (eventId: string) => string;
