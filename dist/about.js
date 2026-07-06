@@ -117,6 +117,8 @@ exports.ABOUT_SCHEMA = {
     blockTypes: exports.ABOUT_BLOCK_TYPES,
     pageFields: exports.ABOUT_PAGE_FIELDS,
 };
+// `readonly` so a consumer can't mutate the single source of truth (e.g. `.sort()`
+// or `.push()`) and leave ABOUT_ICON_NAMES a stale snapshot (Copilot review, #48).
 exports.ABOUT_ICONS = [
     { name: 'favorite', label: 'Heart' },
     { name: 'flight', label: 'Flight' },

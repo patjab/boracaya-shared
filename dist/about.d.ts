@@ -38,11 +38,11 @@ export declare const ABOUT_SCHEMA: {
 };
 export interface AboutIconDef {
     /** stable key stored on the field value and looked up by every renderer */
-    name: string;
+    readonly name: string;
     /** human, guest's-eye label — search + a11y in the editor picker */
-    label: string;
+    readonly label: string;
 }
-export declare const ABOUT_ICONS: AboutIconDef[];
+export declare const ABOUT_ICONS: readonly AboutIconDef[];
 /** Just the canonical icon names — handy for drift guards and membership checks. */
 export declare const ABOUT_ICON_NAMES: readonly string[];
 export interface AboutBlock {

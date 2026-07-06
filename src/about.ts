@@ -155,12 +155,14 @@ export const ABOUT_SCHEMA = {
 
 export interface AboutIconDef {
   /** stable key stored on the field value and looked up by every renderer */
-  name: string;
+  readonly name: string;
   /** human, guest's-eye label — search + a11y in the editor picker */
-  label: string;
+  readonly label: string;
 }
 
-export const ABOUT_ICONS: AboutIconDef[] = [
+// `readonly` so a consumer can't mutate the single source of truth (e.g. `.sort()`
+// or `.push()`) and leave ABOUT_ICON_NAMES a stale snapshot (Copilot review, #48).
+export const ABOUT_ICONS: readonly AboutIconDef[] = [
   { name: 'favorite', label: 'Heart' },
   { name: 'flight', label: 'Flight' },
   { name: 'accessTime', label: 'Clock' },
