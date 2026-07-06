@@ -82,6 +82,8 @@ export const ApiConstants = {
 
     // Events (dynamic app config)
     EVENTS: `${PUBLIC_API}/events`,
+    // The public feed of OPEN (inclusivus) events (cdk#468/#508).
+    DISCOVER: `${PUBLIC_API}/discover`,
 
     // Visit analytics
 
@@ -165,6 +167,8 @@ export const AccountApi = {
  * the flat routes.
  */
 export const GuestEventApi = {
+    // Open entry (cdk#468/#508): the invite-less quick RSVP for OPEN events.
+    openRsvp: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/rsvp/open`,
     exchange: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/exchange`,
     claim: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/claim`,
     invite: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/invite`,

@@ -14,6 +14,7 @@ export declare const ApiConstants: {
     readonly TEMPLATES: `${string}/templates`;
     readonly EMAIL_TEMPLATE: `${string}/email-template`;
     readonly EVENTS: `${string}/events`;
+    readonly DISCOVER: `${string}/discover`;
     readonly MOMENTS_ADMIN: `${string}/moments`;
     readonly FACES_CONTROL: string;
     readonly FACES_BOX: string;
@@ -75,6 +76,7 @@ export declare const AccountApi: {
  * the flat routes.
  */
 export declare const GuestEventApi: {
+    readonly openRsvp: (eventId: string) => string;
     readonly exchange: (eventId: string) => string;
     readonly claim: (eventId: string) => string;
     readonly invite: (eventId: string) => string;

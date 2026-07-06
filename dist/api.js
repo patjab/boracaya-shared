@@ -69,6 +69,8 @@ exports.ApiConstants = {
     // Guestbook wishes
     // Events (dynamic app config)
     EVENTS: `${PUBLIC_API}/events`,
+    // The public feed of OPEN (inclusivus) events (cdk#468/#508).
+    DISCOVER: `${PUBLIC_API}/discover`,
     // Visit analytics
     // Media upload (share app). Prod serves this on share-api; the testing mirror serves
     // it on moments-api (the share-api.test domain doesn't exist). Pick per-env so guest
@@ -140,6 +142,8 @@ exports.AccountApi = {
  * the flat routes.
  */
 exports.GuestEventApi = {
+    // Open entry (cdk#468/#508): the invite-less quick RSVP for OPEN events.
+    openRsvp: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/rsvp/open`,
     exchange: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/exchange`,
     claim: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/claim`,
     invite: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/invite`,

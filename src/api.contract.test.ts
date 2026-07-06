@@ -41,6 +41,7 @@ const EXPECTED_PATHS: Record<keyof typeof ApiConstants, string> = {
     TEMPLATES: '/templates',
     EMAIL_TEMPLATE: '/email-template',
     EVENTS: '/events',
+    DISCOVER: '/discover',
     MOMENTS_ADMIN: '/moments',
     FACES_CONTROL: '/',
     FACES_BOX: '/',
@@ -136,6 +137,7 @@ describe('GuestEventApi contract', () => {
     // builder -> [resource path for eventId 'e-1', expected host prefix]
     const EXPECTED: Record<keyof typeof GuestEventApi, [string, RegExp]> = {
         exchange: ['/events/e-1/auth/exchange', /^public-api\./],
+        openRsvp: ['/events/e-1/rsvp/open', /^public-api\./],
         claim: ['/events/e-1/auth/claim', /^public-api\./],
         invite: ['/events/e-1/invite', /^public-api\./],
         momentsPublic: ['/events/e-1/moments/public', /^public-api\./],

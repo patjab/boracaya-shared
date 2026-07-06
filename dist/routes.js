@@ -84,6 +84,12 @@ exports.ApiRoutes = [
     { label: 'reservations', method: 'GET', path: '/events/{eventId}/precheckins' },
     { label: 'reservations', method: 'POST', path: '/events/{eventId}/precheckins' },
     // The guest's own custom-stage submission (cdk#466/#513).
+    // Open entry + discovery (cdk#468, decision #508): the public quick-RSVP for
+    // OPEN events (the handler's preset gate refuses invite-only events) and the
+    // deliberately SCOPED public list of open events (reverses #352 for
+    // inclusivus display cards only).
+    { label: 'public', method: 'POST', path: '/events/{eventId}/rsvp/open' },
+    { label: 'public', method: 'GET', path: '/discover' },
     { label: 'reservations', method: 'GET', path: '/events/{eventId}/stages/{stageId}' },
     { label: 'reservations', method: 'POST', path: '/events/{eventId}/stages/{stageId}' },
     { label: 'moments', method: 'POST', path: '/events/{eventId}/initiate' },
