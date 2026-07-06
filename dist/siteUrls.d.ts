@@ -1,4 +1,4 @@
 export declare const SiteUrls: {
-    readonly PUBLIC: "https://pdaboracay.com";
-    readonly EVENTS_PAGE: "https://pdaboracay.com/events";
+    readonly PUBLIC: "https://boracaya.com";
+    readonly EVENTS_PAGE: "https://boracaya.com/events";
 };

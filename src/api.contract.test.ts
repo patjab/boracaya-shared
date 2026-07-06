@@ -110,7 +110,7 @@ describe('AdminEventApi contract', () => {
     it.each(Object.entries(EXPECTED_EVENT_PATHS))('%s -> %s', (key, path) => {
         const url = (AdminEventApi as Record<string, (id: string) => string>)[key]('e-1');
         expect(resourcePath(url)).toBe(path);
-        expect(new URL(url).hostname).toMatch(/^admin-api\./);
+        expect(new URL(url).hostname).toMatch(/^valet-api\./);
     });
 
     it('multi-argument builders place every encoded segment', () => {
@@ -192,6 +192,6 @@ describe('AccountApi contract', () => {
     it.each(Object.entries(EXPECTED))('%s -> %s', (key, path) => {
         const url = AccountApi[key as keyof typeof AccountApi];
         expect(resourcePath(url)).toBe(path);
-        expect(new URL(url).hostname).toMatch(/^admin-api\./);
+        expect(new URL(url).hostname).toMatch(/^valet-api\./);
     });
 });
