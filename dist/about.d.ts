@@ -27,12 +27,24 @@ export declare const ABOUT_BLOCK_TYPES: Record<string, AboutBlockDef>;
 /** Page-level fields (page chrome — NOT blocks): eyebrow → title → blurb(+video) →
  *  [section label] → body → footer note (+ trailing video, cf. NY Vows). */
 export declare const ABOUT_PAGE_FIELDS: AboutFieldDef[];
-/** The comparable contract object the cdk Lambda bundles a JSON copy of. */
+/** The comparable contract object the cdk Lambda bundles a JSON copy of.
+ *  NOTE: the icon vocabulary below is deliberately NOT part of this object — it's
+ *  editor/render metadata, not validation, so the cdk drift guard (`about_schema.json`)
+ *  stays untouched. */
 export declare const ABOUT_SCHEMA: {
     readonly version: 1;
     readonly blockTypes: Record<string, AboutBlockDef>;
     readonly pageFields: AboutFieldDef[];
 };
+export interface AboutIconDef {
+    /** stable key stored on the field value and looked up by every renderer */
+    readonly name: string;
+    /** human, guest's-eye label — search + a11y in the editor picker */
+    readonly label: string;
+}
+export declare const ABOUT_ICONS: readonly AboutIconDef[];
+/** Just the canonical icon names — handy for drift guards and membership checks. */
+export declare const ABOUT_ICON_NAMES: readonly string[];
 export interface AboutBlock {
     blockId: string;
     order: number;

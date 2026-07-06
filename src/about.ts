@@ -135,12 +135,73 @@ export const ABOUT_PAGE_FIELDS: AboutFieldDef[] = [
   { key: 'footerVideoUrl', label: 'Footer video (YouTube URL)', type: 'youtube', help: 'Embedded after the content (cf. NY Vows)' },
 ];
 
-/** The comparable contract object the cdk Lambda bundles a JSON copy of. */
+/** The comparable contract object the cdk Lambda bundles a JSON copy of.
+ *  NOTE: the icon vocabulary below is deliberately NOT part of this object — it's
+ *  editor/render metadata, not validation, so the cdk drift guard (`about_schema.json`)
+ *  stays untouched. */
 export const ABOUT_SCHEMA = {
   version: 1,
   blockTypes: ABOUT_BLOCK_TYPES,
   pageFields: ABOUT_PAGE_FIELDS,
 } as const;
+
+// ---- icon vocabulary (cdk#492) ---------------------------------------------------
+// The canonical set of named icons an `icon` field may hold. The *value stored* is a
+// name from this list (or a raw emoji, or nothing). This module owns the vocabulary —
+// the valid names + a human label for the editor picker — while each app keeps its own
+// name -> icon-component map (guest renderer, admin picker) keyed off this list, guarded
+// by a drift test so a name here always has a drawing there. Adding an icon = add an
+// entry here + the component in each app's map.
+
+export interface AboutIconDef {
+  /** stable key stored on the field value and looked up by every renderer */
+  readonly name: string;
+  /** human, guest's-eye label — search + a11y in the editor picker */
+  readonly label: string;
+}
+
+// Deep-frozen at runtime (array + every entry) and `readonly` at compile time, so the
+// single source of truth can't be reordered, extended, or edited in place — any of which
+// would leave ABOUT_ICON_NAMES a stale snapshot (Copilot review, #48).
+export const ABOUT_ICONS: readonly AboutIconDef[] = Object.freeze([
+  { name: 'favorite', label: 'Heart' },
+  { name: 'flight', label: 'Flight' },
+  { name: 'accessTime', label: 'Clock' },
+  { name: 'restaurant', label: 'Restaurant' },
+  { name: 'locationCity', label: 'City' },
+  { name: 'celebration', label: 'Celebration' },
+  { name: 'beachAccess', label: 'Beach' },
+  { name: 'localDining', label: 'Dining' },
+  { name: 'directionsBike', label: 'Cycling' },
+  { name: 'calendarToday', label: 'Calendar' },
+  { name: 'sportsKabaddi', label: 'Martial arts' },
+  { name: 'phoneIphone', label: 'Phone' },
+  { name: 'handshake', label: 'Handshake' },
+  { name: 'supervisorAccount', label: 'Group' },
+  { name: 'church', label: 'Church' },
+  { name: 'mic', label: 'Microphone' },
+  { name: 'landscape', label: 'Landscape' },
+  { name: 'sportsTennis', label: 'Tennis' },
+  { name: 'eggAlt', label: 'Egg' },
+  { name: 'directionsCar', label: 'Car' },
+  { name: 'headphones', label: 'Headphones' },
+  { name: 'sailing', label: 'Sailing' },
+  { name: 'diamond', label: 'Diamond' },
+  { name: 'diversity3', label: 'Community' },
+  { name: 'acUnit', label: 'Snowflake' },
+  { name: 'https', label: 'Lock' },
+  { name: 'stadium', label: 'Stadium' },
+  { name: 'masks', label: 'Masks' },
+  { name: 'vaccines', label: 'Vaccine' },
+  { name: 'monetizationOn', label: 'Money' },
+  { name: 'casino', label: 'Dice' },
+  { name: 'home', label: 'Home' },
+  { name: 'moving', label: 'Trending' },
+  { name: 'cake', label: 'Cake' },
+].map((icon) => Object.freeze(icon)));
+
+/** Just the canonical icon names — handy for drift guards and membership checks. */
+export const ABOUT_ICON_NAMES: readonly string[] = Object.freeze(ABOUT_ICONS.map((i) => i.name));
 
 // ---- tree types (the GET/PUT /events/{eventId}/about payload) ---------------------
 

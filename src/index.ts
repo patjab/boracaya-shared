@@ -18,5 +18,5 @@ export {
 } from './auth';
 export { ensureGuestToken, guestAuthHeaders, clearGuestToken, claimIdentity } from './guestAuth';
 export type { ClaimCandidate, ClaimResult } from './guestAuth';
-export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA } from './about';
-export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree } from './about';
+export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
+export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';

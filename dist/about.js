@@ -12,7 +12,7 @@
 // renderers emit values as text nodes). The only rich affordances are the `youtube`
 // field type (rendered as a nocookie embed) and `image`/`link` URLs.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = void 0;
+exports.ABOUT_ICON_NAMES = exports.ABOUT_ICONS = exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = void 0;
 /** The block vocabulary — one entry per approved repeating body block type. */
 exports.ABOUT_BLOCK_TYPES = {
     textSection: {
@@ -108,9 +108,53 @@ exports.ABOUT_PAGE_FIELDS = [
     { key: 'footerNote', label: 'Footer note', type: 'multiline', help: 'Callout under the content, e.g. FAQs’ final note' },
     { key: 'footerVideoUrl', label: 'Footer video (YouTube URL)', type: 'youtube', help: 'Embedded after the content (cf. NY Vows)' },
 ];
-/** The comparable contract object the cdk Lambda bundles a JSON copy of. */
+/** The comparable contract object the cdk Lambda bundles a JSON copy of.
+ *  NOTE: the icon vocabulary below is deliberately NOT part of this object — it's
+ *  editor/render metadata, not validation, so the cdk drift guard (`about_schema.json`)
+ *  stays untouched. */
 exports.ABOUT_SCHEMA = {
     version: 1,
     blockTypes: exports.ABOUT_BLOCK_TYPES,
     pageFields: exports.ABOUT_PAGE_FIELDS,
 };
+// Deep-frozen at runtime (array + every entry) and `readonly` at compile time, so the
+// single source of truth can't be reordered, extended, or edited in place — any of which
+// would leave ABOUT_ICON_NAMES a stale snapshot (Copilot review, #48).
+exports.ABOUT_ICONS = Object.freeze([
+    { name: 'favorite', label: 'Heart' },
+    { name: 'flight', label: 'Flight' },
+    { name: 'accessTime', label: 'Clock' },
+    { name: 'restaurant', label: 'Restaurant' },
+    { name: 'locationCity', label: 'City' },
+    { name: 'celebration', label: 'Celebration' },
+    { name: 'beachAccess', label: 'Beach' },
+    { name: 'localDining', label: 'Dining' },
+    { name: 'directionsBike', label: 'Cycling' },
+    { name: 'calendarToday', label: 'Calendar' },
+    { name: 'sportsKabaddi', label: 'Martial arts' },
+    { name: 'phoneIphone', label: 'Phone' },
+    { name: 'handshake', label: 'Handshake' },
+    { name: 'supervisorAccount', label: 'Group' },
+    { name: 'church', label: 'Church' },
+    { name: 'mic', label: 'Microphone' },
+    { name: 'landscape', label: 'Landscape' },
+    { name: 'sportsTennis', label: 'Tennis' },
+    { name: 'eggAlt', label: 'Egg' },
+    { name: 'directionsCar', label: 'Car' },
+    { name: 'headphones', label: 'Headphones' },
+    { name: 'sailing', label: 'Sailing' },
+    { name: 'diamond', label: 'Diamond' },
+    { name: 'diversity3', label: 'Community' },
+    { name: 'acUnit', label: 'Snowflake' },
+    { name: 'https', label: 'Lock' },
+    { name: 'stadium', label: 'Stadium' },
+    { name: 'masks', label: 'Masks' },
+    { name: 'vaccines', label: 'Vaccine' },
+    { name: 'monetizationOn', label: 'Money' },
+    { name: 'casino', label: 'Dice' },
+    { name: 'home', label: 'Home' },
+    { name: 'moving', label: 'Trending' },
+    { name: 'cake', label: 'Cake' },
+].map((icon) => Object.freeze(icon)));
+/** Just the canonical icon names — handy for drift guards and membership checks. */
+exports.ABOUT_ICON_NAMES = Object.freeze(exports.ABOUT_ICONS.map((i) => i.name));
