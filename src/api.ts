@@ -16,9 +16,8 @@
 // test never silently hits prod data).
 // A page served from either test host (test.pdaboracay.com or test.boracaya.com,
 // cdk#500 rebrand) targets the testing APIs; everything else targets prod.
-const isTestEnv =
-    typeof window !== 'undefined' &&
-    /(^|\.)test\.(pdaboracay|boracaya)\.com$/.test(window.location.hostname);
+// The check itself lives in env.ts (pda-boracay#119) so site links share it.
+import { isTestEnv } from './env';
 
 // Legacy pdaboracay hosts — still the home of the surfaces that have no boracaya
 // twin yet (faces, faces-control, the moments CDN). Everything API-shaped moved

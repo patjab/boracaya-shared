@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ApiConstants } from './api';
 import { SiteUrls } from './siteUrls';
 
@@ -72,6 +72,36 @@ describe('SiteUrls — site/page links', () => {
         expect(u.protocol).toBe('https:');
         expect(u.host).not.toBe('');
     });
+});
+
+// ── SiteUrls.VALET — env-aware console link (pda-boracay#119) ─────────────────
+// The env flag is computed at module load, so each case re-imports siteUrls with
+// a stubbed window. Locks the rule a hand-rolled app copy broke: a page on
+// EITHER test host links test Valet; everything else (incl. no-window) links prod.
+describe('SiteUrls.VALET environment selection', () => {
+    it('resolves prod Valet where window is absent (Node/SSR)', () => {
+        expect(SiteUrls.VALET).toBe('https://valet.boracaya.com');
+    });
+
+    const valetFor = async (hostname: string): Promise<string> => {
+        vi.resetModules();
+        vi.stubGlobal('window', { location: { hostname } });
+        try {
+            return (await import('./siteUrls')).SiteUrls.VALET;
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    };
+
+    it.each(['test.pdaboracay.com', 'test.boracaya.com', 'www.test.boracaya.com'])(
+        'a page on %s links test Valet', async (host) => {
+            expect(await valetFor(host)).toBe('https://valet.test.boracaya.com');
+        });
+
+    it.each(['boracaya.com', 'pdaboracay.com', 'localhost'])(
+        'a page on %s links prod Valet', async (host) => {
+            expect(await valetFor(host)).toBe('https://valet.boracaya.com');
+        });
 });
 
 // ── Event-scoped admin lanes (cdk#396 / admin#101) ────────────────────────────

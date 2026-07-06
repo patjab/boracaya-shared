@@ -19,17 +19,17 @@ exports.GuestEventApi = exports.AccountApi = exports.AdminEventApi = exports.Api
 // test never silently hits prod data).
 // A page served from either test host (test.pdaboracay.com or test.boracaya.com,
 // cdk#500 rebrand) targets the testing APIs; everything else targets prod.
-const isTestEnv = typeof window !== 'undefined' &&
-    /(^|\.)test\.(pdaboracay|boracaya)\.com$/.test(window.location.hostname);
+// The check itself lives in env.ts (pda-boracay#119) so site links share it.
+const env_1 = require("./env");
 // Legacy pdaboracay hosts — still the home of the surfaces that have no boracaya
 // twin yet (faces, faces-control, the moments CDN). Everything API-shaped moved
 // to boracaya below (cdk#500/#501).
-const host = (sub) => `https://${sub}${isTestEnv ? '.test' : ''}.pdaboracay.com`;
+const host = (sub) => `https://${sub}${env_1.isTestEnv ? '.test' : ''}.pdaboracay.com`;
 // boracaya.com API hosts (cdk#500 rebrand; cdk#501 created them in both envs).
 // admin-api is renamed valet-api to match the product. Every UI — including one
 // still served from a legacy pdaboracay host during the transition — calls these;
 // the API CORS allowlists carry both origins.
-const bHost = (sub) => `https://${sub}${isTestEnv ? '.test' : ''}.boracaya.com`;
+const bHost = (sub) => `https://${sub}${env_1.isTestEnv ? '.test' : ''}.boracaya.com`;
 const PUBLIC_API = bHost('public-api');
 const ADMIN_API = bHost('valet-api');
 const RESERVATIONS_API = bHost('reservations-api');
@@ -37,7 +37,7 @@ const SAVETHEDATE_API = host('savethedate-api');
 const SHARE_API = bHost('share-api');
 // Moments upload API: prod = share-api.boracaya.com; testing = moments-api.test.boracaya.com
 // (no share-api.test host exists). Same lambda either way; only the fronting domain differs.
-const UPLOAD_API = isTestEnv ? bHost('moments-api') : SHARE_API;
+const UPLOAD_API = env_1.isTestEnv ? bHost('moments-api') : SHARE_API;
 const FACES_CONTROL_API = host('faces-control');
 const FACES_BOX_BASE = host('faces');
 const MOMENTS_BASE = host('moments');
