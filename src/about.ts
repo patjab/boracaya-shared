@@ -160,9 +160,9 @@ export interface AboutIconDef {
   readonly label: string;
 }
 
-// Frozen at runtime (and `readonly` at compile time) so the single source of truth
-// can't be reordered or extended — a `.sort()`/`.push()`/`.splice()` would otherwise
-// leave ABOUT_ICON_NAMES a stale snapshot (Copilot review, #48).
+// Deep-frozen at runtime (array + every entry) and `readonly` at compile time, so the
+// single source of truth can't be reordered, extended, or edited in place — any of which
+// would leave ABOUT_ICON_NAMES a stale snapshot (Copilot review, #48).
 export const ABOUT_ICONS: readonly AboutIconDef[] = Object.freeze([
   { name: 'favorite', label: 'Heart' },
   { name: 'flight', label: 'Flight' },
@@ -198,7 +198,7 @@ export const ABOUT_ICONS: readonly AboutIconDef[] = Object.freeze([
   { name: 'home', label: 'Home' },
   { name: 'moving', label: 'Trending' },
   { name: 'cake', label: 'Cake' },
-]);
+].map((icon) => Object.freeze(icon)));
 
 /** Just the canonical icon names — handy for drift guards and membership checks. */
 export const ABOUT_ICON_NAMES: readonly string[] = Object.freeze(ABOUT_ICONS.map((i) => i.name));

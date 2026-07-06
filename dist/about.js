@@ -117,9 +117,9 @@ exports.ABOUT_SCHEMA = {
     blockTypes: exports.ABOUT_BLOCK_TYPES,
     pageFields: exports.ABOUT_PAGE_FIELDS,
 };
-// Frozen at runtime (and `readonly` at compile time) so the single source of truth
-// can't be reordered or extended — a `.sort()`/`.push()`/`.splice()` would otherwise
-// leave ABOUT_ICON_NAMES a stale snapshot (Copilot review, #48).
+// Deep-frozen at runtime (array + every entry) and `readonly` at compile time, so the
+// single source of truth can't be reordered, extended, or edited in place — any of which
+// would leave ABOUT_ICON_NAMES a stale snapshot (Copilot review, #48).
 exports.ABOUT_ICONS = Object.freeze([
     { name: 'favorite', label: 'Heart' },
     { name: 'flight', label: 'Flight' },
@@ -155,6 +155,6 @@ exports.ABOUT_ICONS = Object.freeze([
     { name: 'home', label: 'Home' },
     { name: 'moving', label: 'Trending' },
     { name: 'cake', label: 'Cake' },
-]);
+].map((icon) => Object.freeze(icon)));
 /** Just the canonical icon names — handy for drift guards and membership checks. */
 exports.ABOUT_ICON_NAMES = Object.freeze(exports.ABOUT_ICONS.map((i) => i.name));
