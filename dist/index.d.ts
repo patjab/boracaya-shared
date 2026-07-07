@@ -1,5 +1,7 @@
 export { ApiConstants, AdminEventApi, GuestEventApi, AccountApi } from './api';
-export { SiteUrls } from './siteUrls';
+export { SiteUrls, guestSiteUrlFor, inviteUrlFor } from './siteUrls';
+export { ENV, ENV_SUBDOMAIN, isTestEnv } from './env';
+export type { EnvName } from './env';
 export { ApiRoutes } from './routes';
 export type { ApiRoute } from './routes';
 export type { Companion } from './types';
