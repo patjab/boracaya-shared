@@ -106,6 +106,10 @@ exports.AdminEventApi = {
     pagesOrder: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/pages/order`,
     about: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/about`,
     rsvps: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/rsvp`,
+    // Composed, preset-resolved roster (cdk#575): the grid's single read — identity
+    // (PROFILE) + nested rsvp + per-stage objects; the response's `preset` tells the
+    // consumer which vocabulary (invite fields ride exclusivus items only).
+    roster: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/roster`,
     invites: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invite`,
     scramble: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble`,
     scrambleIncrement: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble/increment`,

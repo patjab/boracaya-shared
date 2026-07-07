@@ -33,6 +33,7 @@ export declare const AdminEventApi: {
     readonly pagesOrder: (eventId: string) => string;
     readonly about: (eventId: string) => string;
     readonly rsvps: (eventId: string) => string;
+    readonly roster: (eventId: string) => string;
     readonly invites: (eventId: string) => string;
     readonly scramble: (eventId: string) => string;
     readonly scrambleIncrement: (eventId: string) => string;

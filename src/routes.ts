@@ -21,6 +21,9 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // (admin#104) stopped calling them; POST / (geo-IP proxy) stays — it is not
   // event data.
   { label: 'admin', method: 'GET', path: '/events/{eventId}/rsvp' },
+  // Composed, preset-resolved roster (cdk#575): identity + rsvp + stage rows in one
+  // read; exclusivus items carry the invitation vocabulary, inclusivus items omit it.
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/roster' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}/invite' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/invite' },
   { label: 'admin', method: 'POST', path: '/events/{eventId}/scramble' },
