@@ -26,6 +26,10 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'admin', method: 'GET', path: '/events/{eventId}/roster' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}/invite' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/invite' },
+  // Organizer invitations (cdk#534/#537): share an event with another organizer by
+  // email. Plural /invites = the organizer-invitation lifecycle; the singular
+  // /invite above stays the legacy guest-invitation lane.
+  { label: 'admin', method: 'POST', path: '/events/{eventId}/invites' },
   { label: 'admin', method: 'POST', path: '/events/{eventId}/scramble' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/scramble/increment' },
   // Custom-stage definitions + responses (cdk#466/#513): the generic stages lane.

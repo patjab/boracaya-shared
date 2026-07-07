@@ -111,6 +111,9 @@ exports.AdminEventApi = {
     // consumer which vocabulary (invite fields ride exclusivus items only).
     roster: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/roster`,
     invites: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invite`,
+    // Organizer invitations (cdk#534/#537): POST creates + emails an invite.
+    // Plural /invites = the organizer lifecycle; singular /invite = guest lane.
+    organizerInvites: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites`,
     scramble: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble`,
     scrambleIncrement: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble/increment`,
     // Custom-stage definitions + the responses grid (cdk#466/#513).

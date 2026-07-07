@@ -118,6 +118,7 @@ describe('AdminEventApi contract', () => {
         rsvps: '/events/e-1/rsvp',
         roster: '/events/e-1/roster',
         invites: '/events/e-1/invite',
+        organizerInvites: '/events/e-1/invites',
         scramble: '/events/e-1/scramble',
         scrambleIncrement: '/events/e-1/scramble/increment',
         stages: '/events/e-1/stages',

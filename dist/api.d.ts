@@ -35,6 +35,7 @@ export declare const AdminEventApi: {
     readonly rsvps: (eventId: string) => string;
     readonly roster: (eventId: string) => string;
     readonly invites: (eventId: string) => string;
+    readonly organizerInvites: (eventId: string) => string;
     readonly scramble: (eventId: string) => string;
     readonly scrambleIncrement: (eventId: string) => string;
     readonly stages: (eventId: string) => string;
