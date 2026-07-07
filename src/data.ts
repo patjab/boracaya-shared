@@ -55,6 +55,11 @@ interface CallOptions {
   label?: string;
   /** Extra headers; merged over the auto-attached auth headers. */
   headers?: Record<string, string>;
+  /**
+   * Cancels the underlying fetch when aborted (cache.ts threads this through
+   * so a key switch stops the old key's request on the wire, admin#159).
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -68,7 +73,7 @@ export async function getJson<T>(url: string, opts: CallOptions = {}): Promise<T
   const label = opts.label ?? url;
   let res: Response;
   try {
-    res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers } });
+    res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers }, signal: opts.signal });
   } catch (e) {
     throw new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
   }
@@ -116,6 +121,7 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
   try {
     res = await fetch(url, {
       method: opts.method,
+      signal: opts.signal,
       headers: {
         ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...safeAuthHeaders(),

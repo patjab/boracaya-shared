@@ -14,6 +14,11 @@ interface CallOptions {
     label?: string;
     /** Extra headers; merged over the auto-attached auth headers. */
     headers?: Record<string, string>;
+    /**
+     * Cancels the underlying fetch when aborted (cache.ts threads this through
+     * so a key switch stops the old key's request on the wire, admin#159).
+     */
+    signal?: AbortSignal;
 }
 /**
  * Read primitive: GET the URL, guard `res.ok`, parse JSON. The signed-in Google

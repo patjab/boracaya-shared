@@ -8,8 +8,18 @@ export type { Companion } from './types';
 export { useLoading } from './hooks/useLoading';
 export { useApi } from './hooks/useApi';
 export { useGuardedLoad } from './hooks/useGuardedLoad';
+export { useCachedLoad } from './hooks/useCachedLoad';
 export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data';
 export type { GuardedState } from './data';
+export {
+  DEFAULT_CACHE_TTL_MS,
+  createCachedLoad,
+  invalidateCache,
+  readCache,
+  resetCache,
+  writeCache,
+} from './cache';
+export type { CacheHit, CachedLoadHandle, CachedLoadOptions } from './cache';
 export {
   initAuth,
   signOut,

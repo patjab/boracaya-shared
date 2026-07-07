@@ -60,7 +60,7 @@ async function getJson(url, opts = {}) {
     const label = (_a = opts.label) !== null && _a !== void 0 ? _a : url;
     let res;
     try {
-        res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers } });
+        res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers }, signal: opts.signal });
     }
     catch (e) {
         throw new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
@@ -107,6 +107,7 @@ async function sendJson(url, opts) {
     try {
         res = await fetch(url, {
             method: opts.method,
+            signal: opts.signal,
             headers: {
                 ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
                 ...safeAuthHeaders(),
