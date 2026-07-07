@@ -33,6 +33,9 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // decline carry NO authorizer (the link is the credential); accept rides the
   // identity authorizer with the handler's strict email match as the gate.
   { label: 'admin', method: 'POST', path: '/events/{eventId}/invites' },
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/invites' },
+  // Who administers the event (cdk#536): the memberships by-event GSI's first read.
+  { label: 'admin', method: 'GET', path: '/events/{eventId}/members' },
   { label: 'admin', method: 'DELETE', path: '/events/{eventId}/invites/{inviteId}' },
   { label: 'admin', method: 'GET', path: '/invites/{inviteId}' },
   { label: 'admin', method: 'POST', path: '/invites/{inviteId}/accept' },

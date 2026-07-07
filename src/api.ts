@@ -133,6 +133,8 @@ export const AdminEventApi = {
     // Organizer invitations (cdk#534/#537): POST creates + emails an invite.
     // Plural /invites = the organizer lifecycle; singular /invite = guest lane.
     organizerInvites: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites`,
+    // Who administers the event (cdk#536): [{accountId, email, role, createdAt}].
+    members: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/members`,
     // OWNER-gated revoke of a pending organizer invite (cdk#544).
     organizerInvite: (eventId: string, inviteId: string) =>
         `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites/${encodeURIComponent(inviteId)}`,
