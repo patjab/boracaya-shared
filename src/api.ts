@@ -130,6 +130,9 @@ export const AdminEventApi = {
     // consumer which vocabulary (invite fields ride exclusivus items only).
     roster: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/roster`,
     invites: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invite`,
+    // Organizer invitations (cdk#534/#537): POST creates + emails an invite.
+    // Plural /invites = the organizer lifecycle; singular /invite = guest lane.
+    organizerInvites: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites`,
     scramble: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble`,
     scrambleIncrement: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble/increment`,
     // Custom-stage definitions + the responses grid (cdk#466/#513).
