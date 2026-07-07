@@ -133,7 +133,7 @@ describe('AdminEventApi contract', () => {
 
     it('covers every single-argument builder', () => {
         const singleArg = Object.keys(AdminEventApi).filter(
-            (k) => !['template', 'stage', 'stageResponses', 'stageResponse'].includes(k));
+            (k) => !['template', 'stage', 'stageResponses', 'stageResponse', 'organizerInvite'].includes(k));
         expect(singleArg.sort()).toEqual(Object.keys(EXPECTED_EVENT_PATHS).sort());
     });
 
@@ -151,6 +151,8 @@ describe('AdminEventApi contract', () => {
             .toBe('/events/e-1/stages/PRECHECKIN/responses');
         expect(resourcePath(AdminEventApi.stageResponse('e-1', 'PRECHECKIN', 'u/1')))
             .toBe('/events/e-1/stages/PRECHECKIN/responses/u%2F1');
+        expect(resourcePath(AdminEventApi.organizerInvite('e-1', 't/1')))
+            .toBe('/events/e-1/invites/t%2F1');
     });
 
     it('URI-encodes hostile eventIds instead of restructuring the path', () => {
@@ -220,5 +222,30 @@ describe('AccountApi contract', () => {
         const url = AccountApi[key as keyof typeof AccountApi];
         expect(resourcePath(url)).toBe(path);
         expect(new URL(url).hostname).toMatch(/^valet-api\./);
+    });
+});
+
+// -- Organizer-invitation token lanes (cdk#544) --------------------------------
+import { OrganizerInviteApi } from './api';
+
+describe('OrganizerInviteApi contract', () => {
+    const EXPECTED: Record<keyof typeof OrganizerInviteApi, string> = {
+        metadata: '/invites/t-1',
+        accept: '/invites/t-1/accept',
+        decline: '/invites/t-1/decline',
+    };
+
+    it('covers every builder', () => {
+        expect(Object.keys(OrganizerInviteApi).sort()).toEqual(Object.keys(EXPECTED).sort());
+    });
+
+    it.each(Object.entries(EXPECTED))('%s -> %s', (key, path) => {
+        const url = OrganizerInviteApi[key as keyof typeof OrganizerInviteApi]('t-1');
+        expect(resourcePath(url)).toBe(path);
+        expect(new URL(url).hostname).toMatch(/^valet-api\./);
+    });
+
+    it('URI-encodes hostile tokens instead of restructuring the path', () => {
+        expect(resourcePath(OrganizerInviteApi.accept('a/b?c'))).toBe('/invites/a%2Fb%3Fc/accept');
     });
 });

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GuestEventApi = exports.AccountApi = exports.AdminEventApi = exports.ApiConstants = void 0;
+exports.GuestEventApi = exports.OrganizerInviteApi = exports.AccountApi = exports.AdminEventApi = exports.ApiConstants = void 0;
 // API endpoints. Each REST API is fronted by a stable per-frontend custom domain
 // with an EMPTY base path (e.g. public-api.pdaboracay.com), so the request path
 // the Lambda sees stays `/events/…` (no base-path prefix — a base path would be
@@ -114,6 +114,8 @@ exports.AdminEventApi = {
     // Organizer invitations (cdk#534/#537): POST creates + emails an invite.
     // Plural /invites = the organizer lifecycle; singular /invite = guest lane.
     organizerInvites: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites`,
+    // OWNER-gated revoke of a pending organizer invite (cdk#544).
+    organizerInvite: (eventId, inviteId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites/${encodeURIComponent(inviteId)}`,
     scramble: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble`,
     scrambleIncrement: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble/increment`,
     // Custom-stage definitions + the responses grid (cdk#466/#513).
@@ -145,6 +147,18 @@ exports.AdminEventApi = {
 exports.AccountApi = {
     me: `${ADMIN_API}/accounts/me`,
     register: `${ADMIN_API}/accounts`,
+};
+/**
+ * Organizer-invitation token lanes (cdk#534/#544): the inviteId in the email
+ * link is the credential. `metadata` and `decline` are unauthenticated (the
+ * guest-link pattern); `accept` rides the identity authorizer — any verified
+ * Google sign-in reaches it, and the handler's strict email match (#535 D6)
+ * is the gate.
+ */
+exports.OrganizerInviteApi = {
+    metadata: (inviteId) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}`,
+    accept: (inviteId) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}/accept`,
+    decline: (inviteId) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}/decline`,
 };
 /**
  * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the

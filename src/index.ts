@@ -1,4 +1,4 @@
-export { ApiConstants, AdminEventApi, GuestEventApi, AccountApi } from './api';
+export { ApiConstants, AdminEventApi, GuestEventApi, AccountApi, OrganizerInviteApi } from './api';
 export { SiteUrls, guestSiteUrlFor, inviteUrlFor } from './siteUrls';
 export { ENV, ENV_SUBDOMAIN, isTestEnv } from './env';
 export type { EnvName } from './env';

@@ -36,6 +36,7 @@ export declare const AdminEventApi: {
     readonly roster: (eventId: string) => string;
     readonly invites: (eventId: string) => string;
     readonly organizerInvites: (eventId: string) => string;
+    readonly organizerInvite: (eventId: string, inviteId: string) => string;
     readonly scramble: (eventId: string) => string;
     readonly scrambleIncrement: (eventId: string) => string;
     readonly stages: (eventId: string) => string;
@@ -64,6 +65,18 @@ export declare const AdminEventApi: {
 export declare const AccountApi: {
     readonly me: `${string}/accounts/me`;
     readonly register: `${string}/accounts`;
+};
+/**
+ * Organizer-invitation token lanes (cdk#534/#544): the inviteId in the email
+ * link is the credential. `metadata` and `decline` are unauthenticated (the
+ * guest-link pattern); `accept` rides the identity authorizer — any verified
+ * Google sign-in reaches it, and the handler's strict email match (#535 D6)
+ * is the gate.
+ */
+export declare const OrganizerInviteApi: {
+    readonly metadata: (inviteId: string) => string;
+    readonly accept: (inviteId: string) => string;
+    readonly decline: (inviteId: string) => string;
 };
 /**
  * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the

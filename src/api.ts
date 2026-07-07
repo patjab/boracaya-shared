@@ -133,6 +133,9 @@ export const AdminEventApi = {
     // Organizer invitations (cdk#534/#537): POST creates + emails an invite.
     // Plural /invites = the organizer lifecycle; singular /invite = guest lane.
     organizerInvites: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites`,
+    // OWNER-gated revoke of a pending organizer invite (cdk#544).
+    organizerInvite: (eventId: string, inviteId: string) =>
+        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites/${encodeURIComponent(inviteId)}`,
     scramble: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble`,
     scrambleIncrement: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble/increment`,
     // Custom-stage definitions + the responses grid (cdk#466/#513).
@@ -169,6 +172,19 @@ export const AdminEventApi = {
 export const AccountApi = {
     me: `${ADMIN_API}/accounts/me`,
     register: `${ADMIN_API}/accounts`,
+} as const;
+
+/**
+ * Organizer-invitation token lanes (cdk#534/#544): the inviteId in the email
+ * link is the credential. `metadata` and `decline` are unauthenticated (the
+ * guest-link pattern); `accept` rides the identity authorizer — any verified
+ * Google sign-in reaches it, and the handler's strict email match (#535 D6)
+ * is the gate.
+ */
+export const OrganizerInviteApi = {
+    metadata: (inviteId: string) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}`,
+    accept: (inviteId: string) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}/accept`,
+    decline: (inviteId: string) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}/decline`,
 } as const;
 
 /**

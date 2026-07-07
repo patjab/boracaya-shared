@@ -20,10 +20,17 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'GET', path: '/events/{eventId}/roster' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/invite' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/invite' },
-    // Organizer invitations (cdk#534/#537): share an event with another organizer by
-    // email. Plural /invites = the organizer-invitation lifecycle; the singular
-    // /invite above stays the legacy guest-invitation lane.
+    // Organizer invitations (cdk#534/#537/#544): share an event with another
+    // organizer by email. Plural /invites = the organizer-invitation lifecycle;
+    // the singular /invite above stays the legacy guest-invitation lane. The
+    // /invites/{inviteId} token lanes ride the admin API host but metadata and
+    // decline carry NO authorizer (the link is the credential); accept rides the
+    // identity authorizer with the handler's strict email match as the gate.
     { label: 'admin', method: 'POST', path: '/events/{eventId}/invites' },
+    { label: 'admin', method: 'DELETE', path: '/events/{eventId}/invites/{inviteId}' },
+    { label: 'admin', method: 'GET', path: '/invites/{inviteId}' },
+    { label: 'admin', method: 'POST', path: '/invites/{inviteId}/accept' },
+    { label: 'admin', method: 'POST', path: '/invites/{inviteId}/decline' },
     { label: 'admin', method: 'POST', path: '/events/{eventId}/scramble' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/scramble/increment' },
     // Custom-stage definitions + responses (cdk#466/#513): the generic stages lane.
