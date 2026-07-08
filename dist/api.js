@@ -166,6 +166,8 @@ exports.GuestEventApi = {
     openRsvp: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/rsvp/open`,
     exchange: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/exchange`,
     claim: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/claim`,
+    // Authenticated in-UI unlink (cdk#637): removes the caller's single primary Google.
+    unlink: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/unlink`,
     invite: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/invite`,
     momentsPublic: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/moments/public`,
     wishes: (eventId) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/wishes`,

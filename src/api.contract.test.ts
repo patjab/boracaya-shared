@@ -163,6 +163,7 @@ describe('GuestEventApi contract', () => {
         exchange: ['/events/e-1/auth/exchange', /^public-api\./],
         openRsvp: ['/events/e-1/rsvp/open', /^public-api\./],
         claim: ['/events/e-1/auth/claim', /^public-api\./],
+        unlink: ['/events/e-1/auth/unlink', /^public-api\./],
         invite: ['/events/e-1/invite', /^public-api\./],
         momentsPublic: ['/events/e-1/moments/public', /^public-api\./],
         wishes: ['/events/e-1/wishes', /^public-api\./],

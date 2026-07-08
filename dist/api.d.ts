@@ -83,6 +83,7 @@ export declare const GuestEventApi: {
     readonly openRsvp: (eventId: string) => string;
     readonly exchange: (eventId: string) => string;
     readonly claim: (eventId: string) => string;
+    readonly unlink: (eventId: string) => string;
     readonly invite: (eventId: string) => string;
     readonly momentsPublic: (eventId: string) => string;
     readonly wishes: (eventId: string) => string;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ABOUT_ICON_NAMES = exports.ABOUT_ICONS = exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.loginNoEvent = exports.claimIdentity = exports.clearGuestToken = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useCachedLoad = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.isTestEnv = exports.ENV_SUBDOMAIN = exports.ENV = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.OrganizerInviteApi = exports.AccountApi = exports.GuestEventApi = exports.AdminEventApi = exports.ApiConstants = void 0;
+exports.ABOUT_ICON_NAMES = exports.ABOUT_ICONS = exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.unlinkIdentity = exports.loginNoEvent = exports.claimIdentity = exports.clearGuestToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useCachedLoad = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.isTestEnv = exports.ENV_SUBDOMAIN = exports.ENV = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.OrganizerInviteApi = exports.AccountApi = exports.GuestEventApi = exports.AdminEventApi = exports.ApiConstants = void 0;
 var api_1 = require("./api");
 Object.defineProperty(exports, "ApiConstants", { enumerable: true, get: function () { return api_1.ApiConstants; } });
 Object.defineProperty(exports, "AdminEventApi", { enumerable: true, get: function () { return api_1.AdminEventApi; } });
@@ -52,9 +52,11 @@ Object.defineProperty(exports, "GoogleSignInButton", { enumerable: true, get: fu
 var guestAuth_1 = require("./guestAuth");
 Object.defineProperty(exports, "ensureGuestToken", { enumerable: true, get: function () { return guestAuth_1.ensureGuestToken; } });
 Object.defineProperty(exports, "guestAuthHeaders", { enumerable: true, get: function () { return guestAuth_1.guestAuthHeaders; } });
+Object.defineProperty(exports, "guestLinkedEmail", { enumerable: true, get: function () { return guestAuth_1.guestLinkedEmail; } });
 Object.defineProperty(exports, "clearGuestToken", { enumerable: true, get: function () { return guestAuth_1.clearGuestToken; } });
 Object.defineProperty(exports, "claimIdentity", { enumerable: true, get: function () { return guestAuth_1.claimIdentity; } });
 Object.defineProperty(exports, "loginNoEvent", { enumerable: true, get: function () { return guestAuth_1.loginNoEvent; } });
+Object.defineProperty(exports, "unlinkIdentity", { enumerable: true, get: function () { return guestAuth_1.unlinkIdentity; } });
 var about_1 = require("./about");
 Object.defineProperty(exports, "ABOUT_BLOCK_TYPES", { enumerable: true, get: function () { return about_1.ABOUT_BLOCK_TYPES; } });
 Object.defineProperty(exports, "ABOUT_PAGE_FIELDS", { enumerable: true, get: function () { return about_1.ABOUT_PAGE_FIELDS; } });

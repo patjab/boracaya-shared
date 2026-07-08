@@ -184,6 +184,8 @@ export const GuestEventApi = {
     openRsvp: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/rsvp/open`,
     exchange: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/exchange`,
     claim: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/claim`,
+    // Authenticated in-UI unlink (cdk#637): removes the caller's single primary Google.
+    unlink: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/unlink`,
     invite: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/invite`,
     momentsPublic: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/moments/public`,
     wishes: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/wishes`,

@@ -106,6 +106,10 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // 404). /auth/claim needs an {eventId} a no-event login doesn't have; this is
   // its unscoped sibling on the same guest-token lambda.
   { label: 'public', method: 'POST', path: '/auth/login' },
+  // In-UI unlink (cdk#637): remove the caller's single primary Google. Authenticated
+  // in-handler by the guest JWT (no APIGW authorizer on the auth lanes), event-scoped so
+  // the unlink email can name the event.
+  { label: 'public', method: 'POST', path: '/events/{eventId}/auth/unlink' },
   { label: 'public', method: 'GET', path: '/events/{eventId}/invite' },
   { label: 'public', method: 'GET', path: '/events/{eventId}/moments/public' },
   { label: 'public', method: 'GET', path: '/events/{eventId}/wishes' },

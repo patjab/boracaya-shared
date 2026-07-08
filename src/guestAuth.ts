@@ -26,6 +26,20 @@ interface StoredToken {
    *  a cached one must never satisfy a DIFFERENT event's calls, or a stale entry
    *  would suppress the fresh (membership-validating) exchange for that event. */
   eventId: string;
+  /** The identity's single linked Google, or null if none (cdk#637). The auth
+   *  responses (exchange / claim / login) echo it so the gated screens can toggle
+   *  Link vs Unlink without an extra round-trip; unlink clears it in place. */
+  linkedEmail?: string | null;
+}
+
+/** The cached guest token entry, or null when absent/corrupt. */
+function readStored(): StoredToken | null {
+  try {
+    const raw = sessionStorage.getItem(TOKEN_KEY);
+    return raw ? (JSON.parse(raw) as StoredToken) : null;
+  } catch {
+    return null;
+  }
 }
 
 function readValid(eventId: string, userId: string): string | null {
@@ -62,9 +76,14 @@ async function exchange(eventId: string, userId: string): Promise<string | null>
     // 403 (unknown invitation) / any failure -> no token; the caller proceeds without one
     // (today's open reservations API still accepts it — until the authorizer lands).
     if (!res.ok) return null;
-    const { token, exp } = (await res.json()) as { token: string; exp: number };
+    const { token, exp, linkedEmail } = (await res.json()) as {
+      token: string; exp: number; linkedEmail?: string | null;
+    };
     if (generation === cacheGeneration) {
-      sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId } as StoredToken));
+      sessionStorage.setItem(
+        TOKEN_KEY,
+        JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail ?? null } as StoredToken),
+      );
     }
     return token; // still valid for THIS caller's request even when superseded
   } catch {
@@ -104,6 +123,23 @@ export async function guestAuthHeaders(
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * The identity's single linked Google for this (event, userId), or null if none (cdk#637).
+ * Ensures a token first (the exchange response carries `linkedEmail`), so the gated screens
+ * can render the Link vs Unlink toggle off one call. Null when no token can be minted.
+ */
+export async function guestLinkedEmail(
+  eventId: string | null | undefined,
+  userId: string | null | undefined,
+): Promise<string | null> {
+  const token = await ensureGuestToken(eventId, userId);
+  if (!token) return null;
+  const stored = readStored();
+  return stored && stored.eventId === eventId && stored.userId === userId
+    ? stored.linkedEmail ?? null
+    : null;
+}
+
 // ---- identity claim / Google-first login (cdk#438 + cdk#439, #373 D2–D5) -------------
 //
 // POST /events/{eventId}/auth/claim, two lanes on one route (event-scoped, cdk#427):
@@ -123,8 +159,9 @@ export interface ClaimCandidate {
 }
 
 export type ClaimResult =
-  /** Token minted + cached; `userId` is the canonical identity to remember. */
-  | { kind: 'ok'; userId: string; claimed: boolean }
+  /** Token minted + cached; `userId` is the canonical identity to remember, and
+   *  `linkedEmail` is the account now linked to it (cdk#637). */
+  | { kind: 'ok'; userId: string; claimed: boolean; linkedEmail: string | null }
   /** #373 D5 zero-match: no invitation for this email — guide to the invite link. */
   | { kind: 'none' }
   /** #373 D4 multi-match: present the chooser, then re-call with `chooseUserId`. */
@@ -151,18 +188,21 @@ export async function claimIdentity(params: {
     if (res.status === 200) {
       // The response's userId is the CANONICAL identity — after a merge it differs
       // from params.userId (the invite link's provisional id); never conflate them.
-      const { token, exp, userId: canonicalUserId, claimed } = (await res.json()) as {
+      const { token, exp, userId: canonicalUserId, claimed, linkedEmail } = (await res.json()) as {
         token: string;
         exp: number;
         userId: string;
         claimed?: boolean;
+        linkedEmail?: string | null;
       };
       cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
       sessionStorage.setItem(
         TOKEN_KEY,
-        JSON.stringify({ token, exp, userId: canonicalUserId, eventId } as StoredToken),
+        JSON.stringify({
+          token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail ?? null,
+        } as StoredToken),
       );
-      return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true };
+      return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail ?? null };
     }
     if (res.status === 404) return { kind: 'none' };
     if (res.status === 401) return { kind: 'invalid' };
@@ -206,16 +246,17 @@ export async function loginNoEvent(credential: string): Promise<NoEventLoginResu
       body: JSON.stringify({ credential }),
     });
     if (res.status === 200) {
-      const { token, exp, userId, eventId } = (await res.json()) as {
+      const { token, exp, userId, eventId, linkedEmail } = (await res.json()) as {
         token: string;
         exp: number;
         userId: string;
         eventId: string;
+        linkedEmail?: string | null;
       };
       cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
       sessionStorage.setItem(
         TOKEN_KEY,
-        JSON.stringify({ token, exp, userId, eventId } as StoredToken),
+        JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail ?? null } as StoredToken),
       );
       return { kind: 'ok', userId, eventId };
     }
@@ -223,6 +264,47 @@ export async function loginNoEvent(credential: string): Promise<NoEventLoginResu
     // chooser on this lane) — one guided outcome for the SPA.
     if (res.status === 404) return { kind: 'none' };
     if (res.status === 401) return { kind: 'invalid' };
+    return { kind: 'error' };
+  } catch {
+    return { kind: 'error' };
+  }
+}
+
+// ---- in-UI unlink (cdk#637) ---------------------------------------------------------
+//
+// POST /events/{eventId}/auth/unlink — remove the caller's single primary Google. AUTH:
+// the cached guest JWT is the credential (there is no APIGW authorizer on the auth lanes;
+// the token's own `sub` scopes the unlink server-side, so a caller can only unlink their
+// own identity). The guest KEEPS their session — only the linked-Google marker is cleared,
+// so the gated-screen toggle flips back to "Link"; sign-in-with-Google stops resolving to
+// them until they link again, but their invite link still works.
+
+export type UnlinkResult =
+  /** The binding was removed (or was already absent) — the identity is now unlinked. */
+  | { kind: 'ok' }
+  /** No cached token, or the server rejected it (401): the SPA should send the guest back
+   *  through their invite link. */
+  | { kind: 'unauthenticated' }
+  /** Anything else (network failure, 4xx/5xx) — safe to offer a retry. */
+  | { kind: 'error' };
+
+export async function unlinkIdentity(eventId: string): Promise<UnlinkResult> {
+  const stored = readStored();
+  // The token must be THIS event's (auth is event-scoped, cdk#427) and unexpired-ish;
+  // the server re-verifies, so this is only a fast local guard against a pointless call.
+  if (!stored || !stored.token || stored.eventId !== eventId) return { kind: 'unauthenticated' };
+  try {
+    const res = await fetch(GuestEventApi.unlink(eventId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${stored.token}` },
+    });
+    if (res.status === 200) {
+      // Keep the session token — the guest stays signed in via their invite link; only
+      // the linked-Google marker is cleared so the toggle flips back to "Link".
+      sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...stored, linkedEmail: null } as StoredToken));
+      return { kind: 'ok' };
+    }
+    if (res.status === 401) return { kind: 'unauthenticated' };
     return { kind: 'error' };
   } catch {
     return { kind: 'error' };

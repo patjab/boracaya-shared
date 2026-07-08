@@ -2,8 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureGuestToken = ensureGuestToken;
 exports.guestAuthHeaders = guestAuthHeaders;
+exports.guestLinkedEmail = guestLinkedEmail;
 exports.claimIdentity = claimIdentity;
 exports.loginNoEvent = loginNoEvent;
+exports.unlinkIdentity = unlinkIdentity;
 exports.clearGuestToken = clearGuestToken;
 // Guest token for the reservations API (pda-boracay-cdk #296 / #100 Phase 1).
 //
@@ -23,6 +25,16 @@ const TOKEN_KEY = 'pdab_guest_token';
 // Refresh a little before the real edge so an in-flight request never carries a token that
 // expires mid-flight.
 const SKEW_MS = 30000;
+/** The cached guest token entry, or null when absent/corrupt. */
+function readStored() {
+    try {
+        const raw = sessionStorage.getItem(TOKEN_KEY);
+        return raw ? JSON.parse(raw) : null;
+    }
+    catch (_a) {
+        return null;
+    }
+}
 function readValid(eventId, userId) {
     const raw = sessionStorage.getItem(TOKEN_KEY);
     if (!raw)
@@ -58,9 +70,9 @@ async function exchange(eventId, userId) {
         // (today's open reservations API still accepts it — until the authorizer lands).
         if (!res.ok)
             return null;
-        const { token, exp } = (await res.json());
+        const { token, exp, linkedEmail } = (await res.json());
         if (generation === cacheGeneration) {
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId }));
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null }));
         }
         return token; // still valid for THIS caller's request even when superseded
     }
@@ -94,6 +106,21 @@ async function guestAuthHeaders(eventId, userId) {
     const token = await ensureGuestToken(eventId, userId);
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
+/**
+ * The identity's single linked Google for this (event, userId), or null if none (cdk#637).
+ * Ensures a token first (the exchange response carries `linkedEmail`), so the gated screens
+ * can render the Link vs Unlink toggle off one call. Null when no token can be minted.
+ */
+async function guestLinkedEmail(eventId, userId) {
+    var _a;
+    const token = await ensureGuestToken(eventId, userId);
+    if (!token)
+        return null;
+    const stored = readStored();
+    return stored && stored.eventId === eventId && stored.userId === userId
+        ? (_a = stored.linkedEmail) !== null && _a !== void 0 ? _a : null
+        : null;
+}
 async function claimIdentity(params) {
     try {
         const { eventId, ...body } = params;
@@ -105,10 +132,12 @@ async function claimIdentity(params) {
         if (res.status === 200) {
             // The response's userId is the CANONICAL identity — after a merge it differs
             // from params.userId (the invite link's provisional id); never conflate them.
-            const { token, exp, userId: canonicalUserId, claimed } = (await res.json());
+            const { token, exp, userId: canonicalUserId, claimed, linkedEmail } = (await res.json());
             cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId: canonicalUserId, eventId }));
-            return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true };
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({
+                token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null,
+            }));
+            return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null };
         }
         if (res.status === 404)
             return { kind: 'none' };
@@ -132,9 +161,9 @@ async function loginNoEvent(credential) {
             body: JSON.stringify({ credential }),
         });
         if (res.status === 200) {
-            const { token, exp, userId, eventId } = (await res.json());
+            const { token, exp, userId, eventId, linkedEmail } = (await res.json());
             cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId }));
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null }));
             return { kind: 'ok', userId, eventId };
         }
         // Zero AND many both surface as 404 here (the backend never returns a cross-event
@@ -143,6 +172,31 @@ async function loginNoEvent(credential) {
             return { kind: 'none' };
         if (res.status === 401)
             return { kind: 'invalid' };
+        return { kind: 'error' };
+    }
+    catch (_a) {
+        return { kind: 'error' };
+    }
+}
+async function unlinkIdentity(eventId) {
+    const stored = readStored();
+    // The token must be THIS event's (auth is event-scoped, cdk#427) and unexpired-ish;
+    // the server re-verifies, so this is only a fast local guard against a pointless call.
+    if (!stored || !stored.token || stored.eventId !== eventId)
+        return { kind: 'unauthenticated' };
+    try {
+        const res = await fetch(api_1.GuestEventApi.unlink(eventId), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${stored.token}` },
+        });
+        if (res.status === 200) {
+            // Keep the session token — the guest stays signed in via their invite link; only
+            // the linked-Google marker is cleared so the toggle flips back to "Link".
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...stored, linkedEmail: null }));
+            return { kind: 'ok' };
+        }
+        if (res.status === 401)
+            return { kind: 'unauthenticated' };
         return { kind: 'error' };
     }
     catch (_a) {

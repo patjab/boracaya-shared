@@ -7,17 +7,25 @@
 export declare function ensureGuestToken(eventId: string | null | undefined, userId: string | null | undefined): Promise<string | null>;
 /** Authorization header for a reservations call, or {} when no token is available. */
 export declare function guestAuthHeaders(eventId: string | null | undefined, userId: string | null | undefined): Promise<Record<string, string>>;
+/**
+ * The identity's single linked Google for this (event, userId), or null if none (cdk#637).
+ * Ensures a token first (the exchange response carries `linkedEmail`), so the gated screens
+ * can render the Link vs Unlink toggle off one call. Null when no token can be minted.
+ */
+export declare function guestLinkedEmail(eventId: string | null | undefined, userId: string | null | undefined): Promise<string | null>;
 /** One chooser option (cdk#452): label is event-scoped — this event's guest name or a generic fallback. */
 export interface ClaimCandidate {
     userId: string;
     label: string;
 }
 export type ClaimResult = 
-/** Token minted + cached; `userId` is the canonical identity to remember. */
+/** Token minted + cached; `userId` is the canonical identity to remember, and
+ *  `linkedEmail` is the account now linked to it (cdk#637). */
 {
     kind: 'ok';
     userId: string;
     claimed: boolean;
+    linkedEmail: string | null;
 }
 /** #373 D5 zero-match: no invitation for this email — guide to the invite link. */
  | {
@@ -64,5 +72,20 @@ export type NoEventLoginResult =
     kind: 'error';
 };
 export declare function loginNoEvent(credential: string): Promise<NoEventLoginResult>;
+export type UnlinkResult = 
+/** The binding was removed (or was already absent) — the identity is now unlinked. */
+{
+    kind: 'ok';
+}
+/** No cached token, or the server rejected it (401): the SPA should send the guest back
+ *  through their invite link. */
+ | {
+    kind: 'unauthenticated';
+}
+/** Anything else (network failure, 4xx/5xx) — safe to offer a retry. */
+ | {
+    kind: 'error';
+};
+export declare function unlinkIdentity(eventId: string): Promise<UnlinkResult>;
 /** Drop the cached guest token (e.g. on identity change / sign-out). */
 export declare function clearGuestToken(): void;
