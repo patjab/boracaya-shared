@@ -26,22 +26,10 @@ function resourcePath(url: string): string {
 // The agreed endpoint inventory (resource paths). Update this deliberately when
 // adding/removing an endpoint — that's the point: it forces a conscious change.
 const EXPECTED_PATHS: Record<keyof typeof ApiConstants, string> = {
-    GET_ALL_INVITES: '/invite',
-    CREATE_INVITES_BY_CSV_UPLOAD: '/scramble',
-    INCREMENT_COUNT_OF_INVITE_SENT: '/scramble/increment',
-    SET_INVITED_BY: '/invite',
-    GET_ALL_RSVPS: '/rsvp',
-    GET_SAVE_THE_DATE_RECORDS: '/records',
-    SAVE_THE_DATE_RECORD: '/record',
-    GUEST_AUTH: '/guest',
     GET_IP_ADDRESSES: '/',
-    LOGIN: '/login',
     ADMIN_EVENTS: '/events',
-    TEMPLATES: '/templates',
-    EMAIL_TEMPLATE: '/email-template',
     EVENTS: '/events',
     DISCOVER: '/discover',
-    MOMENTS_ADMIN: '/moments',
     FACES_CONTROL: '/',
     FACES_BOX: '/',
     MOMENTS_OFFICIAL_MANIFEST: '/uploads/official/manifest.json',

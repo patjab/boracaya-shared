@@ -1,20 +1,8 @@
 export declare const ApiConstants: {
-    readonly GET_ALL_INVITES: `${string}/invite?userId=lakandula`;
-    readonly CREATE_INVITES_BY_CSV_UPLOAD: `${string}/scramble`;
-    readonly INCREMENT_COUNT_OF_INVITE_SENT: `${string}/scramble/increment`;
-    readonly SET_INVITED_BY: `${string}/invite`;
-    readonly GET_ALL_RSVPS: `${string}/rsvp`;
-    readonly GET_SAVE_THE_DATE_RECORDS: `${string}/records`;
-    readonly SAVE_THE_DATE_RECORD: `${string}/record`;
-    readonly GUEST_AUTH: `${string}/guest?guest=`;
     readonly GET_IP_ADDRESSES: string;
-    readonly LOGIN: `${string}/login`;
     readonly ADMIN_EVENTS: `${string}/events`;
-    readonly TEMPLATES: `${string}/templates`;
-    readonly EMAIL_TEMPLATE: `${string}/email-template`;
     readonly EVENTS: `${string}/events`;
     readonly DISCOVER: `${string}/discover`;
-    readonly MOMENTS_ADMIN: `${string}/moments`;
     readonly FACES_CONTROL: string;
     readonly FACES_BOX: string;
     readonly MOMENTS_OFFICIAL_MANIFEST: `${string}/uploads/official/manifest.json`;

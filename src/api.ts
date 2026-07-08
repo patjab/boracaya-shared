@@ -35,7 +35,6 @@ const bHost = (sub: string): string =>
 const PUBLIC_API = bHost('public-api');
 const ADMIN_API = bHost('valet-api');
 const RESERVATIONS_API = bHost('reservations-api');
-const SAVETHEDATE_API = host('savethedate-api');
 const SHARE_API = bHost('share-api');
 // Moments upload API: prod = share-api.boracaya.com; testing = moments-api.test.boracaya.com
 // (no share-api.test host exists). Same lambda either way; only the fronting domain differs.
@@ -45,61 +44,31 @@ const FACES_BOX_BASE = host('faces');
 const MOMENTS_BASE = host('moments');
 
 export const ApiConstants = {
-    // Invites
-    GET_ALL_INVITES: `${ADMIN_API}/invite?userId=lakandula`,
-    CREATE_INVITES_BY_CSV_UPLOAD: `${ADMIN_API}/scramble`,
-    INCREMENT_COUNT_OF_INVITE_SENT: `${ADMIN_API}/scramble/increment`,
-    // Admin 'Tag' edit: set invitedBy on an existing invite by userId (#194 2b).
-    // Replaces the email-keyed /organize write as guest_organizer is retired.
-    SET_INVITED_BY: `${ADMIN_API}/invite`,
+    // The flat admin/guest/savethedate constants were REMOVED (shared#57): the routes
+    // they named no longer exist server-side — the cdk#427/#405 contract steps made the
+    // admin/guest lanes event-scoped, savethedate was decommissioned (#183), and admin
+    // auth moved to Google GIS (so /login is gone too). The deleted forms were
+    // GET_ALL_INVITES, SET_INVITED_BY, CREATE_INVITES_BY_CSV_UPLOAD (/scramble),
+    // INCREMENT_COUNT_OF_INVITE_SENT (/scramble/increment), GET_ALL_RSVPS (/rsvp),
+    // LOGIN (/login), TEMPLATES (/templates), EMAIL_TEMPLATE (/email-template),
+    // MOMENTS_ADMIN (/moments), and the savethedate GET_SAVE_THE_DATE_RECORDS /
+    // SAVE_THE_DATE_RECORD / GUEST_AUTH. Use the event-scoped AdminEventApi /
+    // GuestEventApi builders instead.
 
-    // Guest token exchange (#296 / #100 Phase 1): a ?invited=<userId> link is exchanged
-    // here for a short-lived, guest-scoped JWT the reservations calls send as a Bearer.
-    // Identity claim + Google-first login (cdk#438/#439, #373 D2–D5): with a userId it
-    // reconciles the invite-link identity with a verified Google email (bind/merge);
-    // without one it resolves a login by email alone (guided 404 / mint / chooser 409).
-
-    // RSVP — public reservations route is link-read only (?userId=/?email=); the admin
-    // console needs the FULL list, which requires admin auth, so it uses the admin-api
-    // mirror (same lambda; the admin authorizer supplies isAdmin -> get_all_rsvps).
-    GET_ALL_RSVPS: `${ADMIN_API}/rsvp`,
-
-    // Save the date
-    GET_SAVE_THE_DATE_RECORDS: `${SAVETHEDATE_API}/records`,
-    SAVE_THE_DATE_RECORD: `${SAVETHEDATE_API}/record`,
-    GUEST_AUTH: `${SAVETHEDATE_API}/guest?guest=`,
-
-    // Surveys — served by the survey lambda on the managed public-api (#210). The old
-    // standalone survey.pdaboracay.com had no test host, so these failed closed on test.
-
-    // IP tracking (admin API root)
+    // IP tracking (admin API root — the POST / geo-IP proxy stays; it is not event data).
     GET_IP_ADDRESSES: `${ADMIN_API}`,
 
-    // Admin auth
-    LOGIN: `${ADMIN_API}/login`,
-
-    // Admin events config
+    // Admin events config (list + create; cdk#464/#472).
     ADMIN_EVENTS: `${ADMIN_API}/events`,
 
-    // Admin email templates
-    TEMPLATES: `${ADMIN_API}/templates`,
-    EMAIL_TEMPLATE: `${ADMIN_API}/email-template`,
-
-    // Guestbook wishes
-
-    // Events (dynamic app config)
+    // Public app-config BASE: consumers build `${EVENTS}/{eventId}/config` and
+    // `${EVENTS}/{eventId}/about` off this. The BARE public GET /events (list) was
+    // REMOVED (cdk#352), so this base is not itself a live route and is excluded from
+    // the live smoke probe (see api.smoke.test.ts). Kept because guest + admin UIs
+    // still import it as the base — do NOT remove without updating those consumers.
     EVENTS: `${PUBLIC_API}/events`,
     // The public feed of OPEN (inclusivus) events (cdk#468/#508).
     DISCOVER: `${PUBLIC_API}/discover`,
-
-    // Visit analytics
-
-    // Media upload (share app). Prod serves this on share-api; the testing mirror serves
-    // it on moments-api (the share-api.test domain doesn't exist). Pick per-env so guest
-    // uploads work under test instead of failing closed on a non-resolving host.
-
-    // Moments gallery
-    MOMENTS_ADMIN: `${ADMIN_API}/moments`,
 
     // Faces — control plane (v2 API on its own stable domain) + box base.
     // FACES_BOX is an EPHEMERAL on-demand instance and is usually off, so it is
