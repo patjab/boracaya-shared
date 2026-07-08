@@ -3,6 +3,7 @@ export declare const ApiConstants: {
     readonly ADMIN_EVENTS: `${string}/events`;
     readonly EVENTS: `${string}/events`;
     readonly DISCOVER: `${string}/discover`;
+    readonly GUEST_LOGIN: `${string}/auth/login`;
     readonly FACES_CONTROL: string;
     readonly FACES_BOX: string;
     readonly MOMENTS_OFFICIAL_MANIFEST: `${string}/uploads/official/manifest.json`;

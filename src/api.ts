@@ -69,6 +69,13 @@ export const ApiConstants = {
     EVENTS: `${PUBLIC_API}/events`,
     // The public feed of OPEN (inclusivus) events (cdk#468/#508).
     DISCOVER: `${PUBLIC_API}/discover`,
+    // No-event Google login (cdk#623, Option D): an UNSCOPED public route (no
+    // eventId path segment) — a server-verified Google credential arriving with no
+    // event in the URL is resolved to the event(s) the email is already a member
+    // of. Exactly one → the backend mints a guest token + returns that eventId (the
+    // SPA redirects into /e/<eventId>/); zero/many → the guided 404. Distinct from
+    // GuestEventApi.claim, which requires the target event in its path.
+    GUEST_LOGIN: `${PUBLIC_API}/auth/login`,
 
     // Faces — control plane (v2 API on its own stable domain) + box base.
     // FACES_BOX is an EPHEMERAL on-demand instance and is usually off, so it is

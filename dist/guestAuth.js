@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureGuestToken = ensureGuestToken;
 exports.guestAuthHeaders = guestAuthHeaders;
 exports.claimIdentity = claimIdentity;
+exports.loginNoEvent = loginNoEvent;
 exports.clearGuestToken = clearGuestToken;
 // Guest token for the reservations API (pda-boracay-cdk #296 / #100 Phase 1).
 //
@@ -117,6 +118,31 @@ async function claimIdentity(params) {
             const { candidates } = (await res.json());
             return { kind: 'chooser', candidates: Array.isArray(candidates) ? candidates : [] };
         }
+        return { kind: 'error' };
+    }
+    catch (_a) {
+        return { kind: 'error' };
+    }
+}
+async function loginNoEvent(credential) {
+    try {
+        const res = await fetch(api_1.ApiConstants.GUEST_LOGIN, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential }),
+        });
+        if (res.status === 200) {
+            const { token, exp, userId, eventId } = (await res.json());
+            cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId }));
+            return { kind: 'ok', userId, eventId };
+        }
+        // Zero AND many both surface as 404 here (the backend never returns a cross-event
+        // chooser on this lane) — one guided outcome for the SPA.
+        if (res.status === 404)
+            return { kind: 'none' };
+        if (res.status === 401)
+            return { kind: 'invalid' };
         return { kind: 'error' };
     }
     catch (_a) {

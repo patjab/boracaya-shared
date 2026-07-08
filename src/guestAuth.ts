@@ -11,7 +11,7 @@
 // this is the per-guest reservations token, keyed to the invited userId. sessionStorage is
 // only touched inside functions, so importing this module in Node (e2e, the contract test)
 // is safe — only calling ensureGuestToken() needs a browser.
-import { GuestEventApi } from './api';
+import { ApiConstants, GuestEventApi } from './api';
 
 const TOKEN_KEY = 'pdab_guest_token';
 // Refresh a little before the real edge so an in-flight request never carries a token that
@@ -170,6 +170,59 @@ export async function claimIdentity(params: {
       const { candidates } = (await res.json()) as { candidates?: ClaimCandidate[] };
       return { kind: 'chooser', candidates: Array.isArray(candidates) ? candidates : [] };
     }
+    return { kind: 'error' };
+  } catch {
+    return { kind: 'error' };
+  }
+}
+
+// ---- no-event Google login (cdk#623, Option D) --------------------------------------
+//
+// POST /auth/login (UNSCOPED — no eventId): a verified Google credential arriving with no
+// event in the URL. The backend recovers the event(s) the email is a member of and, when
+// there is EXACTLY ONE, mints a guest token for it and returns the resolved eventId; zero
+// or many events → 404 (the "open your invite link" guidance, #373 D5). Read-only: like
+// the login lane of /auth/claim it never binds or writes an identity — it only RECOVERS the
+// single event the caller is already on. On success the minted token is cached here (same
+// shape the reservations calls read) keyed to the resolved event, and the caller is handed
+// the eventId to redirect into (`/e/<eventId>/`).
+
+export type NoEventLoginResult =
+  /** Exactly one member event: token minted + cached; redirect the guest into `eventId`. */
+  | { kind: 'ok'; userId: string; eventId: string }
+  /** Zero OR many member events (#373 D5): guide to the personal invite link. No list is
+   *  returned to the browser — the no-event lane defers the cross-event chooser. */
+  | { kind: 'none' }
+  /** The Google credential was rejected (401). */
+  | { kind: 'invalid' }
+  /** Anything else (network failure, 4xx/5xx) — safe to offer a retry. */
+  | { kind: 'error' };
+
+export async function loginNoEvent(credential: string): Promise<NoEventLoginResult> {
+  try {
+    const res = await fetch(ApiConstants.GUEST_LOGIN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+    if (res.status === 200) {
+      const { token, exp, userId, eventId } = (await res.json()) as {
+        token: string;
+        exp: number;
+        userId: string;
+        eventId: string;
+      };
+      cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
+      sessionStorage.setItem(
+        TOKEN_KEY,
+        JSON.stringify({ token, exp, userId, eventId } as StoredToken),
+      );
+      return { kind: 'ok', userId, eventId };
+    }
+    // Zero AND many both surface as 404 here (the backend never returns a cross-event
+    // chooser on this lane) — one guided outcome for the SPA.
+    if (res.status === 404) return { kind: 'none' };
+    if (res.status === 401) return { kind: 'invalid' };
     return { kind: 'error' };
   } catch {
     return { kind: 'error' };

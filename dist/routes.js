@@ -94,6 +94,12 @@ exports.ApiRoutes = [
     // directly. The flat guest forms above retire at the cdk#427 contract step.
     { label: 'public', method: 'POST', path: '/events/{eventId}/auth/exchange' },
     { label: 'public', method: 'POST', path: '/events/{eventId}/auth/claim' },
+    // No-event Google login (cdk#623, Option D): the ONE UNSCOPED auth route — a
+    // verified Google credential with no event in the URL resolves to the event(s)
+    // the email is a member of (exactly one → mint + return it; zero/many → guided
+    // 404). /auth/claim needs an {eventId} a no-event login doesn't have; this is
+    // its unscoped sibling on the same guest-token lambda.
+    { label: 'public', method: 'POST', path: '/auth/login' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/invite' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/moments/public' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/wishes' },

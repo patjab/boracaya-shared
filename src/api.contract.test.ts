@@ -30,6 +30,7 @@ const EXPECTED_PATHS: Record<keyof typeof ApiConstants, string> = {
     ADMIN_EVENTS: '/events',
     EVENTS: '/events',
     DISCOVER: '/discover',
+    GUEST_LOGIN: '/auth/login',
     FACES_CONTROL: '/',
     FACES_BOX: '/',
     MOMENTS_OFFICIAL_MANIFEST: '/uploads/official/manifest.json',

@@ -43,5 +43,26 @@ export declare function claimIdentity(params: {
     userId?: string;
     chooseUserId?: string;
 }): Promise<ClaimResult>;
+export type NoEventLoginResult = 
+/** Exactly one member event: token minted + cached; redirect the guest into `eventId`. */
+{
+    kind: 'ok';
+    userId: string;
+    eventId: string;
+}
+/** Zero OR many member events (#373 D5): guide to the personal invite link. No list is
+ *  returned to the browser — the no-event lane defers the cross-event chooser. */
+ | {
+    kind: 'none';
+}
+/** The Google credential was rejected (401). */
+ | {
+    kind: 'invalid';
+}
+/** Anything else (network failure, 4xx/5xx) — safe to offer a retry. */
+ | {
+    kind: 'error';
+};
+export declare function loginNoEvent(credential: string): Promise<NoEventLoginResult>;
 /** Drop the cached guest token (e.g. on identity change / sign-out). */
 export declare function clearGuestToken(): void;
