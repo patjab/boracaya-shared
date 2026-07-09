@@ -189,6 +189,11 @@ export const GuestEventApi = {
     invite: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/invite`,
     momentsPublic: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/moments/public`,
     wishes: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/wishes`,
+    // Pulse (cdk#668): the generalized engagement lane — same public posture as wishes.
+    pulse: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/pulse`,
+    pulsePosts: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/pulse/posts`,
+    pulseVotes: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/pulse/votes`,
+    pulseReactions: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/pulse/reactions`,
     survey: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/survey`,
     rsvp: (eventId: string) => `${RESERVATIONS_API}/events/${encodeURIComponent(eventId)}/rsvp`,
     // The guest's own custom-stage submission (cdk#466/#513).

@@ -167,6 +167,10 @@ describe('GuestEventApi contract', () => {
         invite: ['/events/e-1/invite', /^public-api\./],
         momentsPublic: ['/events/e-1/moments/public', /^public-api\./],
         wishes: ['/events/e-1/wishes', /^public-api\./],
+        pulse: ['/events/e-1/pulse', /^public-api\./],
+        pulsePosts: ['/events/e-1/pulse/posts', /^public-api\./],
+        pulseVotes: ['/events/e-1/pulse/votes', /^public-api\./],
+        pulseReactions: ['/events/e-1/pulse/reactions', /^public-api\./],
         survey: ['/events/e-1/survey', /^public-api\./],
         rsvp: ['/events/e-1/rsvp', /^reservations-api\./],
         // Node (no window) resolves the prod host: share-api fronts the moments lambda.

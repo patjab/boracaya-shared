@@ -114,6 +114,14 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'public', method: 'GET', path: '/events/{eventId}/moments/public' },
   { label: 'public', method: 'GET', path: '/events/{eventId}/wishes' },
   { label: 'public', method: 'PUT', path: '/events/{eventId}/wishes' },
+  // Pulse (cdk#668, decisions #669/#670): the generalized engagement lane. Public
+  // parity with the wishes lane it extends (unsealed posts ARE wish rows); per-guest
+  // dedupe keys on a client-supplied userId for the TESTING POC — graduation moves
+  // the writes behind the guest authorizer.
+  { label: 'public', method: 'GET', path: '/events/{eventId}/pulse' },
+  { label: 'public', method: 'PUT', path: '/events/{eventId}/pulse/posts' },
+  { label: 'public', method: 'PUT', path: '/events/{eventId}/pulse/votes' },
+  { label: 'public', method: 'PUT', path: '/events/{eventId}/pulse/reactions' },
   { label: 'public', method: 'PUT', path: '/events/{eventId}/survey' },
   { label: 'reservations', method: 'GET', path: '/events/{eventId}/rsvp' },
   { label: 'reservations', method: 'PUT', path: '/events/{eventId}/rsvp' },
