@@ -87,6 +87,10 @@ export declare const GuestEventApi: {
     readonly invite: (eventId: string) => string;
     readonly momentsPublic: (eventId: string) => string;
     readonly wishes: (eventId: string) => string;
+    readonly pulse: (eventId: string) => string;
+    readonly pulsePosts: (eventId: string) => string;
+    readonly pulseVotes: (eventId: string) => string;
+    readonly pulseReactions: (eventId: string) => string;
     readonly survey: (eventId: string) => string;
     readonly rsvp: (eventId: string) => string;
     readonly stage: (eventId: string, stageId: string) => string;
