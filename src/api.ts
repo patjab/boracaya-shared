@@ -55,8 +55,6 @@ export const ApiConstants = {
     // SAVE_THE_DATE_RECORD / GUEST_AUTH. Use the event-scoped AdminEventApi /
     // GuestEventApi builders instead.
 
-    // IP tracking (admin API root — the POST / geo-IP proxy stays; it is not event data).
-    GET_IP_ADDRESSES: `${ADMIN_API}`,
 
     // Admin events config (list + create; cdk#464/#472).
     ADMIN_EVENTS: `${ADMIN_API}/events`,
@@ -93,19 +91,17 @@ export const ApiConstants = {
  * the caller's Google ID token plus the server-side membership check authorize it
  * (the shipped About-PUT pattern, generalized). One builder per lane so no consumer
  * ever hand-assembles a path; eventId/templateId/email are URI-encoded here.
- * The flat ApiConstants forms above remain until the Valet migration completes
- * (cdk#405 removes them).
+ * The flat ApiConstants forms are GONE (cdk#405 / shared#57) — every admin call
+ * rides these event-scoped builders.
  */
 export const AdminEventApi = {
     config: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}`,
-    pagesOrder: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/pages/order`,
     about: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/about`,
     rsvps: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/rsvp`,
     // Composed, preset-resolved roster (cdk#575): the grid's single read — identity
     // (PROFILE) + nested rsvp + per-stage objects; the response's `preset` tells the
     // consumer which vocabulary (invite fields ride exclusivus items only).
     roster: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/roster`,
-    invites: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invite`,
     // Organizer invitations (cdk#534/#537): POST creates + emails an invite.
     // Plural /invites = the organizer lifecycle; singular /invite = guest lane.
     organizerInvites: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites`,
@@ -141,7 +137,6 @@ export const AdminEventApi = {
         `${ADMIN_API}/events/${encodeURIComponent(eventId)}/templates/${encodeURIComponent(templateId)}`,
     emailTemplate: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/email-template`,
     surveys: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys`,
-    surveyCounts: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys/count`,
 } as const;
 
 /**

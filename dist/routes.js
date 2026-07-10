@@ -12,13 +12,12 @@ exports.ApiRoutes = [
     // Event-scoped admin lanes (cdk#396 / admin#101): the URL names the target event,
     // the JWT + server-side membership check authorizes it (the shipped About pattern).
     // The flat legacy admin forms were REMOVED (cdk#405) once the Valet migration
-    // (admin#104) stopped calling them; POST / (geo-IP proxy) stays — it is not
-    // event data.
+    // (admin#104) stopped calling them; POST / (the geo-IP proxy) followed in
+    // cdk#594 when the Monitor rework orphaned it — no flat routes remain.
     { label: 'admin', method: 'GET', path: '/events/{eventId}/rsvp' },
     // Composed, preset-resolved roster (cdk#575): identity + rsvp + stage rows in one
     // read; exclusivus items carry the invitation vocabulary, inclusivus items omit it.
     { label: 'admin', method: 'GET', path: '/events/{eventId}/roster' },
-    { label: 'admin', method: 'GET', path: '/events/{eventId}/invite' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/invite' },
     // Organizer invitations (cdk#534/#537/#544): share an event with another
     // organizer by email. Plural /invites = the organizer-invitation lifecycle;
@@ -57,7 +56,6 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'GET', path: '/events/{eventId}/templates/{templateId}' },
     { label: 'admin', method: 'POST', path: '/events/{eventId}/email-template' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys' },
-    { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys/count' },
     { label: 'admin', method: 'GET', path: '/events' },
     // Account/registration lane (cdk#387, decision cdk#464): identity-level routes —
     // any verified Google identity, no membership required. POST /accounts registers
@@ -78,8 +76,6 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'GET', path: '/events/{eventId}' },
     { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}' },
-    { label: 'admin', method: 'PATCH', path: '/events/{eventId}/pages/order' },
-    { label: 'admin', method: 'POST', path: '/' },
     // the bare public GET /events (list) was REMOVED (cdk#352): unused by every UI and a
     // tenant-enumeration surface; the admin list stays (Valet's access-gate probe, #310).
     // The unsanitized public GET /events/{eventId} was REMOVED (cdk#442 D3, at the

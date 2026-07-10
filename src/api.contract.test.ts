@@ -26,7 +26,6 @@ function resourcePath(url: string): string {
 // The agreed endpoint inventory (resource paths). Update this deliberately when
 // adding/removing an endpoint — that's the point: it forces a conscious change.
 const EXPECTED_PATHS: Record<keyof typeof ApiConstants, string> = {
-    GET_IP_ADDRESSES: '/',
     ADMIN_EVENTS: '/events',
     EVENTS: '/events',
     DISCOVER: '/discover',
@@ -102,11 +101,9 @@ import { AdminEventApi } from './api';
 describe('AdminEventApi contract', () => {
     const EXPECTED_EVENT_PATHS: Record<string, string> = {
         config: '/events/e-1',
-        pagesOrder: '/events/e-1/pages/order',
         about: '/events/e-1/about',
         rsvps: '/events/e-1/rsvp',
         roster: '/events/e-1/roster',
-        invites: '/events/e-1/invite',
         organizerInvites: '/events/e-1/invites',
         members: '/events/e-1/members',
         scramble: '/events/e-1/scramble',
@@ -119,7 +116,6 @@ describe('AdminEventApi contract', () => {
         templates: '/events/e-1/templates',
         emailTemplate: '/events/e-1/email-template',
         surveys: '/events/e-1/surveys',
-        surveyCounts: '/events/e-1/surveys/count',
     };
 
     it('covers every single-argument builder', () => {

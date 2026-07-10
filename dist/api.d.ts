@@ -1,5 +1,4 @@
 export declare const ApiConstants: {
-    readonly GET_IP_ADDRESSES: string;
     readonly ADMIN_EVENTS: `${string}/events`;
     readonly EVENTS: `${string}/events`;
     readonly DISCOVER: `${string}/discover`;
@@ -14,16 +13,14 @@ export declare const ApiConstants: {
  * the caller's Google ID token plus the server-side membership check authorize it
  * (the shipped About-PUT pattern, generalized). One builder per lane so no consumer
  * ever hand-assembles a path; eventId/templateId/email are URI-encoded here.
- * The flat ApiConstants forms above remain until the Valet migration completes
- * (cdk#405 removes them).
+ * The flat ApiConstants forms are GONE (cdk#405 / shared#57) — every admin call
+ * rides these event-scoped builders.
  */
 export declare const AdminEventApi: {
     readonly config: (eventId: string) => string;
-    readonly pagesOrder: (eventId: string) => string;
     readonly about: (eventId: string) => string;
     readonly rsvps: (eventId: string) => string;
     readonly roster: (eventId: string) => string;
-    readonly invites: (eventId: string) => string;
     readonly organizerInvites: (eventId: string) => string;
     readonly members: (eventId: string) => string;
     readonly member: (eventId: string, accountId: string) => string;
@@ -44,7 +41,6 @@ export declare const AdminEventApi: {
     readonly template: (eventId: string, templateId: string) => string;
     readonly emailTemplate: (eventId: string) => string;
     readonly surveys: (eventId: string) => string;
-    readonly surveyCounts: (eventId: string) => string;
 };
 /**
  * Account/registration lane (cdk#387, decision cdk#464): identity-level admin-api
