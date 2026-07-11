@@ -37,3 +37,5 @@ export {
 export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
+export { SHELL_KEYS, STYLE_TIERS, CURATED_DESIGNS, TYPE_VOICES, OCCASION_DEFAULTS, FALLBACK_DEFAULTS } from './shells';
+export type { ShellKey, StyleTier, CuratedDesignId, TypeVoice, ResolvedTokens, StyleConfig, ShellStyleDefaults, OccasionKey } from './shells';
