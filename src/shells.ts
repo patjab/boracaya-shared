@@ -55,7 +55,7 @@ export interface ShellStyleDefaults {
  * "occasion" field. Keys are display-stable slugs; labels live with the
  * wizard UI (vocabulary, not data).
  */
-export const OCCASION_DEFAULTS: Record<string, ShellStyleDefaults> = {
+export const OCCASION_DEFAULTS = {
   wedding: { shell: 'invitation', style: { tier: 'curated', inputs: { designId: 'deco' } } },
   quinceanera: { shell: 'invitation', style: { tier: 'curated', inputs: { designId: 'fiesta' } } },
   baptism: { shell: 'invitation', style: { tier: 'curated', inputs: { designId: 'quiet-formal' } } },
@@ -73,7 +73,9 @@ export const OCCASION_DEFAULTS: Record<string, ShellStyleDefaults> = {
   reunion: { shell: 'itinerary', style: { tier: 'generated', inputs: { typeVoice: 'clean', energy: 0.4 } } },
   'celebration-of-life': { shell: 'program', style: { tier: 'curated', inputs: { designId: 'restrained' } } },
   funeral: { shell: 'program', style: { tier: 'curated', inputs: { designId: 'restrained' } } },
-};
+} satisfies Record<string, ShellStyleDefaults>;
+
+export type OccasionKey = keyof typeof OCCASION_DEFAULTS;
 
 /** "Something else" / no pick: today's layout, style chosen later. */
 export const FALLBACK_DEFAULTS: ShellStyleDefaults = {

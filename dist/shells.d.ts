@@ -36,6 +36,161 @@ export interface ShellStyleDefaults {
  * "occasion" field. Keys are display-stable slugs; labels live with the
  * wizard UI (vocabulary, not data).
  */
-export declare const OCCASION_DEFAULTS: Record<string, ShellStyleDefaults>;
+export declare const OCCASION_DEFAULTS: {
+    wedding: {
+        shell: "invitation";
+        style: {
+            tier: "curated";
+            inputs: {
+                designId: string;
+            };
+        };
+    };
+    quinceanera: {
+        shell: "invitation";
+        style: {
+            tier: "curated";
+            inputs: {
+                designId: string;
+            };
+        };
+    };
+    baptism: {
+        shell: "invitation";
+        style: {
+            tier: "curated";
+            inputs: {
+                designId: string;
+            };
+        };
+    };
+    gala: {
+        shell: "invitation";
+        style: {
+            tier: "brand";
+            inputs: {};
+        };
+    };
+    'art-show': {
+        shell: "invitation";
+        style: {
+            tier: "content";
+            inputs: {};
+        };
+    };
+    birthday: {
+        shell: "board";
+        style: {
+            tier: "generated";
+            inputs: {
+                typeVoice: string;
+                energy: number;
+            };
+        };
+    };
+    'night-out': {
+        shell: "board";
+        style: {
+            tier: "generated";
+            inputs: {
+                typeVoice: string;
+                energy: number;
+            };
+        };
+    };
+    meetup: {
+        shell: "board";
+        style: {
+            tier: "generated";
+            inputs: {
+                typeVoice: string;
+                energy: number;
+            };
+        };
+    };
+    class: {
+        shell: "poster";
+        style: {
+            tier: "generated";
+            inputs: {
+                typeVoice: string;
+                energy: number;
+            };
+        };
+    };
+    'fun-run': {
+        shell: "poster";
+        style: {
+            tier: "generated";
+            inputs: {
+                typeVoice: string;
+                energy: number;
+            };
+        };
+    };
+    'block-party': {
+        shell: "poster";
+        style: {
+            tier: "generated";
+            inputs: {
+                typeVoice: string;
+                energy: number;
+            };
+        };
+    };
+    'grand-opening': {
+        shell: "poster";
+        style: {
+            tier: "brand";
+            inputs: {};
+        };
+    };
+    cupsleeve: {
+        shell: "poster";
+        style: {
+            tier: "content";
+            inputs: {};
+        };
+    };
+    trip: {
+        shell: "itinerary";
+        style: {
+            tier: "generated";
+            inputs: {
+                typeVoice: string;
+                energy: number;
+            };
+        };
+    };
+    reunion: {
+        shell: "itinerary";
+        style: {
+            tier: "generated";
+            inputs: {
+                typeVoice: string;
+                energy: number;
+            };
+        };
+    };
+    'celebration-of-life': {
+        shell: "program";
+        style: {
+            tier: "curated";
+            inputs: {
+                designId: string;
+            };
+        };
+    };
+    funeral: {
+        shell: "program";
+        style: {
+            tier: "curated";
+            inputs: {
+                designId: string;
+            };
+        };
+    };
+};
+export type OccasionKey = keyof typeof OCCASION_DEFAULTS;
 /** "Something else" / no pick: today's layout, style chosen later. */
 export declare const FALLBACK_DEFAULTS: ShellStyleDefaults;
