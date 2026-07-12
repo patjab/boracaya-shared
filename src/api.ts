@@ -177,6 +177,13 @@ export const FacesApi = {
     person: (eventId: string, personId: string) =>
         `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
     people: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/people`,
+    // One-click recognition runs (cdk#796): admin enqueue/status + the box's
+    // queue lane (bearer = the faces-box secret, not a user token).
+    run: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/run`,
+    runs: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/runs`,
+    queue: () => `${FACES_API}/faces/queue`,
+    queueClaim: () => `${FACES_API}/faces/queue/claim`,
+    queueComplete: () => `${FACES_API}/faces/queue/complete`,
 } as const;
 
 export const OrganizerInviteApi = {
