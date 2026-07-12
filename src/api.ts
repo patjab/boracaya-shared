@@ -40,6 +40,9 @@ const SHARE_API = bHost('share-api');
 // (no share-api.test host exists). Same lambda either way; only the fronting domain differs.
 const UPLOAD_API = isTestEnv ? bHost('moments-api') : SHARE_API;
 const FACES_CONTROL_API = host('faces-control');
+// Face tagging data/API lane (epic cdk#782): the fenced faces REST API — the
+// durable half; the GPU box is a client of it, both UIs read it.
+const FACES_API = bHost('faces-api');
 const FACES_BOX_BASE = host('faces');
 const MOMENTS_BASE = host('moments');
 
@@ -160,6 +163,19 @@ export const AccountApi = {
  * Google sign-in reaches it, and the handler's strict email match (#535 D6)
  * is the gate.
  */
+/** Face tagging (epic cdk#782, F1–F5 on cdk#783): event-scoped persons +
+ *  photo assignments. Admin verbs ride the member lane (Valet); `people` is
+ *  the identified-guest People view (F3). */
+export const FacesApi = {
+    base: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces`,
+    list: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces`,
+    ingest: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/ingest`,
+    merge: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/merge`,
+    person: (eventId: string, personId: string) =>
+        `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
+    people: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/people`,
+} as const;
+
 export const OrganizerInviteApi = {
     metadata: (inviteId: string) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}`,
     accept: (inviteId: string) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}/accept`,

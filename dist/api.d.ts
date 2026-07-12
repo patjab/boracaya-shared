@@ -62,6 +62,17 @@ export declare const AccountApi: {
  * Google sign-in reaches it, and the handler's strict email match (#535 D6)
  * is the gate.
  */
+/** Face tagging (epic cdk#782, F1–F5 on cdk#783): event-scoped persons +
+ *  photo assignments. Admin verbs ride the member lane (Valet); `people` is
+ *  the identified-guest People view (F3). */
+export declare const FacesApi: {
+    readonly base: (eventId: string) => string;
+    readonly list: (eventId: string) => string;
+    readonly ingest: (eventId: string) => string;
+    readonly merge: (eventId: string) => string;
+    readonly person: (eventId: string, personId: string) => string;
+    readonly people: (eventId: string) => string;
+};
 export declare const OrganizerInviteApi: {
     readonly metadata: (inviteId: string) => string;
     readonly accept: (inviteId: string) => string;
