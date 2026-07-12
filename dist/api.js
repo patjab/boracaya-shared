@@ -159,6 +159,13 @@ exports.FacesApi = {
     merge: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/merge`,
     person: (eventId, personId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
     people: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/people`,
+    // One-click recognition runs (cdk#796): admin enqueue/status + the box's
+    // queue lane (bearer = the faces-box secret, not a user token).
+    run: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/run`,
+    runs: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/runs`,
+    queue: () => `${FACES_API}/faces/queue`,
+    queueClaim: () => `${FACES_API}/faces/queue/claim`,
+    queueComplete: () => `${FACES_API}/faces/queue/complete`,
 };
 exports.OrganizerInviteApi = {
     metadata: (inviteId) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}`,
