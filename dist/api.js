@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GuestEventApi = exports.OrganizerInviteApi = exports.AccountApi = exports.AdminEventApi = exports.ApiConstants = void 0;
+exports.GuestEventApi = exports.OrganizerInviteApi = exports.FacesApi = exports.AccountApi = exports.AdminEventApi = exports.ApiConstants = void 0;
 // API endpoints. Each REST API is fronted by a stable per-frontend custom domain
 // with an EMPTY base path (e.g. public-api.pdaboracay.com), so the request path
 // the Lambda sees stays `/events/…` (no base-path prefix — a base path would be
@@ -38,6 +38,9 @@ const SHARE_API = bHost('share-api');
 // (no share-api.test host exists). Same lambda either way; only the fronting domain differs.
 const UPLOAD_API = env_1.isTestEnv ? bHost('moments-api') : SHARE_API;
 const FACES_CONTROL_API = host('faces-control');
+// Face tagging data/API lane (epic cdk#782): the fenced faces REST API — the
+// durable half; the GPU box is a client of it, both UIs read it.
+const FACES_API = bHost('faces-api');
 const FACES_BOX_BASE = host('faces');
 const MOMENTS_BASE = host('moments');
 exports.ApiConstants = {
@@ -143,6 +146,17 @@ exports.AccountApi = {
  * Google sign-in reaches it, and the handler's strict email match (#535 D6)
  * is the gate.
  */
+/** Face tagging (epic cdk#782, F1–F5 on cdk#783): event-scoped persons +
+ *  photo assignments. Admin verbs ride the member lane (Valet); `people` is
+ *  the identified-guest People view (F3). */
+exports.FacesApi = {
+    base: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces`,
+    list: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces`,
+    ingest: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/ingest`,
+    merge: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/merge`,
+    person: (eventId, personId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
+    people: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/people`,
+};
 exports.OrganizerInviteApi = {
     metadata: (inviteId) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}`,
     accept: (inviteId) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}/accept`,
