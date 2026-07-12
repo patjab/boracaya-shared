@@ -74,6 +74,11 @@ export declare const FacesApi: {
     readonly merge: (eventId: string) => string;
     readonly person: (eventId: string, personId: string) => string;
     readonly people: (eventId: string) => string;
+    readonly run: (eventId: string) => string;
+    readonly runs: (eventId: string) => string;
+    readonly queue: () => string;
+    readonly queueClaim: () => string;
+    readonly queueComplete: () => string;
 };
 export declare const OrganizerInviteApi: {
     readonly metadata: (inviteId: string) => string;
