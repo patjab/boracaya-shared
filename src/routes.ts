@@ -21,6 +21,10 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // (admin#104) stopped calling them; POST / (the geo-IP proxy) followed in
   // cdk#594 when the Monitor rework orphaned it — no flat routes remain.
   { label: 'admin', method: 'GET', path: '/events/{eventId}/rsvp' },
+  // Organizer RSVP edit (cdk#780): validated merge-PATCH on the guest's reply —
+  // only sent fields change; the enrichment stamps (source/referer/timestamp)
+  // are never writable on this lane.
+  { label: 'admin', method: 'PATCH', path: '/events/{eventId}/rsvp' },
   // Composed, preset-resolved roster (cdk#575): identity + rsvp + stage rows in one
   // read; exclusivus items carry the invitation vocabulary, inclusivus items omit it.
   { label: 'admin', method: 'GET', path: '/events/{eventId}/roster' },
