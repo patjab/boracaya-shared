@@ -72,7 +72,9 @@ export declare const FacesApi: {
     readonly list: (eventId: string) => string;
     readonly ingest: (eventId: string) => string;
     readonly merge: (eventId: string) => string;
+    readonly split: (eventId: string) => string;
     readonly person: (eventId: string, personId: string) => string;
+    readonly removeFaces: (eventId: string, personId: string) => string;
     readonly people: (eventId: string) => string;
     readonly run: (eventId: string) => string;
     readonly runCancel: (eventId: string) => string;

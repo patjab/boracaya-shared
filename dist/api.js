@@ -157,7 +157,12 @@ exports.FacesApi = {
     list: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces`,
     ingest: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/ingest`,
     merge: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/merge`,
+    // Face-level curation (epic cdk#815, SI-1 cdk#816): split faces to a new
+    // person, remove faces from / delete a person — PATCH person renames,
+    // DELETE person deletes the group.
+    split: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/split`,
     person: (eventId, personId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
+    removeFaces: (eventId, personId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}/remove-faces`,
     people: (eventId) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/people`,
     // One-click recognition runs (cdk#796): admin enqueue/status + the box's
     // queue lane (bearer = the faces-box secret, not a user token).
