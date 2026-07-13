@@ -182,6 +182,15 @@ export const FacesApi = {
         `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
     removeFaces: (eventId: string, personId: string) =>
         `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}/remove-faces`,
+    // Box-emitted curation queues (epic cdk#815, SI-2 cdk#817): merge
+    // suggestions + the unmatched-face pile, and the acts on each.
+    suggestions: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/suggestions`,
+    dismissSuggestion: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/suggestions/dismiss`,
+    unmatched: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/unmatched`,
+    assignUnmatched: (eventId: string, faceId: string) =>
+        `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/assign`,
+    dismissUnmatched: (eventId: string, faceId: string) =>
+        `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/dismiss`,
     people: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/people`,
     // One-click recognition runs (cdk#796): admin enqueue/status + the box's
     // queue lane (bearer = the faces-box secret, not a user token).
