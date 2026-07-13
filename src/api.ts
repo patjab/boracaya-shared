@@ -180,9 +180,14 @@ export const FacesApi = {
     // One-click recognition runs (cdk#796): admin enqueue/status + the box's
     // queue lane (bearer = the faces-box secret, not a user token).
     run: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/run`,
+    // Cancel a QUEUED run (cdk#802/#803): self-serve recovery when the box
+    // never claimed it — body carries {runId}.
+    runCancel: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/run/cancel`,
     runs: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/runs`,
     queue: () => `${FACES_API}/faces/queue`,
     queueClaim: () => `${FACES_API}/faces/queue/claim`,
+    // Mid-run phase heartbeat (cdk#803): the box stamps where the run is.
+    queueProgress: () => `${FACES_API}/faces/queue/progress`,
     queueComplete: () => `${FACES_API}/faces/queue/complete`,
 } as const;
 
