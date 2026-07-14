@@ -91,6 +91,9 @@ exports.ApiConstants = {
 exports.AdminEventApi = {
     config: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}`,
     about: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/about`,
+    // Guest groups' validated lane (cdk#839/#841): PUT {groups: string[]} — full
+    // replace. The generic config PATCH strips guestGroups now; this is the only writer.
+    groups: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/groups`,
     rsvps: (eventId) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/rsvp`,
     // Composed, preset-resolved roster (cdk#575): the grid's single read — identity
     // (PROFILE) + nested rsvp + per-stage objects; the response's `preset` tells the

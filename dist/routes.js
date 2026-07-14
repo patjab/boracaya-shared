@@ -83,6 +83,10 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'GET', path: '/events/{eventId}' },
     { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}' },
+    // Guest groups' own validated lane (cdk#839/#841): full-replace of the labels
+    // guests pick (Pulse compose). Out of the generic metadata merge — the Branding
+    // PATCH can no longer write guest-feature config.
+    { label: 'admin', method: 'PUT', path: '/events/{eventId}/groups' },
     // the bare public GET /events (list) was REMOVED (cdk#352): unused by every UI and a
     // tenant-enumeration surface; the admin list stays (Valet's access-gate probe, #310).
     // The unsanitized public GET /events/{eventId} was REMOVED (cdk#442 D3, at the

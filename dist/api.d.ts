@@ -19,6 +19,7 @@ export declare const ApiConstants: {
 export declare const AdminEventApi: {
     readonly config: (eventId: string) => string;
     readonly about: (eventId: string) => string;
+    readonly groups: (eventId: string) => string;
     readonly rsvps: (eventId: string) => string;
     readonly roster: (eventId: string) => string;
     readonly organizerInvites: (eventId: string) => string;

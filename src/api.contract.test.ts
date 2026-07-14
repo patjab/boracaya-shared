@@ -102,6 +102,7 @@ describe('AdminEventApi contract', () => {
     const EXPECTED_EVENT_PATHS: Record<string, string> = {
         config: '/events/e-1',
         about: '/events/e-1/about',
+        groups: '/events/e-1/groups',
         rsvps: '/events/e-1/rsvp',
         roster: '/events/e-1/roster',
         organizerInvites: '/events/e-1/invites',
