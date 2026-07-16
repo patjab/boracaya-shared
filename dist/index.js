@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ABOUT_ICON_NAMES = exports.ABOUT_ICONS = exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.unlinkIdentity = exports.loginNoEvent = exports.claimIdentity = exports.clearGuestToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useCachedLoad = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.isTestEnv = exports.ENV_SUBDOMAIN = exports.ENV = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.FacesApi = exports.OrganizerInviteApi = exports.AccountApi = exports.GuestEventApi = exports.AdminEventApi = exports.ApiConstants = void 0;
-exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.SHELL_KEYS = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = void 0;
+exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.SHELL_KEYS = exports.stageDriftKeys = exports.resolvePrefillSource = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = void 0;
 var api_1 = require("./api");
 Object.defineProperty(exports, "ApiConstants", { enumerable: true, get: function () { return api_1.ApiConstants; } });
 Object.defineProperty(exports, "AdminEventApi", { enumerable: true, get: function () { return api_1.AdminEventApi; } });
@@ -68,6 +68,8 @@ Object.defineProperty(exports, "ABOUT_ICON_NAMES", { enumerable: true, get: func
 var stages_1 = require("./stages");
 Object.defineProperty(exports, "PREFILL_SOURCES", { enumerable: true, get: function () { return stages_1.PREFILL_SOURCES; } });
 Object.defineProperty(exports, "STAGE_RESPONSE_META_KEYS", { enumerable: true, get: function () { return stages_1.STAGE_RESPONSE_META_KEYS; } });
+Object.defineProperty(exports, "resolvePrefillSource", { enumerable: true, get: function () { return stages_1.resolvePrefillSource; } });
+Object.defineProperty(exports, "stageDriftKeys", { enumerable: true, get: function () { return stages_1.stageDriftKeys; } });
 var shells_1 = require("./shells");
 Object.defineProperty(exports, "SHELL_KEYS", { enumerable: true, get: function () { return shells_1.SHELL_KEYS; } });
 Object.defineProperty(exports, "STYLE_TIERS", { enumerable: true, get: function () { return shells_1.STYLE_TIERS; } });

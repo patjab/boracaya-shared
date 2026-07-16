@@ -29,3 +29,14 @@ export declare const PREFILL_SOURCES: readonly PrefillSource[];
  * body is flat (field keys at top level), so these ride beside the answers and
  * a field key may never claim them. Mirrors the Lambda's RESERVED_FIELD_KEYS. */
 export declare const STAGE_RESPONSE_META_KEYS: readonly ["defaults", "drift"];
+/** One registry source's current value from the guest's own rsvp map, or
+ * undefined when the id is unknown/bare or resolves to nothing. */
+export declare const resolvePrefillSource: (id: string, rsvp: Record<string, unknown> | undefined) => string[] | undefined;
+/** Field keys whose SAVED stage answer differs from its declared registry
+ * source (#965 allowance): declared edges only, direction-agnostic. Mirrors
+ * the Lambda's drift_keys — the responses grid uses the server's flag; the
+ * guest drawer computes the same thing from the roster row it already holds. */
+export declare const stageDriftKeys: (fields: ReadonlyArray<{
+    key: string;
+    defaultFrom?: string;
+}>, rsvp: Record<string, unknown> | undefined, stagePayload: Record<string, unknown> | undefined) => string[];
