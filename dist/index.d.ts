@@ -20,5 +20,7 @@ export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export { PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, resolvePrefillSource, stageDriftKeys } from './stages';
 export type { PrefillSource } from './stages';
+export { StageFormRenderer } from './StageFormRenderer';
+export type { RendererField, StageFormValue, StageFormValues } from './StageFormRenderer';
 export { SHELL_KEYS, STYLE_TIERS, CURATED_DESIGNS, TYPE_VOICES, STYLE_MODES, OCCASION_DEFAULTS, FALLBACK_DEFAULTS } from './shells';
 export type { ShellKey, StyleTier, CuratedDesignId, TypeVoice, StyleMode, ResolvedTokens, StyleConfig, ShellStyleDefaults, OccasionKey, Vocabulary } from './shells';
