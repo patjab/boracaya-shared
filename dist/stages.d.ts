@@ -67,6 +67,14 @@ export interface StageDisplayBlock {
     presentation?: DisplayPresentation;
 }
 export type StageElement = StageQuestion | StageDisplayBlock;
+/** cdk#1010: how a stage's form is presented to the guest. Rides the
+ *  definition's existing bounded `settings` map (settings.presentation =
+ *  'stepped'); anything else — absent, 'flat', junk — is flat, so the value
+ *  can never break an older renderer. */
+export type StagePresentation = 'flat' | 'stepped';
+export declare const stagePresentation: (def: {
+    settings?: Record<string, string>;
+}) => StagePresentation;
 export declare const isDisplayBlock: (el: StageElement) => el is StageDisplayBlock;
 /** A definition's ordered element list: post-#976 `elements` wins; legacy
  * `fields`-only configs read as all-questions. */

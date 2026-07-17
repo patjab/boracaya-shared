@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { StageElement, StageQuestion } from './stages';
+import type { StageElement, StagePresentation, StageQuestion } from './stages';
 /**
  * The ONE schema-driven stage-form renderer (cdk#961/#962/#976): Shore renders
  * the guest's real form with it, and Valet's stage editor embeds the same
@@ -15,19 +15,19 @@ import type { StageElement, StageQuestion } from './stages';
 export type RendererField = StageQuestion;
 export type StageFormValue = string | number | boolean | string[];
 export type StageFormValues = Record<string, StageFormValue>;
-/**
- * Renders a stage definition's guest-visible elements as controlled inputs and
- * read-only display blocks. adminOnly questions are filtered here (cdk#529) so
- * no consumer can forget. `elements` is the post-#976 ordered mix; `fields` is
- * the legacy questions-only alias and keeps pre-#976 consumers rendering
- * identically. Consecutive questions marked `sameRow` share a responsive row
- * (cdk#976). `resolved` carries server-resolved display-block values keyed by
- * block id (the guest GET `defaults` map; the Valet preview passes samples).
- */
-export declare const StageFormRenderer: ({ elements, fields, values, onChange, resolved }: {
+export declare const StageFormRenderer: ({ elements, fields, values, onChange, resolved, presentation, footer }: {
     elements?: ReadonlyArray<StageElement>;
     fields?: ReadonlyArray<RendererField>;
     values: StageFormValues;
     onChange: (key: string, value: StageFormValue) => void;
     resolved?: Readonly<StageFormValues>;
+    /** cdk#1010: 'stepped' walks the same ordered rows one screen at a time
+     *  through the shared WizardShell (display-block rows become interstitial
+     *  screens; a sameRow group stays one screen). Absent/'flat' renders the
+     *  whole form — byte-identical to the pre-#1010 output. */
+    presentation?: StagePresentation;
+    /** The consumer's submit control: rendered AFTER the form in flat mode,
+     *  and in Next's place on the final stepped screen — so submission stays
+     *  with the consumer in both presentations. */
+    footer?: React.ReactNode;
 }) => React.ReactElement;

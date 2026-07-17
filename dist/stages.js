@@ -27,7 +27,9 @@
  *    one later is a registry entry, not a new mechanism.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stageDriftKeys = exports.resolvePrefillSource = exports.guestDisplayName = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = exports.stageQuestions = exports.stageElements = exports.isDisplayBlock = void 0;
+exports.stageDriftKeys = exports.resolvePrefillSource = exports.guestDisplayName = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = exports.stageQuestions = exports.stageElements = exports.isDisplayBlock = exports.stagePresentation = void 0;
+const stagePresentation = (def) => { var _a; return (((_a = def.settings) === null || _a === void 0 ? void 0 : _a.presentation) === 'stepped' ? 'stepped' : 'flat'); };
+exports.stagePresentation = stagePresentation;
 const isDisplayBlock = (el) => el.kind === 'display';
 exports.isDisplayBlock = isDisplayBlock;
 /** A definition's ordered element list: post-#976 `elements` wins; legacy

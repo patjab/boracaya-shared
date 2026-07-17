@@ -40,13 +40,15 @@ export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPag
 export {
   PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS,
   guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys,
-  stageElements, stageQuestions,
+  stageElements, stagePresentation, stageQuestions,
 } from './stages';
 export type {
-  DisplayPresentation, GuestRowLike, PrefillSource,
-  StageDisplayBlock, StageElement, StageFieldType, StageQuestion,
+  DisplayPresentation, GuestRowLike, PrefillSource, StageDisplayBlock,
+  StageElement, StageFieldType, StagePresentation, StageQuestion,
 } from './stages';
 export { StageFormRenderer } from './StageFormRenderer';
 export type { RendererField, StageFormValue, StageFormValues } from './StageFormRenderer';
+export { WizardShell } from './WizardShell';
+export type { WizardStep } from './WizardShell';
 export { SHELL_KEYS, STYLE_TIERS, CURATED_DESIGNS, TYPE_VOICES, STYLE_MODES, OCCASION_DEFAULTS, FALLBACK_DEFAULTS } from './shells';
 export type { ShellKey, StyleTier, CuratedDesignId, TypeVoice, StyleMode, ResolvedTokens, StyleConfig, ShellStyleDefaults, OccasionKey, Vocabulary } from './shells';

@@ -12,8 +12,10 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import { isDisplayBlock } from './stages';
 import type {
-    DisplayPresentation, StageDisplayBlock, StageElement, StageQuestion,
+    DisplayPresentation, StageDisplayBlock, StageElement, StagePresentation, StageQuestion,
 } from './stages';
+import { WizardShell } from './WizardShell';
+import type { WizardStep } from './WizardShell';
 
 /**
  * The ONE schema-driven stage-form renderer (cdk#961/#962/#976): Shore renders
@@ -205,12 +207,26 @@ const keyOf = (el: StageElement): string => (isDisplayBlock(el) ? el.id : el.key
  * (cdk#976). `resolved` carries server-resolved display-block values keyed by
  * block id (the guest GET `defaults` map; the Valet preview passes samples).
  */
-export const StageFormRenderer = ({ elements, fields, values, onChange, resolved }: {
+/** A required question is "answered" when it holds a real value — false and 0
+ *  count (a declined boolean IS an answer); '' , [] and undefined do not. */
+const answered = (q: StageQuestion, v: StageFormValue | undefined): boolean =>
+    !q.required || (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== '');
+
+export const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }: {
     elements?: ReadonlyArray<StageElement>;
     fields?: ReadonlyArray<RendererField>;
     values: StageFormValues;
     onChange: (key: string, value: StageFormValue) => void;
     resolved?: Readonly<StageFormValues>;
+    /** cdk#1010: 'stepped' walks the same ordered rows one screen at a time
+     *  through the shared WizardShell (display-block rows become interstitial
+     *  screens; a sameRow group stays one screen). Absent/'flat' renders the
+     *  whole form — byte-identical to the pre-#1010 output. */
+    presentation?: StagePresentation;
+    /** The consumer's submit control: rendered AFTER the form in flat mode,
+     *  and in Next's place on the final stepped screen — so submission stays
+     *  with the consumer in both presentations. */
+    footer?: React.ReactNode;
 }): React.ReactElement => {
     const list = (elements ?? fields ?? [])
         .filter((el) => isDisplayBlock(el) || !el.adminOnly);
@@ -223,22 +239,40 @@ export const StageFormRenderer = ({ elements, fields, values, onChange, resolved
     const rendered = (el: StageElement) => (isDisplayBlock(el)
         ? displayBlock(el, resolved)
         : questionInput(el, values[el.key], onChange));
+    const renderRow = (row: StageElement[]) => (row.length === 1 ? rendered(row[0]) : (
+        <Stack
+            key={row.map(keyOf).join('+')}
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={{ xs: 0, sm: 2 }}
+            alignItems="flex-start"
+        >
+            {row.map((el) => (
+                <Box key={keyOf(el)} sx={{ flex: 1, minWidth: 0, width: '100%' }}>
+                    {rendered(el)}
+                </Box>
+            ))}
+        </Stack>
+    ));
+
+    if (presentation === 'stepped' && rows.length > 0) {
+        // One row per screen: a hidden display block (value resolved to
+        // nothing) must not leave a blank screen, so empty interstitials are
+        // dropped from the step list rather than rendered as dead stops.
+        const steps: WizardStep[] = rows
+            .filter((row) => !(isDisplayBlock(row[0]) && displayBlock(row[0], resolved) === null))
+            .map((row) => ({
+                key: row.map(keyOf).join('+'),
+                content: renderRow(row),
+                canProceed: row.every((el) =>
+                    isDisplayBlock(el) || answered(el, values[el.key])),
+            }));
+        return <WizardShell steps={steps} finish={footer} />;
+    }
+
     return (
         <>
-            {rows.map((row) => (row.length === 1 ? rendered(row[0]) : (
-                <Stack
-                    key={row.map(keyOf).join('+')}
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={{ xs: 0, sm: 2 }}
-                    alignItems="flex-start"
-                >
-                    {row.map((el) => (
-                        <Box key={keyOf(el)} sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-                            {rendered(el)}
-                        </Box>
-                    ))}
-                </Stack>
-            )))}
+            {rows.map(renderRow)}
+            {footer}
         </>
     );
 };
