@@ -1,13 +1,20 @@
 /**
- * Prefill-source registry menu (cdk#962).
+ * Stage schema + prefill-source registry (cdk#962, cdk#976).
  *
- * A custom-stage field may declare `defaultFrom` — where its value starts from
- * on a fresh guest form. Sources are DATA, not code: the resolvers (flattening
- * functions with full access to the guest row) live server-side in the stages
- * Lambda; this constant is the {id, label} MENU the Valet picker renders, so
- * hosts choose from human labels and never type an identifier. The Lambda
- * validates a saved `defaultFrom` against these ids (bare un-namespaced ids
- * remain valid too — they name event-config keys, the original cdk#953 lane).
+ * This module is the TS source of truth for stage definitions: Valet (editor)
+ * and Shore (guest app) import these types instead of declaring their own
+ * mirrors. The Python validation in the stages Lambda remains the enforcement
+ * boundary — shapes here mirror it, they don't replace it.
+ *
+ * A custom-stage question may declare `defaultFrom` — where its value starts
+ * from on a fresh guest form. Sources are DATA, not code: the resolvers
+ * (flattening functions with full access to the guest row) live server-side in
+ * the stages Lambda; PREFILL_SOURCES is the {id, label} MENU the Valet picker
+ * renders, so hosts choose from human labels and never type an identifier. The
+ * Lambda validates a saved `defaultFrom` against these ids (bare un-namespaced
+ * ids remain valid too — they name event-config keys, the original cdk#953
+ * lane). Display blocks (cdk#976) resolve their `source` through the SAME
+ * registry.
  *
  * Registry rules (decision log on cdk#962):
  *  - ids are namespaced (`rsvp.*`); flattenings must be SELF-CONTAINED —
@@ -18,16 +25,87 @@
  *  - stage-to-stage sources are deliberately absent (star, not chain) — adding
  *    one later is a registry entry, not a new mechanism.
  */
-export interface PrefillSource {
-    /** Namespaced registry id stored in a field's `defaultFrom`. */
+
+// --- Stage element schema (cdk#976) -----------------------------------------
+
+export type StageFieldType =
+    'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'date' | 'list';
+
+export interface StageQuestion {
+    /** Absent on pre-#976 configs; absent and 'question' mean the same. */
+    kind?: 'question';
+    key: string;
+    label: string;
+    type: StageFieldType;
+    required?: boolean;
+    options?: string[];
+    maxLength?: number;
+    adminOnly?: boolean;
+    defaultFrom?: string;
+    /** Render beside the previous question on wide screens (cdk#976). */
+    sameRow?: boolean;
+    /** Input hint shown while empty, e.g. "e.g., 5J 108" (cdk#976). */
+    placeholder?: string;
+}
+
+export type DisplayPresentation = 'line' | 'roster' | 'note';
+
+/**
+ * Shown, not asked (cdk#976): read-only content on a stage screen. Sourced
+ * blocks resolve through the prefill registry server-side on every guest GET
+ * (always live, no drift — nothing is ever saved); text blocks are host-written
+ * and need no resolution. Blocks never appear in answers: the Lambda's
+ * submission validation only knows question keys, so a block id in a PATCH
+ * body is rejected as unknown.
+ */
+export interface StageDisplayBlock {
+    kind: 'display';
+    /** Identity for value transport (guest GET `defaults[id]`) and stable
+     * rendering — never a writable answer key. Shares the key namespace with
+     * questions so uniqueness is validated across both. */
     id: string;
-    /** Host-facing label shown in the Valet "Starts as…" picker. */
+    label?: string;
+    /** Prefill-registry id (`rsvp.*`, later `event.*`) — exactly one of
+     * source | text. */
+    source?: string;
+    /** Host-written static content — exactly one of source | text. */
+    text?: string;
+    /** Defaults: 'line' for sourced blocks, 'note' for text blocks. */
+    presentation?: DisplayPresentation;
+}
+
+export type StageElement = StageQuestion | StageDisplayBlock;
+
+export const isDisplayBlock = (el: StageElement): el is StageDisplayBlock =>
+    (el as StageDisplayBlock).kind === 'display';
+
+/** A definition's ordered element list: post-#976 `elements` wins; legacy
+ * `fields`-only configs read as all-questions. */
+export const stageElements = (def: {
+    elements?: ReadonlyArray<StageElement>;
+    fields?: ReadonlyArray<StageQuestion>;
+}): ReadonlyArray<StageElement> => def.elements ?? def.fields ?? [];
+
+/** The askable subset, in order — what submissions, seeds, and response
+ * columns are built from. */
+export const stageQuestions = (
+    elements: ReadonlyArray<StageElement>,
+): StageQuestion[] => elements.filter((el): el is StageQuestion => !isDisplayBlock(el));
+
+// --- Prefill-source registry menu (cdk#962) ---------------------------------
+
+export interface PrefillSource {
+    /** Namespaced registry id stored in a field's `defaultFrom` / a display
+     * block's `source`. */
+    id: string;
+    /** Host-facing label shown in the Valet "Starts as…" / "Shows…" pickers. */
     label: string;
 }
 
 export const PREFILL_SOURCES: readonly PrefillSource[] = [
     { id: 'rsvp.companionNames', label: "Companion names — from their RSVP" },
     { id: 'rsvp.companionsWithAllergies', label: "Companions with allergies — from their RSVP" },
+    { id: 'rsvp.partyNames', label: "Party names — the guest plus companions, from their RSVP" },
 ];
 
 /** Reserved top-level keys on stage-lane responses (cdk#962): the guest GET
@@ -40,8 +118,16 @@ export const STAGE_RESPONSE_META_KEYS = ['defaults', 'drift'] as const;
  * kept in shared so every consumer compares drift one way. The server remains
  * the authority on the guest lanes (GET defaults / responses drift); this
  * mirror serves surfaces that already hold the guest's row client-side (the
- * Valet guest drawer reads the roster row, which carries rsvp + stages).
+ * Valet guest drawer reads the roster row, which carries names + rsvp +
+ * stages). Resolvers take the guest ROW (not just rsvp) since cdk#976 —
+ * matching prefill.py, whose resolvers always took the row.
  */
+export interface GuestRowLike {
+    firstName?: unknown;
+    lastName?: unknown;
+    rsvp?: Record<string, unknown>;
+}
+
 type CompanionEntry = { name: string; allergies: string };
 
 const companionEntries = (rsvp: Record<string, unknown> | undefined): CompanionEntry[] => {
@@ -59,18 +145,33 @@ const companionEntries = (rsvp: Record<string, unknown> | undefined): CompanionE
     return entries;
 };
 
-const RESOLVERS: Record<string, (rsvp: Record<string, unknown> | undefined) => string[]> = {
-    'rsvp.companionNames': (rsvp) => companionEntries(rsvp).map((e) => e.name),
-    'rsvp.companionsWithAllergies': (rsvp) => companionEntries(rsvp)
-        .map((e) => (e.allergies ? `${e.name} (${e.allergies})` : e.name)),
+const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+
+/** Mirror of the Lambda's guest_display_name: row names first, RSVP fallbacks
+ * second, empty string when nothing is known. */
+export const guestDisplayName = (guest: GuestRowLike | undefined): string => {
+    const fromRow = [str(guest?.firstName), str(guest?.lastName)].filter(Boolean).join(' ');
+    if (fromRow) return fromRow;
+    return str(guest?.rsvp?.preferredName) || str(guest?.rsvp?.name);
 };
 
-/** One registry source's current value from the guest's own rsvp map, or
- * undefined when the id is unknown/bare or resolves to nothing. */
+const RESOLVERS: Record<string, (guest: GuestRowLike | undefined) => string[]> = {
+    'rsvp.companionNames': (g) => companionEntries(g?.rsvp).map((e) => e.name),
+    'rsvp.companionsWithAllergies': (g) => companionEntries(g?.rsvp)
+        .map((e) => (e.allergies ? `${e.name} (${e.allergies})` : e.name)),
+    'rsvp.partyNames': (g) => {
+        const name = guestDisplayName(g);
+        const companions = companionEntries(g?.rsvp).map((e) => e.name);
+        return name ? [name, ...companions] : companions;
+    },
+};
+
+/** One registry source's current value from the guest's own row, or undefined
+ * when the id is unknown/bare or resolves to nothing. */
 export const resolvePrefillSource = (
-    id: string, rsvp: Record<string, unknown> | undefined,
+    id: string, guest: GuestRowLike | undefined,
 ): string[] | undefined => {
-    const resolved = RESOLVERS[id]?.(rsvp);
+    const resolved = RESOLVERS[id]?.(guest);
     return resolved && resolved.length > 0 ? resolved : undefined;
 };
 
@@ -82,13 +183,15 @@ const normalized = (value: unknown): unknown => {
     return value;
 };
 
-/** Field keys whose SAVED stage answer differs from its declared registry
+/** Question keys whose SAVED stage answer differs from its declared registry
  * source (#965 allowance): declared edges only, direction-agnostic. Mirrors
  * the Lambda's drift_keys — the responses grid uses the server's flag; the
- * guest drawer computes the same thing from the roster row it already holds. */
+ * guest drawer computes the same thing from the roster row it already holds.
+ * Display blocks never drift (nothing saved) and are skipped by construction:
+ * they carry no `key`. */
 export const stageDriftKeys = (
     fields: ReadonlyArray<{ key: string; defaultFrom?: string }>,
-    rsvp: Record<string, unknown> | undefined,
+    guest: GuestRowLike | undefined,
     stagePayload: Record<string, unknown> | undefined,
 ): string[] => {
     const saved = stagePayload ?? {};
@@ -96,7 +199,7 @@ export const stageDriftKeys = (
     for (const f of fields) {
         if (!f.defaultFrom || !(f.defaultFrom in RESOLVERS)) continue;
         if (!(f.key in saved)) continue;
-        const current = resolvePrefillSource(f.defaultFrom, rsvp);
+        const current = resolvePrefillSource(f.defaultFrom, guest);
         if (current === undefined) continue;
         if (normalized(saved[f.key]) !== normalized(current)) out.push(f.key);
     }
