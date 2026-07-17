@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { StageElement, StagePresentation, StageQuestion } from './stages';
+import type { RepeatingGroupEntry, StageElement, StagePresentation, StageQuestion } from './stages';
 /**
  * The ONE schema-driven stage-form renderer (cdk#961/#962/#976): Shore renders
  * the guest's real form with it, and Valet's stage editor embeds the same
@@ -13,7 +13,7 @@ import type { StageElement, StagePresentation, StageQuestion } from './stages';
  */
 /** Legacy name for a question element (pre-#976 consumers). */
 export type RendererField = StageQuestion;
-export type StageFormValue = string | number | boolean | string[];
+export type StageFormValue = string | number | boolean | string[] | RepeatingGroupEntry[];
 export type StageFormValues = Record<string, StageFormValue>;
 export declare const StageFormRenderer: ({ elements, fields, values, onChange, resolved, presentation, footer }: {
     elements?: ReadonlyArray<StageElement>;

@@ -10,9 +10,12 @@ import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import { isDisplayBlock } from './stages';
 import type {
-    DisplayPresentation, StageDisplayBlock, StageElement, StagePresentation, StageQuestion,
+    DisplayPresentation, RepeatingGroupEntry, StageDisplayBlock, StageElement,
+    StagePresentation, StageQuestion, StageSubField,
 } from './stages';
 import { WizardShell } from './WizardShell';
 import type { WizardStep } from './WizardShell';
@@ -32,8 +35,67 @@ import type { WizardStep } from './WizardShell';
 /** Legacy name for a question element (pre-#976 consumers). */
 export type RendererField = StageQuestion;
 
-export type StageFormValue = string | number | boolean | string[];
+export type StageFormValue = string | number | boolean | string[] | RepeatingGroupEntry[];
 export type StageFormValues = Record<string, StageFormValue>;
+
+/** cdk#1011: a repeating group renders its entries as bordered mini-forms —
+ *  each sub-field reuses the same input vocabulary via a pseudo-question, so
+ *  a group's inputs look exactly like top-level ones. The default server cap
+ *  mirrors here so the Add button quietly stops at the bound. */
+const DEFAULT_MAX_ENTRIES = 20;
+
+const repeatingGroupInput = (
+    f: StageQuestion,
+    value: StageFormValue | undefined,
+    onChange: (key: string, value: StageFormValue) => void,
+) => {
+    const entries: RepeatingGroupEntry[] = Array.isArray(value)
+        ? (value as RepeatingGroupEntry[]).filter((e): e is RepeatingGroupEntry =>
+            typeof e === 'object' && e !== null && !Array.isArray(e))
+        : [];
+    const subFields = f.subFields ?? [];
+    const max = f.maxEntries ?? DEFAULT_MAX_ENTRIES;
+    const setEntries = (next: RepeatingGroupEntry[]) => onChange(f.key, next);
+    return (
+        <Box key={f.key} sx={{ mt: 2, mb: 1 }}>
+            <Typography variant="body2" sx={{ mb: 0.75 }}>
+                {f.label}{f.required ? ' *' : ''}
+            </Typography>
+            <Stack spacing={1.5}>
+                {entries.map((entry, i) => (
+                    <Box
+                        // Positional keys are correct here: entries carry no
+                        // identity, and remove rebuilds the array.
+                        // eslint-disable-next-line react/no-array-index-key
+                        key={`${f.key}-${i}`}
+                        sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }}
+                    >
+                        <IconButton
+                            size="small"
+                            aria-label={`Remove ${f.label} entry ${i + 1}`}
+                            onClick={() => setEntries(entries.filter((_, j) => j !== i))}
+                            sx={{ position: 'absolute', top: 4, right: 4 }}
+                        >
+                            ✕
+                        </IconButton>
+                        {subFields.map((sub: StageSubField) => questionInput(
+                            { ...sub, key: `${f.key}.${i}.${sub.key}` } as StageQuestion,
+                            entry[sub.key],
+                            (_k, v) => setEntries(entries.map((e, j) =>
+                                (j === i ? { ...e, [sub.key]: v as string | number | boolean } : e))),
+                        ))}
+                    </Box>
+                ))}
+            </Stack>
+            {entries.length < max && (
+                <Button size="small" variant="outlined" sx={{ mt: 1 }}
+                        onClick={() => setEntries([...entries, {}])}>
+                    {f.addLabel ?? 'Add another'}
+                </Button>
+            )}
+        </Box>
+    );
+};
 
 const questionInput = (
     f: StageQuestion,
@@ -41,6 +103,8 @@ const questionInput = (
     onChange: (key: string, value: StageFormValue) => void,
 ) => {
     switch (f.type) {
+        case 'repeatingGroup':
+            return repeatingGroupInput(f, value, onChange);
         case 'list':
             // A list of short strings (e.g. companions), edited comma-separated —
             // the server bounds items/length (cdk#518).
@@ -211,6 +275,7 @@ const keyOf = (el: StageElement): string => (isDisplayBlock(el) ? el.id : el.key
  *  count (a declined boolean IS an answer); '' , [] and undefined do not. */
 const answered = (q: StageQuestion, v: StageFormValue | undefined): boolean =>
     !q.required || (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== '');
+// (A required repeatingGroup follows the same array rule: at least one entry.)
 
 export const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }: {
     elements?: ReadonlyArray<StageElement>;

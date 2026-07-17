@@ -16,11 +16,34 @@ const TextField_1 = __importDefault(require("@mui/material/TextField"));
 const ToggleButton_1 = __importDefault(require("@mui/material/ToggleButton"));
 const ToggleButtonGroup_1 = __importDefault(require("@mui/material/ToggleButtonGroup"));
 const Typography_1 = __importDefault(require("@mui/material/Typography"));
+const Button_1 = __importDefault(require("@mui/material/Button"));
+const IconButton_1 = __importDefault(require("@mui/material/IconButton"));
 const stages_1 = require("./stages");
 const WizardShell_1 = require("./WizardShell");
+/** cdk#1011: a repeating group renders its entries as bordered mini-forms —
+ *  each sub-field reuses the same input vocabulary via a pseudo-question, so
+ *  a group's inputs look exactly like top-level ones. The default server cap
+ *  mirrors here so the Add button quietly stops at the bound. */
+const DEFAULT_MAX_ENTRIES = 20;
+const repeatingGroupInput = (f, value, onChange) => {
+    var _a, _b, _c;
+    const entries = Array.isArray(value)
+        ? value.filter((e) => typeof e === 'object' && e !== null && !Array.isArray(e))
+        : [];
+    const subFields = (_a = f.subFields) !== null && _a !== void 0 ? _a : [];
+    const max = (_b = f.maxEntries) !== null && _b !== void 0 ? _b : DEFAULT_MAX_ENTRIES;
+    const setEntries = (next) => onChange(f.key, next);
+    return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsxs)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: [f.label, f.required ? ' *' : ''] }), (0, jsx_runtime_1.jsx)(Stack_1.default, { spacing: 1.5, children: entries.map((entry, i) => ((0, jsx_runtime_1.jsxs)(Box_1.default
+                // Positional keys are correct here: entries carry no
+                // identity, and remove rebuilds the array.
+                // eslint-disable-next-line react/no-array-index-key
+                , { sx: { border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }, children: [(0, jsx_runtime_1.jsx)(IconButton_1.default, { size: "small", "aria-label": `Remove ${f.label} entry ${i + 1}`, onClick: () => setEntries(entries.filter((_, j) => j !== i)), sx: { position: 'absolute', top: 4, right: 4 }, children: "\u2715" }), subFields.map((sub) => questionInput({ ...sub, key: `${f.key}.${i}.${sub.key}` }, entry[sub.key], (_k, v) => setEntries(entries.map((e, j) => (j === i ? { ...e, [sub.key]: v } : e)))))] }, `${f.key}-${i}`))) }), entries.length < max && ((0, jsx_runtime_1.jsx)(Button_1.default, { size: "small", variant: "outlined", sx: { mt: 1 }, onClick: () => setEntries([...entries, {}]), children: (_c = f.addLabel) !== null && _c !== void 0 ? _c : 'Add another' }))] }, f.key));
+};
 const questionInput = (f, value, onChange) => {
     var _a, _b;
     switch (f.type) {
+        case 'repeatingGroup':
+            return repeatingGroupInput(f, value, onChange);
         case 'list':
             // A list of short strings (e.g. companions), edited comma-separated —
             // the server bounds items/length (cdk#518).
@@ -89,6 +112,7 @@ const keyOf = (el) => ((0, stages_1.isDisplayBlock)(el) ? el.id : el.key);
 /** A required question is "answered" when it holds a real value — false and 0
  *  count (a declined boolean IS an answer); '' , [] and undefined do not. */
 const answered = (q, v) => !q.required || (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== '');
+// (A required repeatingGroup follows the same array rule: at least one entry.)
 const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }) => {
     var _a;
     const list = ((_a = elements !== null && elements !== void 0 ? elements : fields) !== null && _a !== void 0 ? _a : [])

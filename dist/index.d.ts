@@ -19,7 +19,7 @@ export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult } fr
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export { PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation, stageQuestions, } from './stages';
-export type { DisplayPresentation, GuestRowLike, PrefillSource, StageDisplayBlock, StageElement, StageFieldType, StagePresentation, StageQuestion, } from './stages';
+export type { DisplayPresentation, GuestRowLike, PrefillSource, RepeatingGroupEntry, StageDisplayBlock, StageElement, StageFieldType, StagePresentation, StageQuestion, StageSubField, } from './stages';
 export { StageFormRenderer } from './StageFormRenderer';
 export type { RendererField, StageFormValue, StageFormValues } from './StageFormRenderer';
 export { WizardShell } from './WizardShell';

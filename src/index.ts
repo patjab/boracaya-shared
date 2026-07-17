@@ -43,8 +43,9 @@ export {
   stageElements, stagePresentation, stageQuestions,
 } from './stages';
 export type {
-  DisplayPresentation, GuestRowLike, PrefillSource, StageDisplayBlock,
-  StageElement, StageFieldType, StagePresentation, StageQuestion,
+  DisplayPresentation, GuestRowLike, PrefillSource, RepeatingGroupEntry,
+  StageDisplayBlock, StageElement, StageFieldType, StagePresentation,
+  StageQuestion, StageSubField,
 } from './stages';
 export { StageFormRenderer } from './StageFormRenderer';
 export type { RendererField, StageFormValue, StageFormValues } from './StageFormRenderer';

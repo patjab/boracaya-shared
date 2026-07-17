@@ -29,7 +29,26 @@
 // --- Stage element schema (cdk#976) -----------------------------------------
 
 export type StageFieldType =
-    'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'date' | 'list';
+    'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'date' | 'list'
+    | 'repeatingGroup';
+
+/** cdk#1011: one sub-field of a repeating group — the simple question shape
+ *  with the group-level machinery removed. Sub-fields may NOT nest (no
+ *  repeatingGroup inside repeatingGroup — decided up front to kill the
+ *  rabbit hole), and carry no sameRow/adminOnly/defaultFrom: those belong to
+ *  top-level questions only. */
+export interface StageSubField {
+    key: string;
+    label: string;
+    type: 'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'date';
+    required?: boolean;
+    options?: string[];
+    maxLength?: number;
+    placeholder?: string;
+}
+
+/** cdk#1011: one entry of a repeating-group answer. */
+export type RepeatingGroupEntry = Record<string, string | number | boolean>;
 
 export interface StageQuestion {
     /** Absent on pre-#976 configs; absent and 'question' mean the same. */
@@ -46,6 +65,14 @@ export interface StageQuestion {
     sameRow?: boolean;
     /** Input hint shown while empty, e.g. "e.g., 5J 108" (cdk#976). */
     placeholder?: string;
+    /** cdk#1011: repeatingGroup only — the shape of each entry. */
+    subFields?: StageSubField[];
+    /** cdk#1011: repeatingGroup only — hard cap on entries (server-enforced
+     *  too); absent = the server default. */
+    maxEntries?: number;
+    /** cdk#1011: repeatingGroup only — the add button's label, host-worded
+     *  ("Add another guest"); absent = "Add another". */
+    addLabel?: string;
 }
 
 export type DisplayPresentation = 'line' | 'roster' | 'note';
