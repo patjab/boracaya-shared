@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ABOUT_ICON_NAMES = exports.ABOUT_ICONS = exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.unlinkIdentity = exports.loginNoEvent = exports.claimIdentity = exports.clearGuestToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useCachedLoad = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.isTestEnv = exports.ENV_SUBDOMAIN = exports.ENV = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.FacesApi = exports.OrganizerInviteApi = exports.AccountApi = exports.GuestEventApi = exports.AdminEventApi = exports.ApiConstants = void 0;
-exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.SHELL_KEYS = exports.StageFormRenderer = exports.stageQuestions = exports.stageElements = exports.stageDriftKeys = exports.resolvePrefillSource = exports.isDisplayBlock = exports.guestDisplayName = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = void 0;
+exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.SHELL_KEYS = exports.WizardShell = exports.StageFormRenderer = exports.stageQuestions = exports.stagePresentation = exports.stageElements = exports.stageDriftKeys = exports.resolvePrefillSource = exports.isDisplayBlock = exports.guestDisplayName = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = void 0;
 var api_1 = require("./api");
 Object.defineProperty(exports, "ApiConstants", { enumerable: true, get: function () { return api_1.ApiConstants; } });
 Object.defineProperty(exports, "AdminEventApi", { enumerable: true, get: function () { return api_1.AdminEventApi; } });
@@ -73,9 +73,12 @@ Object.defineProperty(exports, "isDisplayBlock", { enumerable: true, get: functi
 Object.defineProperty(exports, "resolvePrefillSource", { enumerable: true, get: function () { return stages_1.resolvePrefillSource; } });
 Object.defineProperty(exports, "stageDriftKeys", { enumerable: true, get: function () { return stages_1.stageDriftKeys; } });
 Object.defineProperty(exports, "stageElements", { enumerable: true, get: function () { return stages_1.stageElements; } });
+Object.defineProperty(exports, "stagePresentation", { enumerable: true, get: function () { return stages_1.stagePresentation; } });
 Object.defineProperty(exports, "stageQuestions", { enumerable: true, get: function () { return stages_1.stageQuestions; } });
 var StageFormRenderer_1 = require("./StageFormRenderer");
 Object.defineProperty(exports, "StageFormRenderer", { enumerable: true, get: function () { return StageFormRenderer_1.StageFormRenderer; } });
+var WizardShell_1 = require("./WizardShell");
+Object.defineProperty(exports, "WizardShell", { enumerable: true, get: function () { return WizardShell_1.WizardShell; } });
 var shells_1 = require("./shells");
 Object.defineProperty(exports, "SHELL_KEYS", { enumerable: true, get: function () { return shells_1.SHELL_KEYS; } });
 Object.defineProperty(exports, "STYLE_TIERS", { enumerable: true, get: function () { return shells_1.STYLE_TIERS; } });

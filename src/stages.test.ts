@@ -136,3 +136,18 @@ describe('stageDriftKeys (mirror of the Lambda drift_keys)', () => {
         expect(stageDriftKeys(FIELDS, guest, undefined)).toEqual([]);
     });
 });
+
+// --- cdk#1010: presentation rides the settings map --------------------------
+import { stagePresentation } from './stages';
+
+describe('stagePresentation (cdk#1010)', () => {
+    it("reads settings.presentation === 'stepped'", () => {
+        expect(stagePresentation({ settings: { presentation: 'stepped' } })).toBe('stepped');
+    });
+    it('absent settings, absent key, explicit flat, and junk are ALL flat — an old renderer can never meet a value it predates', () => {
+        expect(stagePresentation({})).toBe('flat');
+        expect(stagePresentation({ settings: {} })).toBe('flat');
+        expect(stagePresentation({ settings: { presentation: 'flat' } })).toBe('flat');
+        expect(stagePresentation({ settings: { presentation: 'sideways' } })).toBe('flat');
+    });
+});

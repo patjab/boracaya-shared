@@ -76,6 +76,16 @@ export interface StageDisplayBlock {
 
 export type StageElement = StageQuestion | StageDisplayBlock;
 
+/** cdk#1010: how a stage's form is presented to the guest. Rides the
+ *  definition's existing bounded `settings` map (settings.presentation =
+ *  'stepped'); anything else — absent, 'flat', junk — is flat, so the value
+ *  can never break an older renderer. */
+export type StagePresentation = 'flat' | 'stepped';
+
+export const stagePresentation = (def: {
+    settings?: Record<string, string>;
+}): StagePresentation => (def.settings?.presentation === 'stepped' ? 'stepped' : 'flat');
+
 export const isDisplayBlock = (el: StageElement): el is StageDisplayBlock =>
     (el as StageDisplayBlock).kind === 'display';
 

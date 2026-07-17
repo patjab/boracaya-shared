@@ -17,6 +17,7 @@ const ToggleButton_1 = __importDefault(require("@mui/material/ToggleButton"));
 const ToggleButtonGroup_1 = __importDefault(require("@mui/material/ToggleButtonGroup"));
 const Typography_1 = __importDefault(require("@mui/material/Typography"));
 const stages_1 = require("./stages");
+const WizardShell_1 = require("./WizardShell");
 const questionInput = (f, value, onChange) => {
     var _a, _b;
     switch (f.type) {
@@ -85,7 +86,10 @@ const keyOf = (el) => ((0, stages_1.isDisplayBlock)(el) ? el.id : el.key);
  * (cdk#976). `resolved` carries server-resolved display-block values keyed by
  * block id (the guest GET `defaults` map; the Valet preview passes samples).
  */
-const StageFormRenderer = ({ elements, fields, values, onChange, resolved }) => {
+/** A required question is "answered" when it holds a real value — false and 0
+ *  count (a declined boolean IS an answer); '' , [] and undefined do not. */
+const answered = (q, v) => !q.required || (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== '');
+const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }) => {
     var _a;
     const list = ((_a = elements !== null && elements !== void 0 ? elements : fields) !== null && _a !== void 0 ? _a : [])
         .filter((el) => (0, stages_1.isDisplayBlock)(el) || !el.adminOnly);
@@ -100,6 +104,20 @@ const StageFormRenderer = ({ elements, fields, values, onChange, resolved }) => 
     const rendered = (el) => ((0, stages_1.isDisplayBlock)(el)
         ? displayBlock(el, resolved)
         : questionInput(el, values[el.key], onChange));
-    return ((0, jsx_runtime_1.jsx)(jsx_runtime_1.Fragment, { children: rows.map((row) => (row.length === 1 ? rendered(row[0]) : ((0, jsx_runtime_1.jsx)(Stack_1.default, { direction: { xs: 'column', sm: 'row' }, spacing: { xs: 0, sm: 2 }, alignItems: "flex-start", children: row.map((el) => ((0, jsx_runtime_1.jsx)(Box_1.default, { sx: { flex: 1, minWidth: 0, width: '100%' }, children: rendered(el) }, keyOf(el)))) }, row.map(keyOf).join('+'))))) }));
+    const renderRow = (row) => (row.length === 1 ? rendered(row[0]) : ((0, jsx_runtime_1.jsx)(Stack_1.default, { direction: { xs: 'column', sm: 'row' }, spacing: { xs: 0, sm: 2 }, alignItems: "flex-start", children: row.map((el) => ((0, jsx_runtime_1.jsx)(Box_1.default, { sx: { flex: 1, minWidth: 0, width: '100%' }, children: rendered(el) }, keyOf(el)))) }, row.map(keyOf).join('+'))));
+    if (presentation === 'stepped' && rows.length > 0) {
+        // One row per screen: a hidden display block (value resolved to
+        // nothing) must not leave a blank screen, so empty interstitials are
+        // dropped from the step list rather than rendered as dead stops.
+        const steps = rows
+            .filter((row) => !((0, stages_1.isDisplayBlock)(row[0]) && displayBlock(row[0], resolved) === null))
+            .map((row) => ({
+            key: row.map(keyOf).join('+'),
+            content: renderRow(row),
+            canProceed: row.every((el) => (0, stages_1.isDisplayBlock)(el) || answered(el, values[el.key])),
+        }));
+        return (0, jsx_runtime_1.jsx)(WizardShell_1.WizardShell, { steps: steps, finish: footer });
+    }
+    return ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [rows.map(renderRow), footer] }));
 };
 exports.StageFormRenderer = StageFormRenderer;
