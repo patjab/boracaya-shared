@@ -18,8 +18,8 @@ export { ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken, 
 export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
-export { PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, resolvePrefillSource, stageDriftKeys } from './stages';
-export type { PrefillSource } from './stages';
+export { PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stageQuestions, } from './stages';
+export type { DisplayPresentation, GuestRowLike, PrefillSource, StageDisplayBlock, StageElement, StageFieldType, StageQuestion, } from './stages';
 export { StageFormRenderer } from './StageFormRenderer';
 export type { RendererField, StageFormValue, StageFormValues } from './StageFormRenderer';
 export { SHELL_KEYS, STYLE_TIERS, CURATED_DESIGNS, TYPE_VOICES, STYLE_MODES, OCCASION_DEFAULTS, FALLBACK_DEFAULTS } from './shells';
