@@ -82,8 +82,22 @@ exports.PREFILL_SOURCES = [
  * body is flat (field keys at top level), so these ride beside the answers and
  * a field key may never claim them. Mirrors the Lambda's RESERVED_FIELD_KEYS. */
 exports.STAGE_RESPONSE_META_KEYS = ['defaults', 'drift'];
-const companionEntries = (rsvp) => {
-    const companions = rsvp === null || rsvp === void 0 ? void 0 : rsvp.companions;
+/** cdk#1016 (mirror of the Lambda's precedence): companions come from the
+ *  core-stage response first — an ARRAY there is an answer, [] included — and
+ *  from the legacy rsvp map only when no core list exists. */
+const companionList = (guest) => {
+    var _a;
+    const stages = guest === null || guest === void 0 ? void 0 : guest.stages;
+    const core = stages && typeof stages === 'object'
+        ? stages.RSVP : undefined;
+    const fromCore = core && typeof core === 'object'
+        ? core.companions : undefined;
+    if (Array.isArray(fromCore))
+        return fromCore;
+    return (_a = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _a === void 0 ? void 0 : _a.companions;
+};
+const companionEntries = (guest) => {
+    const companions = companionList(guest);
     if (!Array.isArray(companions))
         return [];
     const entries = [];
@@ -111,12 +125,12 @@ const guestDisplayName = (guest) => {
 };
 exports.guestDisplayName = guestDisplayName;
 const RESOLVERS = {
-    'rsvp.companionNames': (g) => companionEntries(g === null || g === void 0 ? void 0 : g.rsvp).map((e) => e.name),
-    'rsvp.companionsWithAllergies': (g) => companionEntries(g === null || g === void 0 ? void 0 : g.rsvp)
+    'rsvp.companionNames': (g) => companionEntries(g).map((e) => e.name),
+    'rsvp.companionsWithAllergies': (g) => companionEntries(g)
         .map((e) => (e.allergies ? `${e.name} (${e.allergies})` : e.name)),
     'rsvp.partyNames': (g) => {
         const name = (0, exports.guestDisplayName)(g);
-        const companions = companionEntries(g === null || g === void 0 ? void 0 : g.rsvp).map((e) => e.name);
+        const companions = companionEntries(g).map((e) => e.name);
         return name ? [name, ...companions] : companions;
     },
 };
