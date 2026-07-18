@@ -188,6 +188,9 @@ export interface GuestRowLike {
     firstName?: unknown;
     lastName?: unknown;
     rsvp?: Record<string, unknown>;
+    /** cdk#1016: the core-stage responses map (stages.RSVP...) — the
+     *  post-cutover home the resolvers prefer. */
+    stages?: Record<string, unknown>;
 }
 /** Mirror of the Lambda's guest_display_name: row names first, RSVP fallbacks
  * second, empty string when nothing is known. */

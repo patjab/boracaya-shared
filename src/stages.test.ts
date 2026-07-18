@@ -169,3 +169,17 @@ describe('DEFAULT_CORE_STAGE (cdk#1012)', () => {
         expect(DEFAULT_CORE_STAGE.elements.some((e) => /email|firstName|lastName/.test(e.key))).toBe(false);
     });
 });
+
+// --- cdk#1016: resolvers prefer the core-stage response -----------------------
+describe('companion resolvers core precedence (cdk#1016)', () => {
+    it('stages.RSVP.companions wins; empty core list is an answer; legacy is the fallback', () => {
+        const both = { stages: { RSVP: { companions: [{ name: 'Core Kid' }] } },
+                       rsvp: { companions: [{ name: 'Legacy Kid' }] } };
+        expect(resolvePrefillSource('rsvp.companionNames', both)).toEqual(['Core Kid']);
+        const emptyCore = { stages: { RSVP: { companions: [] } },
+                            rsvp: { companions: [{ name: 'Legacy Kid' }] } };
+        expect(resolvePrefillSource('rsvp.companionNames', emptyCore)).toBeUndefined();
+        const legacyOnly = { rsvp: { companions: [{ name: 'Legacy Kid' }] } };
+        expect(resolvePrefillSource('rsvp.companionNames', legacyOnly)).toEqual(['Legacy Kid']);
+    });
+});

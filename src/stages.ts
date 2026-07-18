@@ -203,12 +203,28 @@ export interface GuestRowLike {
     firstName?: unknown;
     lastName?: unknown;
     rsvp?: Record<string, unknown>;
+    /** cdk#1016: the core-stage responses map (stages.RSVP...) — the
+     *  post-cutover home the resolvers prefer. */
+    stages?: Record<string, unknown>;
 }
 
 type CompanionEntry = { name: string; allergies: string };
 
-const companionEntries = (rsvp: Record<string, unknown> | undefined): CompanionEntry[] => {
-    const companions = rsvp?.companions;
+/** cdk#1016 (mirror of the Lambda's precedence): companions come from the
+ *  core-stage response first — an ARRAY there is an answer, [] included — and
+ *  from the legacy rsvp map only when no core list exists. */
+const companionList = (guest: GuestRowLike | undefined): unknown => {
+    const stages = guest?.stages;
+    const core = stages && typeof stages === 'object'
+        ? (stages as Record<string, unknown>).RSVP : undefined;
+    const fromCore = core && typeof core === 'object'
+        ? (core as Record<string, unknown>).companions : undefined;
+    if (Array.isArray(fromCore)) return fromCore;
+    return guest?.rsvp?.companions;
+};
+
+const companionEntries = (guest: GuestRowLike | undefined): CompanionEntry[] => {
+    const companions = companionList(guest);
     if (!Array.isArray(companions)) return [];
     const entries: CompanionEntry[] = [];
     for (const c of companions) {
@@ -233,12 +249,12 @@ export const guestDisplayName = (guest: GuestRowLike | undefined): string => {
 };
 
 const RESOLVERS: Record<string, (guest: GuestRowLike | undefined) => string[]> = {
-    'rsvp.companionNames': (g) => companionEntries(g?.rsvp).map((e) => e.name),
-    'rsvp.companionsWithAllergies': (g) => companionEntries(g?.rsvp)
+    'rsvp.companionNames': (g) => companionEntries(g).map((e) => e.name),
+    'rsvp.companionsWithAllergies': (g) => companionEntries(g)
         .map((e) => (e.allergies ? `${e.name} (${e.allergies})` : e.name)),
     'rsvp.partyNames': (g) => {
         const name = guestDisplayName(g);
-        const companions = companionEntries(g?.rsvp).map((e) => e.name);
+        const companions = companionEntries(g).map((e) => e.name);
         return name ? [name, ...companions] : companions;
     },
 };
