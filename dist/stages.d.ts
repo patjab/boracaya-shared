@@ -62,6 +62,7 @@ export declare const DEFAULT_CORE_STAGE: {
     readonly core: true;
     readonly settings: {
         readonly presentation: "stepped";
+        readonly confirmation: "generic";
     };
     readonly elements: readonly [{
         readonly kind: "question";

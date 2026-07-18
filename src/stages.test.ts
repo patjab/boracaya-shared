@@ -160,6 +160,8 @@ describe('DEFAULT_CORE_STAGE (cdk#1012)', () => {
         expect(CORE_STAGE_ID).toBe('RSVP');
         expect(DEFAULT_CORE_STAGE.stageId).toBe(CORE_STAGE_ID);
         expect(DEFAULT_CORE_STAGE.core).toBe(true);
+        // cdk#1014: the core confirms by default — todays RSVP mail, preserved.
+        expect(DEFAULT_CORE_STAGE.settings.confirmation).toBe('generic');
         const [attend, food, party] = DEFAULT_CORE_STAGE.elements;
         expect(attend).toMatchObject({ key: ATTENDANCE_KEY, type: 'boolean', required: true, core: true });
         expect(food.key).toBe('hasFoodRestrictions');

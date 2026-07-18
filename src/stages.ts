@@ -72,7 +72,7 @@ export const DEFAULT_CORE_STAGE = {
     stageId: CORE_STAGE_ID,
     title: 'RSVP',
     core: true,
-    settings: { presentation: 'stepped' },
+    settings: { presentation: 'stepped', confirmation: 'generic' },
     elements: [
         { kind: 'question', key: ATTENDANCE_KEY, label: 'Will you attend?',
             type: 'boolean', required: true, core: true },

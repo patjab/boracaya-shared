@@ -47,7 +47,7 @@ exports.DEFAULT_CORE_STAGE = {
     stageId: exports.CORE_STAGE_ID,
     title: 'RSVP',
     core: true,
-    settings: { presentation: 'stepped' },
+    settings: { presentation: 'stepped', confirmation: 'generic' },
     elements: [
         { kind: 'question', key: exports.ATTENDANCE_KEY, label: 'Will you attend?',
             type: 'boolean', required: true, core: true },
