@@ -277,6 +277,22 @@ const answered = (q: StageQuestion, v: StageFormValue | undefined): boolean =>
     !q.required || (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== '');
 // (A required repeatingGroup follows the same array rule: at least one entry.)
 
+/** cdk#1015: the core gate. The machine-fixed boolean core question (cdk#1012)
+ *  ends the form when the answer is "No" — everything after it never renders,
+ *  in both presentations, so the consumer's footer (its submit control)
+ *  surfaces immediately. Generic engine behavior keyed off the `core` marker:
+ *  nothing here knows the stage is the RSVP. Unanswered leaves the full form
+ *  (a required gate already blocks stepped progress until answered). */
+const gateTruncated = (
+    list: StageElement[],
+    values: StageFormValues,
+): StageElement[] => {
+    const at = list.findIndex((el) =>
+        !isDisplayBlock(el) && el.core === true && el.type === 'boolean');
+    if (at === -1 || values[(list[at] as StageQuestion).key] !== false) return list;
+    return list.slice(0, at + 1);
+};
+
 export const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }: {
     elements?: ReadonlyArray<StageElement>;
     fields?: ReadonlyArray<RendererField>;
@@ -293,8 +309,10 @@ export const StageFormRenderer = ({ elements, fields, values, onChange, resolved
      *  with the consumer in both presentations. */
     footer?: React.ReactNode;
 }): React.ReactElement => {
-    const list = (elements ?? fields ?? [])
-        .filter((el) => isDisplayBlock(el) || !el.adminOnly);
+    const list = gateTruncated(
+        (elements ?? fields ?? []).filter((el) => isDisplayBlock(el) || !el.adminOnly),
+        values,
+    );
     const rows: StageElement[][] = [];
     for (const el of list) {
         const prev = rows[rows.length - 1];
