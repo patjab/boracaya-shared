@@ -1,5 +1,5 @@
-# pda-boracay-shared
-Shared API constants, types, and hooks for PDA Boracay apps
+# boracaya-shared
+Shared API constants, types, and hooks for Boracaya apps
 
 ## Data-access layer (#28)
 

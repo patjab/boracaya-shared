@@ -1,6 +1,6 @@
 {
-  "name": "pda-boracay-shared",
-  "version": "5.7.0",
+  "name": "boracaya-shared",
+  "version": "6.0.0",
   "description": "Shared API constants, types, and hooks for PDA Boracay apps",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
