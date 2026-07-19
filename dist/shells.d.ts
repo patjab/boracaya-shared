@@ -11,6 +11,7 @@
  */
 export declare const SHELL_KEYS: readonly ["classic", "invitation", "board", "poster", "itinerary", "program", "site"];
 export type ShellKey = (typeof SHELL_KEYS)[number];
+export declare const isShellKey: (value: unknown) => value is ShellKey;
 export declare const STYLE_TIERS: readonly ["generated", "curated", "content", "brand"];
 export type StyleTier = (typeof STYLE_TIERS)[number];
 /** The curated launch collection (D6). designId values the resolver ships. */

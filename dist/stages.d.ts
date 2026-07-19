@@ -152,8 +152,31 @@ export type StageElement = StageQuestion | StageDisplayBlock;
  *  can never break an older renderer. */
 export type StagePresentation = 'flat' | 'stepped';
 export declare const stagePresentation: (def: {
-    settings?: Record<string, string>;
+    settings?: Partial<Record<string, string>>;
 }) => StagePresentation;
+/** A stage's questions, aliased where consumers speak "fields" (both UIs did). */
+export type StageField = StageQuestion;
+/**
+ * The stage definition document (cdk#466/#513) — THE canonical shape (shared#96,
+ * cdk#1115): both UIs declared near-identical copies of this and they had
+ * already drifted on `settings` strictness. Valet writes it, the guest app
+ * renders it; the config handler owns validation.
+ */
+export interface StageDefinition {
+    stageId: string;
+    title: string;
+    description?: string;
+    icon?: string;
+    /** Legacy questions-only list (pre-#976 definitions). */
+    fields?: StageField[];
+    /** cdk#976: the ordered mix of questions + display blocks. A definition
+     * carries `elements` OR `fields`, never both — read via stageElements(). */
+    elements?: StageElement[];
+    settings?: Partial<Record<string, string>>;
+    /** Server stamps (valet-api writes them; absent on drafts). */
+    createdAt?: string;
+    updatedAt?: string;
+}
 export declare const isDisplayBlock: (el: StageElement) => el is StageDisplayBlock;
 /** A definition's ordered element list: post-#976 `elements` wins; legacy
  * `fields`-only configs read as all-questions. */
