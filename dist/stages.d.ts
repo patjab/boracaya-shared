@@ -157,7 +157,7 @@ export declare const stagePresentation: (def: {
 /** A stage's questions, aliased where consumers speak "fields" (both UIs did). */
 export type StageField = StageQuestion;
 /**
- * The stage definition document (cdk#466/#513) — THE canonical shape (shared#96,
+ * The stage definition document (cdk#466/#513) — THE canonical shape (shared#97,
  * cdk#1115): both UIs declared near-identical copies of this and they had
  * already drifted on `settings` strictness. Valet writes it, the guest app
  * renders it; the config handler owns validation.

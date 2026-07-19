@@ -14,7 +14,7 @@ export interface HotelAreaOption {
 }
 /**
  * The guest's own RSVP record (the reservations-api rsvp lane) — THE canonical
- * contract (shared#96, cdk#1115; the guest app previously declared its own copy
+ * contract (shared#97, cdk#1115; the guest app previously declared its own copy
  * and inlined Companion's shape). Valet's roster types are PROJECTIONS of this
  * plus identity — related on purpose, not duplicates.
  */
