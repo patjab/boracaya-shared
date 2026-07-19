@@ -11,7 +11,7 @@
  * exactly one place.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.SHELL_KEYS = void 0;
+exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.isShellKey = exports.SHELL_KEYS = void 0;
 exports.SHELL_KEYS = [
     'classic',
     'invitation',
@@ -23,6 +23,8 @@ exports.SHELL_KEYS = [
     // classic wraps, but chosen — classic stays the frozen absence-fallback.
     'site',
 ];
+const isShellKey = (value) => typeof value === 'string' && exports.SHELL_KEYS.includes(value);
+exports.isShellKey = isShellKey;
 exports.STYLE_TIERS = ['generated', 'curated', 'content', 'brand'];
 /** The curated launch collection (D6). designId values the resolver ships. */
 exports.CURATED_DESIGNS = [

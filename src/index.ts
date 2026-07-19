@@ -1,6 +1,11 @@
 export { ApiConstants, AdminEventApi, GuestEventApi, AccountApi, OrganizerInviteApi, FacesApi } from './api';
 export { SiteUrls, guestSiteUrlFor, inviteUrlFor } from './siteUrls';
 export { getEnv, isTest, envSubdomain } from './env';
+export type { StageDefinition, StageField } from './stages';
+export type { PulseConfig, PulsePrompt, PulseAsk, PulseChallenge, PulsePin } from './pulse';
+export type { HotelAreaOption, RSVPRecord } from './types';
+export { isShellKey } from './shells';
+export { isEmojiIcon } from './emoji';
 export type { EnvName } from './env';
 export { ApiRoutes } from './routes';
 export type { ApiRoute } from './routes';

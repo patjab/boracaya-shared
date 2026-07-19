@@ -150,8 +150,39 @@ export type StageElement = StageQuestion | StageDisplayBlock;
 export type StagePresentation = 'flat' | 'stepped';
 
 export const stagePresentation = (def: {
-    settings?: Record<string, string>;
+    settings?: Partial<Record<string, string>>;
 }): StagePresentation => (def.settings?.presentation === 'stepped' ? 'stepped' : 'flat');
+
+/** A stage's questions, aliased where consumers speak "fields" (both UIs did). */
+export type StageField = StageQuestion;
+
+/**
+ * The stage definition document (cdk#466/#513) — THE canonical shape (shared#97,
+ * cdk#1115): both UIs declared near-identical copies of this and they had
+ * already drifted on `settings` strictness. Valet writes it, the guest app
+ * renders it; the config handler owns validation.
+ */
+export interface StageDefinition {
+    stageId: string;
+    title: string;
+    description?: string;
+    // Optional per-stage tab icon (cdk#618): an emoji or a curated icon-name
+    // (Valet's ContentIconPicker). The guest Attend tab strip renders EMOJI
+    // only; a curated icon-name is dropped there rather than shown as raw text.
+    icon?: string;
+    /** Legacy questions-only list (pre-#976 definitions). */
+    fields?: StageField[];
+    /** cdk#976: the ordered mix of questions + display blocks. A definition
+     * carries `elements` OR `fields`, never both — read via stageElements(). */
+    elements?: StageElement[];
+    // Per-stage behavior knobs (cdk#528), e.g. PRECHECKIN's blockHotelName /
+    // blockHotelArea — config, not guest-writable fields. Partial: an absent
+    // key means the knob is OFF, so lookups type as string | undefined.
+    settings?: Partial<Record<string, string>>;
+    /** Server stamps (valet-api writes them; absent on drafts). */
+    createdAt?: string;
+    updatedAt?: string;
+}
 
 export const isDisplayBlock = (el: StageElement): el is StageDisplayBlock =>
     (el as StageDisplayBlock).kind === 'display';

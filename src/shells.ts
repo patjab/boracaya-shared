@@ -23,6 +23,9 @@ export const SHELL_KEYS = [
 ] as const;
 export type ShellKey = (typeof SHELL_KEYS)[number];
 
+export const isShellKey = (value: unknown): value is ShellKey =>
+  typeof value === 'string' && (SHELL_KEYS as readonly string[]).includes(value);
+
 export const STYLE_TIERS = ['generated', 'curated', 'content', 'brand'] as const;
 export type StyleTier = (typeof STYLE_TIERS)[number];
 
