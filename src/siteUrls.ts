@@ -4,22 +4,23 @@
 // domain). Every link minted here rides the boracaya identity — the pdaboracay
 // hosts are 301 shells (cdk#500/#502), never link targets — and every host is
 // environment-aware via env.ts.
-import { ENV_SUBDOMAIN } from './env';
+import { envSubdomain } from './env';
 
 // The guest-facing platform site for THIS environment: boracaya.com, or the
 // env's own subdomain of it (test.boracaya.com). ENV_SUBDOMAIN is the '.test'
 // infix marker; on the bare site it is the leading label instead.
-const PUBLIC_SITE = ENV_SUBDOMAIN
-    ? `https://${ENV_SUBDOMAIN.slice(1)}.boracaya.com`
-    : 'https://boracaya.com';
+const publicSite = (): string => {
+    const sub = envSubdomain();
+    return sub ? `https://${sub.slice(1)}.boracaya.com` : 'https://boracaya.com';
+};
 
 export const SiteUrls = {
-    PUBLIC: PUBLIC_SITE,
-    EVENTS_PAGE: `${PUBLIC_SITE}/events`,
+    get PUBLIC() { return publicSite(); },
+    get EVENTS_PAGE() { return `${publicSite()}/events`; },
     // The Valet organizer console (pda-boracay#119; hosts are the cdk#500/#501
     // valet.boracaya.com pair, live in both envs).
-    VALET: `https://valet${ENV_SUBDOMAIN}.boracaya.com`,
-} as const;
+    get VALET() { return `https://valet${envSubdomain()}.boracaya.com`; },
+};
 
 /**
  * The event's canonical guest URL (cdk#386: path prefix + raw uuid, no slugs).

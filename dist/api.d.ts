@@ -1,12 +1,12 @@
 export declare const ApiConstants: {
-    readonly ADMIN_EVENTS: `${string}/events`;
-    readonly EVENTS: `${string}/events`;
-    readonly DISCOVER: `${string}/discover`;
-    readonly GUEST_LOGIN: `${string}/auth/login`;
+    readonly ADMIN_EVENTS: string;
+    readonly EVENTS: string;
+    readonly DISCOVER: string;
+    readonly GUEST_LOGIN: string;
     readonly FACES_CONTROL: string;
     readonly FACES_BOX: string;
-    readonly MOMENTS_OFFICIAL_MANIFEST: `${string}/uploads/official/manifest.json`;
-    readonly MOMENTS_OFFICIAL_BOOT: `${string}/uploads/official/_boot.json`;
+    readonly MOMENTS_OFFICIAL_MANIFEST: string;
+    readonly MOMENTS_OFFICIAL_BOOT: string;
 };
 /**
  * Event-scoped admin endpoints (cdk#396 / admin#101): the URL names the TARGET event;
@@ -55,8 +55,8 @@ export declare const AdminEventApi: {
  * in the memberships table); Valet auto-calls it when `me` reports no account.
  */
 export declare const AccountApi: {
-    readonly me: `${string}/accounts/me`;
-    readonly register: `${string}/accounts`;
+    readonly me: string;
+    readonly register: string;
 };
 /**
  * Organizer-invitation token lanes (cdk#534/#544): the inviteId in the email
