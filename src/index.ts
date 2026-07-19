@@ -6,6 +6,7 @@ export type { PulseConfig, PulsePrompt, PulseAsk, PulseChallenge, PulsePin } fro
 export type { HotelAreaOption, RSVPRecord } from './types';
 export { isShellKey } from './shells';
 export { isEmojiIcon } from './emoji';
+export type { EventConfigCore, AdminEventMetadata, PublicEventMetadata, EventPreset, HeroHeight, EventAlbum, EventPage, EventPageSubGroup, EventPageSubLeaf, AdminEvent } from './event';
 export type { EnvName } from './env';
 export { ApiRoutes } from './routes';
 export type { ApiRoute } from './routes';
