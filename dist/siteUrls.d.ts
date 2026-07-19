@@ -1,7 +1,7 @@
 export declare const SiteUrls: {
     readonly PUBLIC: string;
-    readonly EVENTS_PAGE: `${string}/events`;
-    readonly VALET: `https://valet${string}.boracaya.com`;
+    readonly EVENTS_PAGE: string;
+    readonly VALET: string;
 };
 /**
  * The event's canonical guest URL (cdk#386: path prefix + raw uuid, no slugs).

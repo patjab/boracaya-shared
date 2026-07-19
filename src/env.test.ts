@@ -1,7 +1,8 @@
 /**
  * The named-env hostmap (cdk#562/#563): hostname -> environment, PROD default.
- * env.ts resolves at module load, so each case imports a FRESH module instance
- * with the location stubbed first.
+ * env.ts resolves PER CALL (shared#95): stubbing the location before the call
+ * is enough — no module re-import needed. loadFor keeps the fresh-import shape
+ * so these cases also prove the dist would behave under a cold import.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
@@ -29,11 +30,11 @@ describe('env hostmap (cdk#563)', () => {
         // never fooled by a lookalike suffix on a foreign domain
         ['test.boracaya.com.evil.com', 'PROD'],
     ])('%s -> %s', async (hostname, env) => {
-        expect((await loadFor(hostname)).ENV).toBe(env);
+        expect((await loadFor(hostname)).getEnv()).toBe(env);
     });
 
     it('no window (SSR / unit-test) resolves PROD', async () => {
-        expect((await loadFor(undefined)).ENV).toBe('PROD');
+        expect((await loadFor(undefined)).getEnv()).toBe('PROD');
     });
 });
 

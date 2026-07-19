@@ -17,34 +17,34 @@
 // A page served from either test host (test.pdaboracay.com or test.boracaya.com,
 // cdk#500 rebrand) targets the testing APIs; everything else targets prod.
 // The check itself lives in env.ts (pda-boracay#119) so site links share it.
-import { isTestEnv } from './env';
+import { isTest } from './env';
 
 // Legacy pdaboracay hosts — still the home of the surfaces that have no boracaya
 // twin yet (faces, faces-control, the moments CDN). Everything API-shaped moved
 // to boracaya below (cdk#500/#501).
 const host = (sub: string): string =>
-    `https://${sub}${isTestEnv ? '.test' : ''}.pdaboracay.com`;
+    `https://${sub}${isTest() ? '.test' : ''}.pdaboracay.com`;
 
 // boracaya.com API hosts (cdk#500 rebrand; cdk#501 created them in both envs).
 // admin-api is renamed valet-api to match the product. Every UI — including one
 // still served from a legacy pdaboracay host during the transition — calls these;
 // the API CORS allowlists carry both origins.
 const bHost = (sub: string): string =>
-    `https://${sub}${isTestEnv ? '.test' : ''}.boracaya.com`;
+    `https://${sub}${isTest() ? '.test' : ''}.boracaya.com`;
 
-const PUBLIC_API = bHost('public-api');
-const ADMIN_API = bHost('valet-api');
-const RESERVATIONS_API = bHost('reservations-api');
-const SHARE_API = bHost('share-api');
+const publicApi = () => bHost('public-api');
+const adminApi = () => bHost('valet-api');
+const reservationsApi = () => bHost('reservations-api');
+const shareApi = () => bHost('share-api');
 // Moments upload API: prod = share-api.boracaya.com; testing = moments-api.test.boracaya.com
 // (no share-api.test host exists). Same lambda either way; only the fronting domain differs.
-const UPLOAD_API = isTestEnv ? bHost('moments-api') : SHARE_API;
-const FACES_CONTROL_API = host('faces-control');
+const uploadApi = () => (isTest() ? bHost('moments-api') : shareApi());
+const facesControlApi = () => host('faces-control');
 // Face tagging data/API lane (epic cdk#782): the fenced faces REST API — the
 // durable half; the GPU box is a client of it, both UIs read it.
-const FACES_API = bHost('faces-api');
-const FACES_BOX_BASE = host('faces');
-const MOMENTS_BASE = host('moments');
+const facesApi = () => bHost('faces-api');
+const facesBoxBase = () => host('faces');
+const momentsBase = () => host('moments');
 
 export const ApiConstants = {
     // The flat admin/guest/savethedate constants were REMOVED (shared#57): the routes
@@ -60,33 +60,33 @@ export const ApiConstants = {
 
 
     // Admin events config (list + create; cdk#464/#472).
-    ADMIN_EVENTS: `${ADMIN_API}/events`,
+    get ADMIN_EVENTS() { return `${adminApi()}/events`; },
 
     // Public app-config BASE: consumers build `${EVENTS}/{eventId}/config` and
     // `${EVENTS}/{eventId}/about` off this. The BARE public GET /events (list) was
     // REMOVED (cdk#352), so this base is not itself a live route and is excluded from
     // the live smoke probe (see api.smoke.test.ts). Kept because guest + admin UIs
     // still import it as the base — do NOT remove without updating those consumers.
-    EVENTS: `${PUBLIC_API}/events`,
+    get EVENTS() { return `${publicApi()}/events`; },
     // The public feed of OPEN (inclusivus) events (cdk#468/#508).
-    DISCOVER: `${PUBLIC_API}/discover`,
+    get DISCOVER() { return `${publicApi()}/discover`; },
     // No-event Google login (cdk#623, Option D): an UNSCOPED public route (no
     // eventId path segment) — a server-verified Google credential arriving with no
     // event in the URL is resolved to the event(s) the email is already a member
     // of. Exactly one → the backend mints a guest token + returns that eventId (the
     // SPA redirects into /e/<eventId>/); zero/many → the guided 404. Distinct from
     // GuestEventApi.claim, which requires the target event in its path.
-    GUEST_LOGIN: `${PUBLIC_API}/auth/login`,
+    get GUEST_LOGIN() { return `${publicApi()}/auth/login`; },
 
     // Faces — control plane (v2 API on its own stable domain) + box base.
     // FACES_BOX is an EPHEMERAL on-demand instance and is usually off, so it is
     // excluded from live smoke checks (see api.smoke.test.ts).
-    FACES_CONTROL: FACES_CONTROL_API,
-    FACES_BOX: FACES_BOX_BASE,
+    get FACES_CONTROL() { return facesControlApi(); },
+    get FACES_BOX() { return facesBoxBase(); },
 
     // Moments "Official" gallery — static objects served by CloudFront.
-    MOMENTS_OFFICIAL_MANIFEST: `${MOMENTS_BASE}/uploads/official/manifest.json`,
-    MOMENTS_OFFICIAL_BOOT: `${MOMENTS_BASE}/uploads/official/_boot.json`,
+    get MOMENTS_OFFICIAL_MANIFEST() { return `${momentsBase()}/uploads/official/manifest.json`; },
+    get MOMENTS_OFFICIAL_BOOT() { return `${momentsBase()}/uploads/official/_boot.json`; },
 } as const;
 
 /**
@@ -98,54 +98,54 @@ export const ApiConstants = {
  * rides these event-scoped builders.
  */
 export const AdminEventApi = {
-    config: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}`,
-    about: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/about`,
+    config: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}`,
+    about: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/about`,
     // Guest groups' validated lane (cdk#839/#841): PUT {groups: string[]} — full
     // replace. The generic config PATCH strips guestGroups now; this is the only writer.
-    groups: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/groups`,
-    rsvps: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/rsvp`,
+    groups: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/groups`,
+    rsvps: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/rsvp`,
     // Composed, preset-resolved roster (cdk#575): the grid's single read — identity
     // (PROFILE) + nested rsvp + per-stage objects; the response's `preset` tells the
     // consumer which vocabulary (invite fields ride exclusivus items only).
-    roster: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/roster`,
+    roster: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/roster`,
     // Organizer invitations (cdk#534/#537): POST creates + emails an invite.
     // Plural /invites = the organizer lifecycle; singular /invite = guest lane.
-    organizerInvites: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites`,
+    organizerInvites: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/invites`,
     // Who administers the event (cdk#536): [{accountId, email, role, createdAt}].
-    members: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/members`,
+    members: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/members`,
     // One member's edge (cdk#538: PATCH role / DELETE remove-or-leave).
     // accountId = the NORMALIZED email (no ACCT# prefix in URLs).
     member: (eventId: string, accountId: string) =>
-        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/members/${encodeURIComponent(accountId)}`,
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/members/${encodeURIComponent(accountId)}`,
     // OWNER-gated revoke of a pending organizer invite (cdk#544).
     organizerInvite: (eventId: string, inviteId: string) =>
-        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/invites/${encodeURIComponent(inviteId)}`,
-    scramble: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble`,
-    scrambleIncrement: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/scramble/increment`,
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/invites/${encodeURIComponent(inviteId)}`,
+    scramble: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/scramble`,
+    scrambleIncrement: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/scramble/increment`,
     // Custom-stage definitions + the responses grid (cdk#466/#513).
-    stages: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/stages`,
+    stages: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages`,
     stage: (eventId: string, stageId: string) =>
-        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
     stageResponses: (eventId: string, stageId: string) =>
-        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/responses`,
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/responses`,
     // Admin merge-write on ONE guest's stage response (cdk#529) - the room-block
     // lane (the bespoke precheckin routes retired with cdk#529).
     stageResponse: (eventId: string, stageId: string, userId: string) =>
-        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/responses/${encodeURIComponent(userId)}`,
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/responses/${encodeURIComponent(userId)}`,
     /** Organizer asset-upload presign (cdk#394): admin-authorized, tenant-prefixed key. */
-    assets: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/assets`,
+    assets: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/assets`,
     /** Organizer image unlink (cdk#707): DELETE clears the field + deletes the S3 object. */
-    image: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/image`,
-    moments: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/moments`,
-    momentsPublic: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/moments/public`,
+    image: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/image`,
+    moments: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/moments`,
+    momentsPublic: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/moments/public`,
     // Host album uploads (cdk#790): presign, then confirm writes the approved row.
-    momentsUpload: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/moments/upload`,
-    momentsConfirm: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/moments/confirm`,
-    templates: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/templates`,
+    momentsUpload: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/moments/upload`,
+    momentsConfirm: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/moments/confirm`,
+    templates: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/templates`,
     template: (eventId: string, templateId: string) =>
-        `${ADMIN_API}/events/${encodeURIComponent(eventId)}/templates/${encodeURIComponent(templateId)}`,
-    emailTemplate: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/email-template`,
-    surveys: (eventId: string) => `${ADMIN_API}/events/${encodeURIComponent(eventId)}/surveys`,
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/templates/${encodeURIComponent(templateId)}`,
+    emailTemplate: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/email-template`,
+    surveys: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/surveys`,
 } as const;
 
 /**
@@ -158,8 +158,8 @@ export const AdminEventApi = {
  * in the memberships table); Valet auto-calls it when `me` reports no account.
  */
 export const AccountApi = {
-    me: `${ADMIN_API}/accounts/me`,
-    register: `${ADMIN_API}/accounts`,
+    get me() { return `${adminApi()}/accounts/me`; },
+    get register() { return `${adminApi()}/accounts`; },
 } as const;
 
 /**
@@ -173,46 +173,46 @@ export const AccountApi = {
  *  photo assignments. Admin verbs ride the member lane (Valet); `people` is
  *  the identified-guest People view (F3). */
 export const FacesApi = {
-    base: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces`,
-    list: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces`,
-    ingest: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/ingest`,
-    merge: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/merge`,
+    base: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces`,
+    list: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces`,
+    ingest: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/ingest`,
+    merge: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/merge`,
     // Face-level curation (epic cdk#815, SI-1 cdk#816): split faces to a new
     // person, remove faces from / delete a person — PATCH person renames,
     // DELETE person deletes the group.
-    split: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/split`,
+    split: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/split`,
     person: (eventId: string, personId: string) =>
-        `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
+        `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
     removeFaces: (eventId: string, personId: string) =>
-        `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}/remove-faces`,
+        `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}/remove-faces`,
     // Box-emitted curation queues (epic cdk#815, SI-2 cdk#817): merge
     // suggestions + the unmatched-face pile, and the acts on each.
-    suggestions: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/suggestions`,
-    dismissSuggestion: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/suggestions/dismiss`,
-    unmatched: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/unmatched`,
+    suggestions: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/suggestions`,
+    dismissSuggestion: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/suggestions/dismiss`,
+    unmatched: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/unmatched`,
     assignUnmatched: (eventId: string, faceId: string) =>
-        `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/assign`,
+        `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/assign`,
     dismissUnmatched: (eventId: string, faceId: string) =>
-        `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/dismiss`,
-    people: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/people`,
+        `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/dismiss`,
+    people: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/people`,
     // One-click recognition runs (cdk#796): admin enqueue/status + the box's
     // queue lane (bearer = the faces-box secret, not a user token).
-    run: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/run`,
+    run: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/run`,
     // Cancel a QUEUED run (cdk#802/#803): self-serve recovery when the box
     // never claimed it — body carries {runId}.
-    runCancel: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/run/cancel`,
-    runs: (eventId: string) => `${FACES_API}/events/${encodeURIComponent(eventId)}/faces/runs`,
-    queue: () => `${FACES_API}/faces/queue`,
-    queueClaim: () => `${FACES_API}/faces/queue/claim`,
+    runCancel: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/run/cancel`,
+    runs: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/runs`,
+    queue: () => `${facesApi()}/faces/queue`,
+    queueClaim: () => `${facesApi()}/faces/queue/claim`,
     // Mid-run phase heartbeat (cdk#803): the box stamps where the run is.
-    queueProgress: () => `${FACES_API}/faces/queue/progress`,
-    queueComplete: () => `${FACES_API}/faces/queue/complete`,
+    queueProgress: () => `${facesApi()}/faces/queue/progress`,
+    queueComplete: () => `${facesApi()}/faces/queue/complete`,
 } as const;
 
 export const OrganizerInviteApi = {
-    metadata: (inviteId: string) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}`,
-    accept: (inviteId: string) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}/accept`,
-    decline: (inviteId: string) => `${ADMIN_API}/invites/${encodeURIComponent(inviteId)}/decline`,
+    metadata: (inviteId: string) => `${adminApi()}/invites/${encodeURIComponent(inviteId)}`,
+    accept: (inviteId: string) => `${adminApi()}/invites/${encodeURIComponent(inviteId)}/accept`,
+    decline: (inviteId: string) => `${adminApi()}/invites/${encodeURIComponent(inviteId)}/decline`,
 } as const;
 
 /**
@@ -227,25 +227,25 @@ export const OrganizerInviteApi = {
  */
 export const GuestEventApi = {
     // Open entry (cdk#468/#508): the invite-less quick RSVP for OPEN events.
-    openRsvp: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/rsvp/open`,
-    exchange: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/exchange`,
-    claim: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/claim`,
+    openRsvp: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/rsvp/open`,
+    exchange: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/exchange`,
+    claim: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/claim`,
     // Authenticated in-UI unlink (cdk#637): removes the caller's single primary Google.
-    unlink: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/auth/unlink`,
-    invite: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/invite`,
-    momentsPublic: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/moments/public`,
-    wishes: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/wishes`,
+    unlink: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/unlink`,
+    invite: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/invite`,
+    momentsPublic: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/moments/public`,
+    wishes: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/wishes`,
     // Pulse (cdk#668): the generalized engagement lane — same public posture as wishes.
-    pulse: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/pulse`,
-    pulsePosts: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/pulse/posts`,
-    pulseVotes: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/pulse/votes`,
-    pulseReactions: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/pulse/reactions`,
-    survey: (eventId: string) => `${PUBLIC_API}/events/${encodeURIComponent(eventId)}/survey`,
-    rsvp: (eventId: string) => `${RESERVATIONS_API}/events/${encodeURIComponent(eventId)}/rsvp`,
+    pulse: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse`,
+    pulsePosts: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/posts`,
+    pulseVotes: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/votes`,
+    pulseReactions: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/reactions`,
+    survey: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/survey`,
+    rsvp: (eventId: string) => `${reservationsApi()}/events/${encodeURIComponent(eventId)}/rsvp`,
     // The guest's own custom-stage submission (cdk#466/#513).
     stage: (eventId: string, stageId: string) =>
-        `${RESERVATIONS_API}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
-    initiateUpload: (eventId: string) => `${UPLOAD_API}/events/${encodeURIComponent(eventId)}/initiate`,
-    completeUpload: (eventId: string) => `${UPLOAD_API}/events/${encodeURIComponent(eventId)}/complete`,
+        `${reservationsApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
+    initiateUpload: (eventId: string) => `${uploadApi()}/events/${encodeURIComponent(eventId)}/initiate`,
+    completeUpload: (eventId: string) => `${uploadApi()}/events/${encodeURIComponent(eventId)}/complete`,
 } as const;
 

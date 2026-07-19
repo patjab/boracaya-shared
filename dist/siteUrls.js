@@ -11,15 +11,16 @@ const env_1 = require("./env");
 // The guest-facing platform site for THIS environment: boracaya.com, or the
 // env's own subdomain of it (test.boracaya.com). ENV_SUBDOMAIN is the '.test'
 // infix marker; on the bare site it is the leading label instead.
-const PUBLIC_SITE = env_1.ENV_SUBDOMAIN
-    ? `https://${env_1.ENV_SUBDOMAIN.slice(1)}.boracaya.com`
-    : 'https://boracaya.com';
+const publicSite = () => {
+    const sub = (0, env_1.envSubdomain)();
+    return sub ? `https://${sub.slice(1)}.boracaya.com` : 'https://boracaya.com';
+};
 exports.SiteUrls = {
-    PUBLIC: PUBLIC_SITE,
-    EVENTS_PAGE: `${PUBLIC_SITE}/events`,
+    get PUBLIC() { return publicSite(); },
+    get EVENTS_PAGE() { return `${publicSite()}/events`; },
     // The Valet organizer console (pda-boracay#119; hosts are the cdk#500/#501
     // valet.boracaya.com pair, live in both envs).
-    VALET: `https://valet${env_1.ENV_SUBDOMAIN}.boracaya.com`,
+    get VALET() { return `https://valet${(0, env_1.envSubdomain)()}.boracaya.com`; },
 };
 /**
  * The event's canonical guest URL (cdk#386: path prefix + raw uuid, no slugs).
