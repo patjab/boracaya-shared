@@ -239,6 +239,10 @@ export const STAGE_RESPONSE_META_KEYS = ['defaults', 'drift'] as const;
 export interface GuestRowLike {
     firstName?: unknown;
     lastName?: unknown;
+    /** cdk#1169: identity promoted to the row's top level, where it outlives
+     *  any one stage. The resolvers prefer it, so they keep working once
+     *  cdk#1174 drops the `rsvp` map. */
+    preferredName?: unknown;
     rsvp?: Record<string, unknown>;
     /** cdk#1016: the core-stage responses map (stages.RSVP...) — the
      *  post-cutover home the resolvers prefer. */
@@ -277,12 +281,17 @@ const companionEntries = (guest: GuestRowLike | undefined): CompanionEntry[] => 
 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 
-/** Mirror of the Lambda's guest_display_name: row names first, RSVP fallbacks
- * second, empty string when nothing is known. */
+/** Mirror of the Lambda's guest_display_name: row names first, then the
+ * promoted top-level preferredName (cdk#1169), then the legacy map's copies,
+ * empty string when nothing is known. cdk#1173 added the promoted candidate so
+ * this resolver survives #1174 dropping the map; the legacy pair stays for rows
+ * the backfill has not reached. */
 export const guestDisplayName = (guest: GuestRowLike | undefined): string => {
     const fromRow = [str(guest?.firstName), str(guest?.lastName)].filter(Boolean).join(' ');
     if (fromRow) return fromRow;
-    return str(guest?.rsvp?.preferredName) || str(guest?.rsvp?.name);
+    return str(guest?.preferredName)
+        || str(guest?.rsvp?.preferredName)
+        || str(guest?.rsvp?.name);
 };
 
 const RESOLVERS: Record<string, (guest: GuestRowLike | undefined) => string[]> = {

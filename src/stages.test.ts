@@ -86,6 +86,24 @@ describe('guestDisplayName (mirror of the Lambda guest_display_name)', () => {
         expect(guestDisplayName({ firstName: 7, rsvp: {} })).toBe('');
         expect(guestDisplayName(undefined)).toBe('');
     });
+
+    // cdk#1173: identity was promoted to the row's top level at #1169, so the
+    // resolver must read it there — otherwise #1174 dropping the `rsvp` map
+    // leaves every self-entered guest nameless in the Valet drawer.
+    it('prefers the promoted top-level preferredName over the legacy map', () => {
+        expect(guestDisplayName({ preferredName: 'Promoted',
+                                  rsvp: { preferredName: 'Legacy', name: 'Older' } }))
+            .toBe('Promoted');
+        // …and resolves with no legacy map at all (the post-#1174 world).
+        expect(guestDisplayName({ preferredName: 'Promoted' })).toBe('Promoted');
+        // Invited names still outrank it — an organizer's roster reads the
+        // invitation first, unchanged.
+        expect(guestDisplayName({ firstName: 'Sam', lastName: 'Reyes',
+                                  preferredName: 'Promoted' })).toBe('Sam Reyes');
+        // A non-string promoted value falls through rather than throwing.
+        expect(guestDisplayName({ preferredName: 7, rsvp: { name: 'Samuel' } }))
+            .toBe('Samuel');
+    });
 });
 
 describe('resolvePrefillSource (mirror of the Lambda resolvers)', () => {

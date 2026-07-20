@@ -120,14 +120,19 @@ const companionEntries = (guest) => {
     return entries;
 };
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
-/** Mirror of the Lambda's guest_display_name: row names first, RSVP fallbacks
- * second, empty string when nothing is known. */
+/** Mirror of the Lambda's guest_display_name: row names first, then the
+ * promoted top-level preferredName (cdk#1169), then the legacy map's copies,
+ * empty string when nothing is known. cdk#1173 added the promoted candidate so
+ * this resolver survives #1174 dropping the map; the legacy pair stays for rows
+ * the backfill has not reached. */
 const guestDisplayName = (guest) => {
     var _a, _b;
     const fromRow = [str(guest === null || guest === void 0 ? void 0 : guest.firstName), str(guest === null || guest === void 0 ? void 0 : guest.lastName)].filter(Boolean).join(' ');
     if (fromRow)
         return fromRow;
-    return str((_a = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _a === void 0 ? void 0 : _a.preferredName) || str((_b = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _b === void 0 ? void 0 : _b.name);
+    return str(guest === null || guest === void 0 ? void 0 : guest.preferredName)
+        || str((_a = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _a === void 0 ? void 0 : _a.preferredName)
+        || str((_b = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _b === void 0 ? void 0 : _b.name);
 };
 exports.guestDisplayName = guestDisplayName;
 const RESOLVERS = {

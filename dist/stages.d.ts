@@ -217,13 +217,20 @@ export declare const STAGE_RESPONSE_META_KEYS: readonly ["defaults", "drift"];
 export interface GuestRowLike {
     firstName?: unknown;
     lastName?: unknown;
+    /** cdk#1169: identity promoted to the row's top level, where it outlives
+     *  any one stage. The resolvers prefer it, so they keep working once
+     *  cdk#1174 drops the `rsvp` map. */
+    preferredName?: unknown;
     rsvp?: Record<string, unknown>;
     /** cdk#1016: the core-stage responses map (stages.RSVP...) — the
      *  post-cutover home the resolvers prefer. */
     stages?: Record<string, unknown>;
 }
-/** Mirror of the Lambda's guest_display_name: row names first, RSVP fallbacks
- * second, empty string when nothing is known. */
+/** Mirror of the Lambda's guest_display_name: row names first, then the
+ * promoted top-level preferredName (cdk#1169), then the legacy map's copies,
+ * empty string when nothing is known. cdk#1173 added the promoted candidate so
+ * this resolver survives #1174 dropping the map; the legacy pair stays for rows
+ * the backfill has not reached. */
 export declare const guestDisplayName: (guest: GuestRowLike | undefined) => string;
 /** One registry source's current value from the guest's own row, or undefined
  * when the id is unknown/bare or resolves to nothing. */
