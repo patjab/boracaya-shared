@@ -17,6 +17,7 @@ export { useGuardedLoad } from './hooks/useGuardedLoad';
 export { useCachedLoad } from './hooks/useCachedLoad';
 export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data';
 export type { GuardedState } from './data';
+export { ArrayUtils, ColorUtils, DateUtils, NumberUtils, StringUtils } from './utils';
 export { DEFAULT_CACHE_TTL_MS, MAX_CACHE_ENTRIES, createCachedLoad, invalidateCache, readCache, resetCache, seedFromCache, writeCache, } from './cache';
 export type { CacheHit, CachedLoadHandle, CachedLoadOptions } from './cache';
 export { initAuth, signOut, getIdToken, authHeaders, getEmail, GoogleSignInButton, } from './auth';
