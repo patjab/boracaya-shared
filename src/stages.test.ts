@@ -162,11 +162,19 @@ describe('DEFAULT_CORE_STAGE (cdk#1012)', () => {
         expect(DEFAULT_CORE_STAGE.core).toBe(true);
         // cdk#1014: the core confirms by default — todays RSVP mail, preserved.
         expect(DEFAULT_CORE_STAGE.settings.confirmation).toBe('generic');
-        const [attend, food, party] = DEFAULT_CORE_STAGE.elements;
-        expect(attend).toMatchObject({ key: ATTENDANCE_KEY, type: 'boolean', required: true, core: true });
-        expect(food.key).toBe('hasFoodRestrictions');
-        expect(party).toMatchObject({ type: 'repeatingGroup', key: 'companions' });
-        expect(party.subFields?.map((sf) => sf.key)).toEqual(['name', 'allergies']);
+        // Keyed, not positional (cdk#1171 inserted a question mid-list and the
+        // old destructure silently re-pointed `party` at its neighbour).
+        const byKey = Object.fromEntries(DEFAULT_CORE_STAGE.elements.map((e) => [e.key, e]));
+        expect(DEFAULT_CORE_STAGE.elements.map((e) => e.key)).toEqual([
+            ATTENDANCE_KEY, 'hasFoodRestrictions', 'foodRestrictionsText', 'companions',
+        ]);
+        expect(byKey[ATTENDANCE_KEY]).toMatchObject({ type: 'boolean', required: true, core: true });
+        // cdk#1171: the dietary flag and its free text are BOTH engine questions
+        // now — a guest can say what the restriction is, not just that one exists.
+        expect(byKey.hasFoodRestrictions).toMatchObject({ type: 'boolean' });
+        expect(byKey.foodRestrictionsText).toMatchObject({ type: 'text', maxLength: 500 });
+        expect(byKey.companions).toMatchObject({ type: 'repeatingGroup' });
+        expect(byKey.companions.subFields?.map((sf) => sf.key)).toEqual(['name', 'allergies']);
         // Identity stays with the shell (A6): no name/email questions here.
         expect(DEFAULT_CORE_STAGE.elements.some((e) => /email|firstName|lastName/.test(e.key))).toBe(false);
     });

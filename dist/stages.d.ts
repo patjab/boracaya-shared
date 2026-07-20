@@ -78,6 +78,12 @@ export declare const DEFAULT_CORE_STAGE: {
         readonly type: "boolean";
     }, {
         readonly kind: "question";
+        readonly key: "foodRestrictionsText";
+        readonly label: "What should we know?";
+        readonly type: "text";
+        readonly maxLength: 500;
+    }, {
+        readonly kind: "question";
         readonly key: "companions";
         readonly label: "Who is coming with you?";
         readonly type: "repeatingGroup";

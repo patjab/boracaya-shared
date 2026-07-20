@@ -53,6 +53,12 @@ exports.DEFAULT_CORE_STAGE = {
             type: 'boolean', required: true, core: true },
         { kind: 'question', key: 'hasFoodRestrictions',
             label: 'Any food restrictions or allergies?', type: 'boolean' },
+        // cdk#1171: an ANSWER that had no home in the engine — stored in the
+        // legacy rsvp map, read by the notifier, editable in valet, but never
+        // a question. A guest could flag restrictions with no way to describe
+        // them, and #1174's attribute drop would have lost the stored text.
+        { kind: 'question', key: 'foodRestrictionsText',
+            label: 'What should we know?', type: 'text', maxLength: 500 },
         { kind: 'question', key: 'companions', label: 'Who is coming with you?',
             type: 'repeatingGroup', addLabel: 'Add another guest',
             subFields: [
