@@ -245,3 +245,4 @@ export declare const stageDriftKeys: (fields: ReadonlyArray<{
     key: string;
     defaultFrom?: string;
 }>, guest: GuestRowLike | undefined, stagePayload: Record<string, unknown> | undefined) => string[];
+export declare const coreStageFallback: () => StageDefinition;

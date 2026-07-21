@@ -344,3 +344,32 @@ export const stageDriftKeys = (
     }
     return out;
 };
+
+/**
+ * The canonical core stage as a mutable StageDefinition (cdk#1201). The shared
+ * constant is `as const`, so every array on it is readonly and it is NOT
+ * assignable to the mutable StageDefinition — the reason it used to travel
+ * through `as unknown as` in both apps. A structural copy makes the two types
+ * genuinely related instead: the annotation below is checked, so a drift in the
+ * literal now fails the build rather than being waved through.
+ *
+ * Returns a FRESH copy each call so a caller can memoize/mutate its own without
+ * touching the shared literal. A host-edited core stage is materialized into the
+ * event config (cdk#1012); until then this serves virtually — the same fallback
+ * the guest app shows and Valet's editor shows.
+ */
+const cloneCoreElement = (
+    element: (typeof DEFAULT_CORE_STAGE)['elements'][number],
+): StageElement => {
+    if ('subFields' in element) {
+        const { subFields, ...rest } = element;
+        return { ...rest, subFields: subFields.map((subField) => ({ ...subField })) };
+    }
+    return { ...element };
+};
+
+export const coreStageFallback = (): StageDefinition => ({
+    ...DEFAULT_CORE_STAGE,
+    settings: { ...DEFAULT_CORE_STAGE.settings },
+    elements: DEFAULT_CORE_STAGE.elements.map(cloneCoreElement),
+});

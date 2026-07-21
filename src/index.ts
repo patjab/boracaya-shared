@@ -15,6 +15,12 @@ export { useLoading } from './hooks/useLoading';
 export { useApi } from './hooks/useApi';
 export { useGuardedLoad } from './hooks/useGuardedLoad';
 export { useCachedLoad } from './hooks/useCachedLoad';
+export { useTransientValue, TRANSIENT_FLAG_MS } from './hooks/useTransientValue';
+export { required, requiredEntry, requiredString } from './invariant';
+export { asRecord, stringOr } from './untrusted';
+export { interpolate, lookup } from './i18n';
+export type { TParams } from './i18n';
+export { isVideo } from './media';
 export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data';
 export type { GuardedState } from './data';
 export { ArrayUtils, ColorUtils, DateUtils, NumberUtils, StringUtils } from './utils';
@@ -46,7 +52,7 @@ export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export {
   ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, PREFILL_SOURCES,
-  STAGE_RESPONSE_META_KEYS, guestDisplayName, isDisplayBlock,
+  STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock,
   resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation,
   stageQuestions,
 } from './stages';

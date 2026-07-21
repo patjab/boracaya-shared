@@ -27,7 +27,7 @@
  *    one later is a registry entry, not a new mechanism.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stageDriftKeys = exports.resolvePrefillSource = exports.guestDisplayName = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = exports.stageQuestions = exports.stageElements = exports.isDisplayBlock = exports.stagePresentation = exports.DEFAULT_CORE_STAGE = exports.ATTENDANCE_KEY = exports.CORE_STAGE_ID = void 0;
+exports.coreStageFallback = exports.stageDriftKeys = exports.resolvePrefillSource = exports.guestDisplayName = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = exports.stageQuestions = exports.stageElements = exports.isDisplayBlock = exports.stagePresentation = exports.DEFAULT_CORE_STAGE = exports.ATTENDANCE_KEY = exports.CORE_STAGE_ID = void 0;
 // --- The fixed core stage (cdk#1012, decisions cdk#1009 A8-A11) -------------
 /** The reserved id of the core stage — RSVP itself, riding the engine. Fixed
  *  so every reader uses a static path (stages.RSVP...); pre-reserved in the
@@ -185,3 +185,29 @@ const stageDriftKeys = (fields, guest, stagePayload) => {
     return out;
 };
 exports.stageDriftKeys = stageDriftKeys;
+/**
+ * The canonical core stage as a mutable StageDefinition (cdk#1201). The shared
+ * constant is `as const`, so every array on it is readonly and it is NOT
+ * assignable to the mutable StageDefinition — the reason it used to travel
+ * through `as unknown as` in both apps. A structural copy makes the two types
+ * genuinely related instead: the annotation below is checked, so a drift in the
+ * literal now fails the build rather than being waved through.
+ *
+ * Returns a FRESH copy each call so a caller can memoize/mutate its own without
+ * touching the shared literal. A host-edited core stage is materialized into the
+ * event config (cdk#1012); until then this serves virtually — the same fallback
+ * the guest app shows and Valet's editor shows.
+ */
+const cloneCoreElement = (element) => {
+    if ('subFields' in element) {
+        const { subFields, ...rest } = element;
+        return { ...rest, subFields: subFields.map((subField) => ({ ...subField })) };
+    }
+    return { ...element };
+};
+const coreStageFallback = () => ({
+    ...exports.DEFAULT_CORE_STAGE,
+    settings: { ...exports.DEFAULT_CORE_STAGE.settings },
+    elements: exports.DEFAULT_CORE_STAGE.elements.map(cloneCoreElement),
+});
+exports.coreStageFallback = coreStageFallback;
