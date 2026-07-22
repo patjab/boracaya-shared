@@ -53,13 +53,16 @@ const GSI_SRC = 'https://accounts.google.com/gsi/client';
 const gsi = () => { var _a, _b; return (typeof window !== 'undefined' ? (_b = (_a = window.google) === null || _a === void 0 ? void 0 : _a.accounts) === null || _b === void 0 ? void 0 : _b.id : undefined); };
 // Load + initialize GIS once. `initAuth(app?)` keeps the old call sites working —
 // GIS uses a single Google client for both apps, so the arg is ignored.
+//
+// On failure (script load error, or `initialize` throwing) the memo is reset so the
+// next call retries instead of returning the cached rejected promise forever (#1278).
 let gsiPromise = null;
 function initAuth(_app) {
     if (typeof window === 'undefined')
         return Promise.resolve();
     if (gsiPromise)
         return gsiPromise;
-    gsiPromise = new Promise((resolve, reject) => {
+    const attempt = new Promise((resolve, reject) => {
         if (gsi())
             return resolve();
         const s = document.createElement('script');
@@ -80,7 +83,12 @@ function initAuth(_app) {
                 }
             },
         });
+    }).catch((err) => {
+        if (gsiPromise === attempt)
+            gsiPromise = null; // allow a later call to retry (#1278)
+        throw err;
     });
+    gsiPromise = attempt;
     return gsiPromise;
 }
 // ---- token storage -------------------------------------------------------
@@ -122,9 +130,12 @@ function getEmail() {
 // `onSignIn` fires (and a window 'pdab-auth-change' event is dispatched).
 function GoogleSignInButton(props) {
     const ref = React.useRef(null);
+    const [attempt, setAttempt] = React.useState(0);
     React.useEffect(() => {
         let cancelled = false;
-        initAuth().then(() => {
+        let retryTimer;
+        initAuth()
+            .then(() => {
             var _a;
             if (cancelled || !ref.current)
                 return;
@@ -136,15 +147,23 @@ function GoogleSignInButton(props) {
                 shape: 'pill',
                 logo_alignment: 'left',
             });
+        })
+            .catch(() => {
+            // GIS failed to load/initialize (initAuth reset its memo, #1278): retry this
+            // mount after a short delay so a transient blip self-heals without a reload.
+            if (!cancelled)
+                retryTimer = setTimeout(() => setAttempt((a) => a + 1), 2000);
         });
         const onChange = () => { var _a; return (_a = props.onSignIn) === null || _a === void 0 ? void 0 : _a.call(props); };
         window.addEventListener('pdab-auth-change', onChange);
         return () => {
             cancelled = true;
+            if (retryTimer !== undefined)
+                clearTimeout(retryTimer);
             window.removeEventListener('pdab-auth-change', onChange);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [attempt]);
     return React.createElement('div', { ref });
 }
 // ---- sign out ------------------------------------------------------------
