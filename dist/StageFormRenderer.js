@@ -1,10 +1,44 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StageFormRenderer = void 0;
 const jsx_runtime_1 = require("react/jsx-runtime");
+const React = __importStar(require("react"));
 const Avatar_1 = __importDefault(require("@mui/material/Avatar"));
 const Box_1 = __importDefault(require("@mui/material/Box"));
 const FormControl_1 = __importDefault(require("@mui/material/FormControl"));
@@ -125,9 +159,24 @@ const gateTruncated = (list, values) => {
         return list;
     return list.slice(0, at + 1);
 };
+/** cdk#1204: a `revealWhen` question is shown only while its trigger answer
+ *  matches — a follow-up field (the food-restriction detail) is meaningless
+ *  until the guest flags restrictions. A display block has no reveal. */
+const isRevealed = (el, values) => (0, stages_1.isDisplayBlock)(el) || !el.revealWhen || values[el.revealWhen.key] === el.revealWhen.equals;
 const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }) => {
     var _a;
-    const list = gateTruncated(((_a = elements !== null && elements !== void 0 ? elements : fields) !== null && _a !== void 0 ? _a : []).filter((el) => (0, stages_1.isDisplayBlock)(el) || !el.adminOnly), values);
+    const all = (_a = elements !== null && elements !== void 0 ? elements : fields) !== null && _a !== void 0 ? _a : [];
+    // A question hidden by an unmet reveal condition must not submit a stale
+    // answer (typed, then the trigger flipped): clear it once it hides (cdk#1204).
+    React.useEffect(() => {
+        all.forEach((el) => {
+            if (!(0, stages_1.isDisplayBlock)(el) && el.revealWhen && !isRevealed(el, values)
+                && values[el.key] !== undefined && values[el.key] !== '') {
+                onChange(el.key, '');
+            }
+        });
+    }, [elements, fields, values, onChange]);
+    const list = gateTruncated(all.filter((el) => ((0, stages_1.isDisplayBlock)(el) || !el.adminOnly) && isRevealed(el, values)), values);
     const rows = [];
     for (const el of list) {
         const prev = rows[rows.length - 1];

@@ -57,8 +57,12 @@ exports.DEFAULT_CORE_STAGE = {
         // legacy rsvp map, read by the notifier, editable in valet, but never
         // a question. A guest could flag restrictions with no way to describe
         // them, and #1174's attribute drop would have lost the stored text.
+        // Only asked when the guest actually flagged restrictions above — a
+        // follow-up, not a standalone question (cdk#1204). Shown unconditionally
+        // it asked "What should we know?" of guests who had just said "none".
         { kind: 'question', key: 'foodRestrictionsText',
-            label: 'What should we know?', type: 'text', maxLength: 500 },
+            label: 'What should we know?', type: 'text', maxLength: 500,
+            revealWhen: { key: 'hasFoodRestrictions', equals: true } },
         { kind: 'question', key: 'companions', label: 'Who is coming with you?',
             type: 'repeatingGroup', addLabel: 'Add another guest',
             subFields: [

@@ -82,6 +82,10 @@ export declare const DEFAULT_CORE_STAGE: {
         readonly label: "What should we know?";
         readonly type: "text";
         readonly maxLength: 500;
+        readonly revealWhen: {
+            readonly key: "hasFoodRestrictions";
+            readonly equals: true;
+        };
     }, {
         readonly kind: "question";
         readonly key: "companions";
@@ -126,6 +130,14 @@ export interface StageQuestion {
     /** cdk#1012: the core stage's attendance question — key and semantics
      *  machine-fixed, wording host-editable, undeletable (A11). */
     core?: boolean;
+    /** cdk#1204: show this question only while another question's answer equals
+     *  a value — a follow-up field (e.g. the food-restriction detail) that is
+     *  meaningless until its trigger is answered. Hidden questions are not steps
+     *  and never render; their value is cleared so a stale answer can't submit. */
+    revealWhen?: {
+        key: string;
+        equals: string | number | boolean;
+    };
 }
 export type DisplayPresentation = 'line' | 'roster' | 'note';
 /**

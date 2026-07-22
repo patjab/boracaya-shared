@@ -293,6 +293,12 @@ const gateTruncated = (
     return list.slice(0, at + 1);
 };
 
+/** cdk#1204: a `revealWhen` question is shown only while its trigger answer
+ *  matches — a follow-up field (the food-restriction detail) is meaningless
+ *  until the guest flags restrictions. A display block has no reveal. */
+const isRevealed = (el: StageElement, values: StageFormValues): boolean =>
+    isDisplayBlock(el) || !el.revealWhen || values[el.revealWhen.key] === el.revealWhen.equals;
+
 export const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }: {
     elements?: ReadonlyArray<StageElement>;
     fields?: ReadonlyArray<RendererField>;
@@ -309,8 +315,19 @@ export const StageFormRenderer = ({ elements, fields, values, onChange, resolved
      *  with the consumer in both presentations. */
     footer?: React.ReactNode;
 }): React.ReactElement => {
+    const all = elements ?? fields ?? [];
+    // A question hidden by an unmet reveal condition must not submit a stale
+    // answer (typed, then the trigger flipped): clear it once it hides (cdk#1204).
+    React.useEffect(() => {
+        all.forEach((el) => {
+            if (!isDisplayBlock(el) && el.revealWhen && !isRevealed(el, values)
+                && values[el.key] !== undefined && values[el.key] !== '') {
+                onChange(el.key, '');
+            }
+        });
+    }, [elements, fields, values, onChange]);
     const list = gateTruncated(
-        (elements ?? fields ?? []).filter((el) => isDisplayBlock(el) || !el.adminOnly),
+        all.filter((el) => (isDisplayBlock(el) || !el.adminOnly) && isRevealed(el, values)),
         values,
     );
     const rows: StageElement[][] = [];
