@@ -23,11 +23,14 @@ const gsi = (): GsiId | undefined =>
 
 // Load + initialize GIS once. `initAuth(app?)` keeps the old call sites working —
 // GIS uses a single Google client for both apps, so the arg is ignored.
+//
+// On failure (script load error, or `initialize` throwing) the memo is reset so the
+// next call retries instead of returning the cached rejected promise forever (#1278).
 let gsiPromise: Promise<void> | null = null;
 export function initAuth(_app?: App): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
   if (gsiPromise) return gsiPromise;
-  gsiPromise = new Promise<void>((resolve, reject) => {
+  const attempt = new Promise<void>((resolve, reject) => {
     if (gsi()) return resolve();
     const s = document.createElement('script');
     s.src = GSI_SRC;
@@ -47,7 +50,11 @@ export function initAuth(_app?: App): Promise<void> {
         }
       },
     });
+  }).catch((err: unknown) => {
+    if (gsiPromise === attempt) gsiPromise = null; // allow a later call to retry (#1278)
+    throw err;
   });
+  gsiPromise = attempt;
   return gsiPromise;
 }
 
@@ -87,27 +94,36 @@ export function getEmail(): string | null {
 // `onSignIn` fires (and a window 'pdab-auth-change' event is dispatched).
 export function GoogleSignInButton(props: { onSignIn?: () => void; text?: string }): React.ReactElement {
   const ref = React.useRef<HTMLDivElement>(null);
+  const [attempt, setAttempt] = React.useState(0);
   React.useEffect(() => {
     let cancelled = false;
-    initAuth().then(() => {
-      if (cancelled || !ref.current) return;
-      gsi()!.renderButton(ref.current, {
-        type: 'standard',
-        theme: 'filled_blue',
-        size: 'large',
-        text: props.text ?? 'continue_with',
-        shape: 'pill',
-        logo_alignment: 'left',
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    initAuth()
+      .then(() => {
+        if (cancelled || !ref.current) return;
+        gsi()!.renderButton(ref.current, {
+          type: 'standard',
+          theme: 'filled_blue',
+          size: 'large',
+          text: props.text ?? 'continue_with',
+          shape: 'pill',
+          logo_alignment: 'left',
+        });
+      })
+      .catch(() => {
+        // GIS failed to load/initialize (initAuth reset its memo, #1278): retry this
+        // mount after a short delay so a transient blip self-heals without a reload.
+        if (!cancelled) retryTimer = setTimeout(() => setAttempt((a) => a + 1), 2000);
       });
-    });
     const onChange = () => props.onSignIn?.();
     window.addEventListener('pdab-auth-change', onChange);
     return () => {
       cancelled = true;
+      if (retryTimer !== undefined) clearTimeout(retryTimer);
       window.removeEventListener('pdab-auth-change', onChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
   return React.createElement('div', { ref });
 }
 
