@@ -99,6 +99,15 @@ export const ApiConstants = {
  */
 export const AdminEventApi = {
     config: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}`,
+    // Validated flat-config write lanes (shared#133). All still merge onto the
+    // event row, but the route fixes the field owner so one editor cannot write
+    // another editor's fields.
+    branding: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/branding`,
+    design: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/design`,
+    configure: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/configure`,
+    pulseConfig: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/pulse-config`,
+    albums: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/albums`,
+    emailSettings: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/email-settings`,
     about: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/about`,
     // Guest groups' validated lane (cdk#839/#841): PUT {groups: string[]} — full
     // replace. The generic config PATCH strips guestGroups now; this is the only writer.
