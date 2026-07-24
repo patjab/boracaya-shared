@@ -91,7 +91,38 @@ export interface AdminEventMetadata extends EventConfigCore {
         stageId: string;
         field: string;
     } | null;
+    notificationsEmail?: string;
+    replyToEmail?: string;
 }
+/**
+ * Typed write ownership for the flat event document (shared#133).
+ *
+ * Each request type is intentionally a Pick<> over AdminEventMetadata: a Valet
+ * writer cannot add a field owned by another lane without a compile failure.
+ * Dedicated stage/group/page/image/platform routes stay outside these types.
+ */
+export type EventBrandingFields = Pick<AdminEventMetadata, 'eventDisplayName' | 'tagline' | 'eventDateISOString' | 'heroImageUrl' | 'heroHeight' | 'finishedEventImageUrl' | 'stampImageUrl' | 'stampNaming' | 'doorStage' | 'vocabulary'>;
+export type EventDesignFields = Pick<AdminEventMetadata, 'shell' | 'style'>;
+export type EventConfigureFields = Pick<AdminEventMetadata, 'daysBeforeEventLastDayToBook' | 'theme' | 'blockHotelName' | 'blockHotelArea' | 'extraAttendanceLabel' | 'hotelAreaOptions'>;
+export type EventPulseFields = Pick<AdminEventMetadata, 'pulse'>;
+export type EventAlbumsFields = Pick<AdminEventMetadata, 'albums'>;
+export type EventEmailSettingsFields = Pick<AdminEventMetadata, 'notificationsEmail' | 'replyToEmail'>;
+export interface EventMetadataPatch<T> {
+    metadata: T;
+}
+export type EventBrandingPatch = EventMetadataPatch<EventBrandingFields>;
+export type EventDesignPatch = EventMetadataPatch<EventDesignFields>;
+export type EventConfigurePatch = EventMetadataPatch<EventConfigureFields>;
+export type EventPulsePatch = EventMetadataPatch<EventPulseFields>;
+export type EventAlbumsPatch = EventMetadataPatch<EventAlbumsFields>;
+export type EventEmailSettingsPatch = EventMetadataPatch<EventEmailSettingsFields>;
+/** Stable backend codes for field-ownership refusals. */
+export declare const EVENT_CONFIG_WRITE_ERROR_CODES: {
+    readonly unknownField: "UNKNOWN_EVENT_FIELD";
+    readonly mixedOwners: "MIXED_EVENT_FIELD_OWNERS";
+    readonly protectedField: "PROTECTED_EVENT_FIELD";
+};
+export type EventConfigWriteErrorCode = typeof EVENT_CONFIG_WRITE_ERROR_CODES[keyof typeof EVENT_CONFIG_WRITE_ERROR_CODES];
 /**
  * The PUBLIC lane's metadata (public `GET /events/{id}/config`): the core with
  * the guest invariants (the tenant id always rides the payload) and the

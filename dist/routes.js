@@ -82,6 +82,15 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'DELETE', path: '/events/{eventId}/image' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}' },
     { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
+    // Flat storage, explicit write ownership (shared#133): these route names are
+    // the authorization boundary between Valet editors. The generic event PATCH
+    // remains only for the independently validated page-catalog write.
+    { label: 'admin', method: 'PATCH', path: '/events/{eventId}/branding' },
+    { label: 'admin', method: 'PATCH', path: '/events/{eventId}/design' },
+    { label: 'admin', method: 'PATCH', path: '/events/{eventId}/configure' },
+    { label: 'admin', method: 'PATCH', path: '/events/{eventId}/pulse-config' },
+    { label: 'admin', method: 'PATCH', path: '/events/{eventId}/albums' },
+    { label: 'admin', method: 'PATCH', path: '/events/{eventId}/email-settings' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}' },
     // Guest groups' own validated lane (cdk#839/#841): full-replace of the labels
     // guests pick (Pulse compose). Out of the generic metadata merge — the Branding
