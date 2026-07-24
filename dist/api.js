@@ -196,9 +196,10 @@ exports.OrganizerInviteApi = {
  * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
  * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
  * path segment, never a server-pinned default. The guest-authed lanes
- * (rsvp/stages/uploads) are additionally validated server-side: the token's
- * guest must have a PROFILE row in the path event (fail closed). The public lanes
- * (auth/invite/moments-public/wishes/survey) take the path event directly.
+ * (rsvp/stages/uploads/Pulse writes and personalized feed) are additionally
+ * validated server-side: the token's guest must have a PROFILE row in the path
+ * event (fail closed). The public lanes
+ * (auth/invite/moments-public/public Pulse feed/survey) take the path event directly.
  * The flat ApiConstants forms above remain until the cdk#427 contract step deletes
  * the flat routes.
  */
@@ -212,8 +213,11 @@ exports.GuestEventApi = {
     invite: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/invite`,
     momentsPublic: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/moments/public`,
     wishes: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/wishes`,
-    // Pulse (cdk#668): the generalized engagement lane — same public posture as wishes.
+    // Pulse public feed plus guest-authenticated personalization and writes
+    // (shared#134): `/pulse` never accepts caller identity; `/pulse/mine` derives
+    // `mine` from the event-scoped guest JWT.
     pulse: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse`,
+    pulseMine: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/mine`,
     pulsePosts: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/posts`,
     pulseVotes: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/votes`,
     pulseReactions: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/reactions`,

@@ -219,9 +219,10 @@ export const OrganizerInviteApi = {
  * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
  * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
  * path segment, never a server-pinned default. The guest-authed lanes
- * (rsvp/stages/uploads) are additionally validated server-side: the token's
- * guest must have a PROFILE row in the path event (fail closed). The public lanes
- * (auth/invite/moments-public/wishes/survey) take the path event directly.
+ * (rsvp/stages/uploads/Pulse writes and personalized feed) are additionally
+ * validated server-side: the token's guest must have a PROFILE row in the path
+ * event (fail closed). The public lanes
+ * (auth/invite/moments-public/public Pulse feed/survey) take the path event directly.
  * The flat ApiConstants forms above remain until the cdk#427 contract step deletes
  * the flat routes.
  */
@@ -235,8 +236,11 @@ export const GuestEventApi = {
     invite: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/invite`,
     momentsPublic: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/moments/public`,
     wishes: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/wishes`,
-    // Pulse (cdk#668): the generalized engagement lane — same public posture as wishes.
+    // Pulse public feed plus guest-authenticated personalization and writes
+    // (shared#134): `/pulse` never accepts caller identity; `/pulse/mine` derives
+    // `mine` from the event-scoped guest JWT.
     pulse: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse`,
+    pulseMine: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/mine`,
     pulsePosts: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/posts`,
     pulseVotes: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/votes`,
     pulseReactions: (eventId: string) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/reactions`,
@@ -248,4 +252,3 @@ export const GuestEventApi = {
     initiateUpload: (eventId: string) => `${uploadApi()}/events/${encodeURIComponent(eventId)}/initiate`,
     completeUpload: (eventId: string) => `${uploadApi()}/events/${encodeURIComponent(eventId)}/complete`,
 } as const;
-

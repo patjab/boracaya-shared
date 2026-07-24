@@ -168,6 +168,7 @@ describe('GuestEventApi contract', () => {
         momentsPublic: ['/events/e-1/moments/public', /^public-api\./],
         wishes: ['/events/e-1/wishes', /^public-api\./],
         pulse: ['/events/e-1/pulse', /^public-api\./],
+        pulseMine: ['/events/e-1/pulse/mine', /^public-api\./],
         pulsePosts: ['/events/e-1/pulse/posts', /^public-api\./],
         pulseVotes: ['/events/e-1/pulse/votes', /^public-api\./],
         pulseReactions: ['/events/e-1/pulse/reactions', /^public-api\./],
