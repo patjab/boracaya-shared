@@ -16,6 +16,7 @@ import type { HotelAreaOption } from './types';
 import type { StageDefinition } from './stages';
 import type { PulseConfig } from './pulse';
 import type { ShellKey, StyleConfig } from './shells';
+import type { EventCalendar } from './eventDate';
 
 /** The guest pipeline preset (cdk#466/#574). Absent = 'exclusivus' — the
  *  platform-wide grandfather rule for pre-preset events. */
@@ -38,7 +39,8 @@ export interface EventAlbum {
  * config, never code literals (cdk#390); all optional — a missing field
  * renders a neutral fallback (guest) or an empty editor (Valet).
  */
-export interface EventConfigCore {
+export interface EventConfigCore extends EventCalendar {
+  /** Temporary read-compatibility field during migration. */
   eventDateISOString?: string;
   /** Optional (cdk#488): events minted before create-time seeding lack it.
    *  Absent must read as "reservations open" — never compare undefined. */
@@ -107,7 +109,7 @@ export interface AdminEventMetadata extends EventConfigCore {
  * Dedicated stage/group/page/image/platform routes stay outside these types.
  */
 export type EventBrandingFields = Pick<AdminEventMetadata,
-  'eventDisplayName' | 'tagline' | 'eventDateISOString' |
+  'eventDisplayName' | 'tagline' | 'eventDate' | 'eventTimeZone' | 'eventDateISOString' |
   'heroImageUrl' | 'heroHeight' | 'finishedEventImageUrl' |
   'stampImageUrl' | 'stampNaming' | 'doorStage' | 'vocabulary'>;
 
@@ -192,6 +194,8 @@ export interface EventPage {
  */
 export interface AdminEvent {
   eventId: string;
+  eventDate?: string;
+  eventTimeZone?: string;
   eventDisplayName?: string;
   eventDateISOString?: string;
   tagline?: string;

@@ -16,6 +16,19 @@ export type {
   EventConfigurePatch, EventPulsePatch, EventAlbumsPatch,
   EventEmailSettingsPatch, EventConfigWriteErrorCode,
 } from './event';
+export {
+  compareEventDates,
+  daysUntilEventDate,
+  eventCalendarWithLegacyFallback,
+  eventDateFromLegacyISO,
+  eventDateInTimeZone,
+  eventDayWindow,
+  formatEventDate,
+  isEventDate,
+  isEventTimeZone,
+  supportedEventTimeZones,
+} from './eventDate';
+export type { EventCalendar, EventDayWindow } from './eventDate';
 export type { EnvName } from './env';
 export { ApiRoutes } from './routes';
 export type { ApiRoute } from './routes';

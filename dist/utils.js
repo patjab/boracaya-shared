@@ -1,4 +1,6 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ColorUtils = exports.DateUtils = exports.NumberUtils = exports.ArrayUtils = exports.StringUtils = void 0;
 // Basic cross-app utilities (cdk#1157): the micro-patterns both frontends kept
 // re-implementing (trim/emptiness checks, capitalize/initials, dedup/joins,
 // clamp/percentage, calendar-date + relative-time formatting, hash→tint).
@@ -6,8 +8,7 @@
 // call sites (ideally two repos) repeated it. App-specific COPY (countdown
 // phrases, feed tails) stays app-side: e2e narrative specs pin rendered text.
 // Node-safe like data.ts — no browser or React imports.
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ColorUtils = exports.DateUtils = exports.NumberUtils = exports.ArrayUtils = exports.StringUtils = void 0;
+const eventDate_1 = require("./eventDate");
 /** String helpers. Superset of Shore's original local StringUtils (#881). */
 exports.StringUtils = {
     /** True for null/undefined/whitespace-only. */
@@ -66,25 +67,24 @@ exports.NumberUtils = {
 };
 exports.DateUtils = {
     /**
-     * Render the CALENDAR date an ISO config value stores (values are
-     * midnight-UTC): the zone is pinned so viewers west of UTC don't see the
-     * previous day. null for missing/invalid input. Defaults match the admin
+     * Render an event calendar date without allowing the viewer's timezone to
+     * move the day. Legacy ISO values temporarily derive their first 10 bytes.
+     * null for missing/invalid input. Defaults match the admin
      * events list ('June 5, 2026'); pass options/locale for other shapes
      * (e.g. { month: 'short' } with locale undefined → 'Jun 5, 2026').
      */
     calendarDate: (iso, options = { year: 'numeric', month: 'long', day: 'numeric' }, locale = 'en-US') => {
         if (!iso)
             return null;
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime()))
-            return null;
-        return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(d);
+        const eventDate = (0, eventDate_1.eventDateFromLegacyISO)(iso);
+        return eventDate ? (0, eventDate_1.formatEventDate)(eventDate, options, locale) : null;
     },
-    /** Whole days from today (UTC) to the ISO date; negative = passed. */
-    daysUntil: (iso, now = new Date()) => {
-        const event = Date.parse(`${iso.slice(0, 10)}T00:00:00.000Z`);
-        const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-        return Math.round((event - today) / 86400000);
+    /** Whole local calendar days to the event date; negative = passed. */
+    daysUntil: (dateOrLegacyISO, now = new Date(), eventTimeZone = 'UTC') => {
+        const eventDate = (0, eventDate_1.eventDateFromLegacyISO)(dateOrLegacyISO);
+        if (!eventDate)
+            return Number.NaN;
+        return (0, eventDate_1.daysUntilEventDate)(eventDate, eventTimeZone, now);
     },
     /**
      * Concise relative time ("just now", "5m ago", "3h ago", "2d ago", "3w ago").
