@@ -5,6 +5,7 @@
 // call sites (ideally two repos) repeated it. App-specific COPY (countdown
 // phrases, feed tails) stays app-side: e2e narrative specs pin rendered text.
 // Node-safe like data.ts — no browser or React imports.
+import { daysUntilEventDate, eventDateFromLegacyISO, formatEventDate } from './eventDate';
 
 /** String helpers. Superset of Shore's original local StringUtils (#881). */
 export const StringUtils = {
@@ -77,9 +78,9 @@ export const NumberUtils = {
 
 export const DateUtils = {
   /**
-   * Render the CALENDAR date an ISO config value stores (values are
-   * midnight-UTC): the zone is pinned so viewers west of UTC don't see the
-   * previous day. null for missing/invalid input. Defaults match the admin
+   * Render an event calendar date without allowing the viewer's timezone to
+   * move the day. Legacy ISO values temporarily derive their first 10 bytes.
+   * null for missing/invalid input. Defaults match the admin
    * events list ('June 5, 2026'); pass options/locale for other shapes
    * (e.g. { month: 'short' } with locale undefined → 'Jun 5, 2026').
    */
@@ -89,15 +90,14 @@ export const DateUtils = {
     locale: string | undefined = 'en-US',
   ): string | null => {
     if (!iso) return null;
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(d);
+    const eventDate = eventDateFromLegacyISO(iso);
+    return eventDate ? formatEventDate(eventDate, options, locale) : null;
   },
-  /** Whole days from today (UTC) to the ISO date; negative = passed. */
-  daysUntil: (iso: string, now: Date = new Date()): number => {
-    const event = Date.parse(`${iso.slice(0, 10)}T00:00:00.000Z`);
-    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    return Math.round((event - today) / 86_400_000);
+  /** Whole local calendar days to the event date; negative = passed. */
+  daysUntil: (dateOrLegacyISO: string, now: Date = new Date(), eventTimeZone = 'UTC'): number => {
+    const eventDate = eventDateFromLegacyISO(dateOrLegacyISO);
+    if (!eventDate) return Number.NaN;
+    return daysUntilEventDate(eventDate, eventTimeZone, now);
   },
   /**
    * Concise relative time ("just now", "5m ago", "3h ago", "2d ago", "3w ago").

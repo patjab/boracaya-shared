@@ -8,6 +8,8 @@ export { isShellKey } from './shells';
 export { isEmojiIcon } from './emoji';
 export { EVENT_CONFIG_WRITE_ERROR_CODES } from './event';
 export type { EventConfigCore, AdminEventMetadata, PublicEventMetadata, EventPreset, HeroHeight, EventAlbum, EventPage, EventPageSubGroup, EventPageSubLeaf, AdminEvent, EventBrandingFields, EventDesignFields, EventConfigureFields, EventPulseFields, EventAlbumsFields, EventEmailSettingsFields, EventMetadataPatch, EventBrandingPatch, EventDesignPatch, EventConfigurePatch, EventPulsePatch, EventAlbumsPatch, EventEmailSettingsPatch, EventConfigWriteErrorCode, } from './event';
+export { compareEventDates, daysUntilEventDate, eventCalendarWithLegacyFallback, eventDateFromLegacyISO, eventDateInTimeZone, eventDayWindow, formatEventDate, isEventDate, isEventTimeZone, supportedEventTimeZones, } from './eventDate';
+export type { EventCalendar, EventDayWindow } from './eventDate';
 export type { EnvName } from './env';
 export { ApiRoutes } from './routes';
 export type { ApiRoute } from './routes';

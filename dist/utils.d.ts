@@ -37,15 +37,15 @@ export declare const NumberUtils: {
 };
 export declare const DateUtils: {
     /**
-     * Render the CALENDAR date an ISO config value stores (values are
-     * midnight-UTC): the zone is pinned so viewers west of UTC don't see the
-     * previous day. null for missing/invalid input. Defaults match the admin
+     * Render an event calendar date without allowing the viewer's timezone to
+     * move the day. Legacy ISO values temporarily derive their first 10 bytes.
+     * null for missing/invalid input. Defaults match the admin
      * events list ('June 5, 2026'); pass options/locale for other shapes
      * (e.g. { month: 'short' } with locale undefined → 'Jun 5, 2026').
      */
     calendarDate: (iso?: string, options?: Intl.DateTimeFormatOptions, locale?: string | undefined) => string | null;
-    /** Whole days from today (UTC) to the ISO date; negative = passed. */
-    daysUntil: (iso: string, now?: Date) => number;
+    /** Whole local calendar days to the event date; negative = passed. */
+    daysUntil: (dateOrLegacyISO: string, now?: Date, eventTimeZone?: string) => number;
     /**
      * Concise relative time ("just now", "5m ago", "3h ago", "2d ago", "3w ago").
      * Accepts second- OR millisecond-epochs (survey/RSVP timestamps are stored
