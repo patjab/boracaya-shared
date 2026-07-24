@@ -99,9 +99,10 @@ export declare const OrganizerInviteApi: {
  * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
  * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
  * path segment, never a server-pinned default. The guest-authed lanes
- * (rsvp/stages/uploads) are additionally validated server-side: the token's
- * guest must have a PROFILE row in the path event (fail closed). The public lanes
- * (auth/invite/moments-public/wishes/survey) take the path event directly.
+ * (rsvp/stages/uploads/Pulse writes and personalized feed) are additionally
+ * validated server-side: the token's guest must have a PROFILE row in the path
+ * event (fail closed). The public lanes
+ * (auth/invite/moments-public/public Pulse feed/survey) take the path event directly.
  * The flat ApiConstants forms above remain until the cdk#427 contract step deletes
  * the flat routes.
  */
@@ -114,6 +115,7 @@ export declare const GuestEventApi: {
     readonly momentsPublic: (eventId: string) => string;
     readonly wishes: (eventId: string) => string;
     readonly pulse: (eventId: string) => string;
+    readonly pulseMine: (eventId: string) => string;
     readonly pulsePosts: (eventId: string) => string;
     readonly pulseVotes: (eventId: string) => string;
     readonly pulseReactions: (eventId: string) => string;

@@ -118,12 +118,14 @@ exports.ApiRoutes = [
     { label: 'public', method: 'GET', path: '/events/{eventId}/invite' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/moments/public' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/wishes' },
+    // GET remains public; PUT is guest-authenticated in topology and derives
+    // authorship from the guest JWT (shared#134).
     { label: 'public', method: 'PUT', path: '/events/{eventId}/wishes' },
-    // Pulse (cdk#668, decisions #669/#670): the generalized engagement lane. Public
-    // parity with the wishes lane it extends (unsealed posts ARE wish rows); per-guest
-    // dedupe keys on a client-supplied userId for the TESTING POC — graduation moves
-    // the writes behind the guest authorizer.
+    // Pulse (cdk#668, shared#134): the aggregate feed remains public. Personalized
+    // `mine` state has its own guest-authenticated lane, and every write derives
+    // identity from the event-scoped guest JWT.
     { label: 'public', method: 'GET', path: '/events/{eventId}/pulse' },
+    { label: 'public', method: 'GET', path: '/events/{eventId}/pulse/mine' },
     { label: 'public', method: 'PUT', path: '/events/{eventId}/pulse/posts' },
     { label: 'public', method: 'PUT', path: '/events/{eventId}/pulse/votes' },
     { label: 'public', method: 'PUT', path: '/events/{eventId}/pulse/reactions' },
