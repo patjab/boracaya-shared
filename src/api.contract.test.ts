@@ -101,6 +101,12 @@ import { AdminEventApi } from './api';
 describe('AdminEventApi contract', () => {
     const EXPECTED_EVENT_PATHS: Record<string, string> = {
         config: '/events/e-1',
+        branding: '/events/e-1/branding',
+        design: '/events/e-1/design',
+        configure: '/events/e-1/configure',
+        pulseConfig: '/events/e-1/pulse-config',
+        albums: '/events/e-1/albums',
+        emailSettings: '/events/e-1/email-settings',
         about: '/events/e-1/about',
         groups: '/events/e-1/groups',
         rsvps: '/events/e-1/rsvp',

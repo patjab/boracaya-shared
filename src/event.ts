@@ -94,7 +94,54 @@ export interface AdminEventMetadata extends EventConfigCore {
   /** The check-in hinge: which stage + boolean field mints the stamp.
    *  Explicit null = detach (the server treats absent/null as doorless). */
   doorStage?: { stageId: string; field: string } | null;
+  // Communicate lane — admin-only; never part of public event config.
+  notificationsEmail?: string;
+  replyToEmail?: string;
 }
+
+/**
+ * Typed write ownership for the flat event document (shared#133).
+ *
+ * Each request type is intentionally a Pick<> over AdminEventMetadata: a Valet
+ * writer cannot add a field owned by another lane without a compile failure.
+ * Dedicated stage/group/page/image/platform routes stay outside these types.
+ */
+export type EventBrandingFields = Pick<AdminEventMetadata,
+  'eventDisplayName' | 'tagline' | 'eventDateISOString' |
+  'heroImageUrl' | 'heroHeight' | 'finishedEventImageUrl' |
+  'stampImageUrl' | 'stampNaming' | 'doorStage' | 'vocabulary'>;
+
+export type EventDesignFields = Pick<AdminEventMetadata, 'shell' | 'style'>;
+
+export type EventConfigureFields = Pick<AdminEventMetadata,
+  'daysBeforeEventLastDayToBook' | 'theme' | 'blockHotelName' |
+  'blockHotelArea' | 'extraAttendanceLabel' | 'hotelAreaOptions'>;
+
+export type EventPulseFields = Pick<AdminEventMetadata, 'pulse'>;
+export type EventAlbumsFields = Pick<AdminEventMetadata, 'albums'>;
+export type EventEmailSettingsFields = Pick<AdminEventMetadata,
+  'notificationsEmail' | 'replyToEmail'>;
+
+export interface EventMetadataPatch<T> {
+  metadata: T;
+}
+
+export type EventBrandingPatch = EventMetadataPatch<EventBrandingFields>;
+export type EventDesignPatch = EventMetadataPatch<EventDesignFields>;
+export type EventConfigurePatch = EventMetadataPatch<EventConfigureFields>;
+export type EventPulsePatch = EventMetadataPatch<EventPulseFields>;
+export type EventAlbumsPatch = EventMetadataPatch<EventAlbumsFields>;
+export type EventEmailSettingsPatch = EventMetadataPatch<EventEmailSettingsFields>;
+
+/** Stable backend codes for field-ownership refusals. */
+export const EVENT_CONFIG_WRITE_ERROR_CODES = {
+  unknownField: 'UNKNOWN_EVENT_FIELD',
+  mixedOwners: 'MIXED_EVENT_FIELD_OWNERS',
+  protectedField: 'PROTECTED_EVENT_FIELD',
+} as const;
+
+export type EventConfigWriteErrorCode =
+  typeof EVENT_CONFIG_WRITE_ERROR_CODES[keyof typeof EVENT_CONFIG_WRITE_ERROR_CODES];
 
 /**
  * The PUBLIC lane's metadata (public `GET /events/{id}/config`): the core with
