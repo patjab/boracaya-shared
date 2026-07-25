@@ -12,6 +12,7 @@ exports.runGuarded = runGuarded;
 // this module is plain TypeScript so Node consumers (e2e, contract tests) can
 // import it safely.
 const auth_1 = require("./auth");
+const security_1 = require("./security");
 // authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
 // contract test) — and this module must stay Node-safe like guestAuth.ts. No
 // storage simply means no token to attach.
@@ -30,11 +31,12 @@ const safeAuthHeaders = () => {
  * and error states say which call failed without URL spelunking.
  */
 class ApiError extends Error {
-    constructor(label, message, status) {
+    constructor(label, message, status, retryAfter) {
         super(message);
         this.name = 'ApiError';
         this.label = label;
         this.status = status;
+        this.retryAfterSeconds = retryAfter;
     }
 }
 exports.ApiError = ApiError;
@@ -101,7 +103,7 @@ async function jsonOr(url, label, fallback, opts = {}) {
  * (reflected in the return type).
  */
 async function sendJson(url, opts) {
-    var _a, _b;
+    var _a, _b, _c;
     const label = (_a = opts.label) !== null && _a !== void 0 ? _a : url;
     let res;
     try {
@@ -122,23 +124,29 @@ async function sendJson(url, opts) {
     const text = await readBody(res, label);
     if (!res.ok) {
         let serverMessage;
+        let bodyRetryAfter;
         try {
             const parsed = JSON.parse(text);
             const m = (_b = parsed === null || parsed === void 0 ? void 0 : parsed.error) !== null && _b !== void 0 ? _b : parsed === null || parsed === void 0 ? void 0 : parsed.message;
             if (typeof m === 'string' && m.trim())
                 serverMessage = m;
+            if (typeof parsed.retryAfterSeconds === 'number'
+                && Number.isSafeInteger(parsed.retryAfterSeconds)
+                && parsed.retryAfterSeconds >= 0) {
+                bodyRetryAfter = parsed.retryAfterSeconds;
+            }
         }
-        catch (_c) {
+        catch (_d) {
             /* non-JSON error body -> fall through to the status message */
         }
-        throw new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status);
+        throw new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_c = (0, security_1.retryAfterSeconds)(res.headers.get('Retry-After'))) !== null && _c !== void 0 ? _c : bodyRetryAfter);
     }
     if (!text.trim())
         return undefined;
     try {
         return JSON.parse(text);
     }
-    catch (_d) {
+    catch (_e) {
         throw new ApiError(label, `${label}: response was not valid JSON`, res.status);
     }
 }

@@ -119,6 +119,20 @@ describe('sendJson', () => {
     expect(err.message).toBe('A template with that name already exists.');
   });
 
+  it('exposes stable retry timing from a throttled response', async () => {
+    fetchMock().mockResolvedValue(new Response(JSON.stringify({
+      code: 'RATE_LIMITED',
+      error: 'Please wait.',
+      retryAfterSeconds: 90,
+    }), { status: 429, headers: { 'Retry-After': '75' } }));
+    const err = await sendJson('https://x/y', {
+      method: 'POST', body: {}, label: 'upload',
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(429);
+    expect(err.retryAfterSeconds).toBe(75);
+  });
+
   it('falls back to the status message when the error body is not JSON', async () => {
     fetchMock().mockResolvedValue(new Response('nope', { status: 500 }));
     const err = await sendJson('https://x/y', { method: 'POST', body: {}, label: 'save' }).catch((e) => e);

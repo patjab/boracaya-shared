@@ -5,6 +5,7 @@
 // this module is plain TypeScript so Node consumers (e2e, contract tests) can
 // import it safely.
 import { authHeaders } from './auth';
+import { retryAfterSeconds as parseRetryAfterSeconds } from './security';
 
 // authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
 // contract test) — and this module must stay Node-safe like guestAuth.ts. No
@@ -28,11 +29,14 @@ export class ApiError extends Error {
 
   readonly status?: number;
 
-  constructor(label: string, message: string, status?: number) {
+  readonly retryAfterSeconds?: number;
+
+  constructor(label: string, message: string, status?: number, retryAfter?: number) {
     super(message);
     this.name = 'ApiError';
     this.label = label;
     this.status = status;
+    this.retryAfterSeconds = retryAfter;
   }
 }
 
@@ -135,14 +139,27 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
   const text = await readBody(res, label);
   if (!res.ok) {
     let serverMessage: string | undefined;
+    let bodyRetryAfter: number | undefined;
     try {
-      const parsed = JSON.parse(text) as { error?: unknown; message?: unknown };
+      const parsed = JSON.parse(text) as {
+        error?: unknown; message?: unknown; retryAfterSeconds?: unknown;
+      };
       const m = parsed?.error ?? parsed?.message;
       if (typeof m === 'string' && m.trim()) serverMessage = m;
+      if (typeof parsed.retryAfterSeconds === 'number'
+          && Number.isSafeInteger(parsed.retryAfterSeconds)
+          && parsed.retryAfterSeconds >= 0) {
+        bodyRetryAfter = parsed.retryAfterSeconds;
+      }
     } catch {
       /* non-JSON error body -> fall through to the status message */
     }
-    throw new ApiError(label, serverMessage ?? `${label}: HTTP ${res.status}`, res.status);
+    throw new ApiError(
+      label,
+      serverMessage ?? `${label}: HTTP ${res.status}`,
+      res.status,
+      parseRetryAfterSeconds(res.headers.get('Retry-After')) ?? bodyRetryAfter,
+    );
   }
   if (!text.trim()) return undefined;
   try {
