@@ -133,6 +133,21 @@ describe('sendJson', () => {
     expect(err.retryAfterSeconds).toBe(75);
   });
 
+  it('preserves the server error when a fetch adapter omits response headers', async () => {
+    fetchMock().mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ error: 'RSVP first.' }),
+    });
+    const err = await sendJson('https://x/y', {
+      method: 'POST', body: {}, label: 'stage',
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(403);
+    expect(err.message).toBe('RSVP first.');
+    expect(err.retryAfterSeconds).toBeUndefined();
+  });
+
   it('falls back to the status message when the error body is not JSON', async () => {
     fetchMock().mockResolvedValue(new Response('nope', { status: 500 }));
     const err = await sendJson('https://x/y', { method: 'POST', body: {}, label: 'save' }).catch((e) => e);

@@ -139,7 +139,10 @@ async function sendJson(url, opts) {
         catch (_d) {
             /* non-JSON error body -> fall through to the status message */
         }
-        throw new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_c = (0, security_1.retryAfterSeconds)(res.headers.get('Retry-After'))) !== null && _c !== void 0 ? _c : bodyRetryAfter);
+        const retryHeader = res.headers && typeof res.headers.get === 'function'
+            ? res.headers.get('Retry-After')
+            : null;
+        throw new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_c = (0, security_1.retryAfterSeconds)(retryHeader)) !== null && _c !== void 0 ? _c : bodyRetryAfter);
     }
     if (!text.trim())
         return undefined;
