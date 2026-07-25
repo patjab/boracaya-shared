@@ -7,7 +7,8 @@
 export declare class ApiError extends Error {
     readonly label: string;
     readonly status?: number;
-    constructor(label: string, message: string, status?: number);
+    readonly retryAfterSeconds?: number;
+    constructor(label: string, message: string, status?: number, retryAfter?: number);
 }
 interface CallOptions {
     /** Short human name for the call, used in errors/logs. Defaults to the URL. */
