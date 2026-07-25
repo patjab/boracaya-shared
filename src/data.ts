@@ -154,11 +154,14 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
     } catch {
       /* non-JSON error body -> fall through to the status message */
     }
+    const retryHeader = res.headers && typeof res.headers.get === 'function'
+      ? res.headers.get('Retry-After')
+      : null;
     throw new ApiError(
       label,
       serverMessage ?? `${label}: HTTP ${res.status}`,
       res.status,
-      parseRetryAfterSeconds(res.headers.get('Retry-After')) ?? bodyRetryAfter,
+      parseRetryAfterSeconds(retryHeader) ?? bodyRetryAfter,
     );
   }
   if (!text.trim()) return undefined;
