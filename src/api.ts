@@ -112,7 +112,10 @@ export const AdminEventApi = {
     // Guest groups' validated lane (cdk#839/#841): PUT {groups: string[]} — full
     // replace. The generic config PATCH strips guestGroups now; this is the only writer.
     groups: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/groups`,
+    capacity: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/capacity`,
     rsvps: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/rsvp`,
+    attendanceRemovals: (eventId: string) =>
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/attendance/removals`,
     // Composed, preset-resolved roster (cdk#575): the grid's single read — identity
     // (PROFILE) + nested rsvp + per-stage objects; the response's `preset` tells the
     // consumer which vocabulary (invite fields ride exclusivus items only).

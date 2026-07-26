@@ -20,6 +20,7 @@ import type { EventCalendar } from './eventDate';
 /** The guest pipeline preset (cdk#466/#574). Absent = 'exclusivus' — the
  *  platform-wide grandfather rule for pre-preset events. */
 export type EventPreset = 'exclusivus' | 'inclusivus';
+export type CapacityStatus = 'available' | 'full';
 /** Hero image height presets (cdk#1055/#1056). */
 export type HeroHeight = 'full' | 'standard' | 'compact';
 /** A named moments album (cdk#790 A3 / #973): Candids is implicit — these are
@@ -95,6 +96,11 @@ export interface AdminEventMetadata extends EventConfigCore {
     } | null;
     notificationsEmail?: string;
     replyToEmail?: string;
+    /** Internal accepted-person counter and optional RSVP ceiling (#129).
+     * These are admin-only; the public projection exposes CapacityStatus only. */
+    maxAttendees?: number;
+    attendeeCount: number;
+    capacityVersion?: number;
 }
 /**
  * Typed write ownership for the flat event document (shared#133).
@@ -134,6 +140,8 @@ export type EventConfigWriteErrorCode = typeof EVENT_CONFIG_WRITE_ERROR_CODES[ke
  */
 export interface PublicEventMetadata extends EventConfigCore {
     eventId: string;
+    /** Absent on cached/pre-#129 config and interpreted as available. */
+    capacityStatus?: CapacityStatus;
     shell?: string;
     style?: unknown;
     vocabulary?: unknown;
@@ -177,6 +185,8 @@ export interface AdminEvent {
     tagline?: string;
     extraAttendanceLabel?: string;
     preset?: EventPreset;
+    maxAttendees?: number;
+    attendeeCount?: number;
     /** The caller's role (cdk#429, D2 cdk#522): gates owner-only surfaces.
      *  Absent = OWNER, the API's grandfather rule for role-less edges. */
     myRole?: string;
