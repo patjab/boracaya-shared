@@ -6,15 +6,15 @@ exports.GuestEventApi = exports.OrganizerInviteApi = exports.FacesApi = exports.
 // the Lambda sees stays `/events/…` (no base-path prefix — a base path would be
 // left in event.path and break the Lambdas' path-based routing). This keeps the
 // volatile execute-api IDs out of the UIs (resolves pda-boracay-cdk#2).
-// faces-control is the v2 control API on its own domain. survey / moments(-official)
-// / faces box are already stable.
+// faces-control is the v2 control API on its own domain. survey / faces box are
+// already stable.
 //
 // Environment (pda-boracay-cdk #6 testing rollout): the SAME UI bundle serves prod
 // and the testing mirror. The target environment is picked at RUNTIME from the
 // page hostname — a build served from *.test.pdaboracay.com targets the
 // *.test.pdaboracay.com APIs; everything else (prod, and Node/SSR/unit-test where
 // `window` is absent) targets prod. One build, no per-bundler build flags.
-// NOTE: the 5 *-api.test domains exist; survey/faces/faces-control/moments need a
+// NOTE: the 5 *-api.test domains exist; survey/faces/faces-control need a
 // test equivalent before those features work under test (else they fail closed —
 // test never silently hits prod data).
 // A page served from either test host (test.pdaboracay.com or test.boracaya.com,
@@ -22,8 +22,8 @@ exports.GuestEventApi = exports.OrganizerInviteApi = exports.FacesApi = exports.
 // The check itself lives in env.ts (pda-boracay#119) so site links share it.
 const env_1 = require("./env");
 // Legacy pdaboracay hosts — still the home of the surfaces that have no boracaya
-// twin yet (faces, faces-control, the moments CDN). Everything API-shaped moved
-// to boracaya below (cdk#500/#501).
+// twin yet (faces, faces-control). Everything API-shaped moved to boracaya below
+// (cdk#500/#501).
 const host = (sub) => `https://${sub}${(0, env_1.isTest)() ? '.test' : ''}.pdaboracay.com`;
 // boracaya.com API hosts (cdk#500 rebrand; cdk#501 created them in both envs).
 // admin-api is renamed valet-api to match the product. Every UI — including one
@@ -42,7 +42,6 @@ const facesControlApi = () => host('faces-control');
 // durable half; the GPU box is a client of it, both UIs read it.
 const facesApi = () => bHost('faces-api');
 const facesBoxBase = () => host('faces');
-const momentsBase = () => host('moments');
 exports.ApiConstants = {
     // The flat admin/guest/savethedate constants were REMOVED (shared#57): the routes
     // they named no longer exist server-side — the cdk#427/#405 contract steps made the
@@ -76,9 +75,11 @@ exports.ApiConstants = {
     // excluded from live smoke checks (see api.smoke.test.ts).
     get FACES_CONTROL() { return facesControlApi(); },
     get FACES_BOX() { return facesBoxBase(); },
-    // Moments "Official" gallery — static objects served by CloudFront.
-    get MOMENTS_OFFICIAL_MANIFEST() { return `${momentsBase()}/uploads/official/manifest.json`; },
-    get MOMENTS_OFFICIAL_BOOT() { return `${momentsBase()}/uploads/official/_boot.json`; },
+    // The MOMENTS_OFFICIAL_MANIFEST / MOMENTS_OFFICIAL_BOOT constants were REMOVED
+    // (same rationale as shared#57 above): the moments CDN host
+    // (moments.pdaboracay.com) was decommissioned — DNS no longer resolves — and no
+    // consumer referenced them. Event-scoped moments live on AdminEventApi /
+    // GuestEventApi instead.
 };
 /**
  * Event-scoped admin endpoints (cdk#396 / admin#101): the URL names the TARGET event;
