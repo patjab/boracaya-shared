@@ -32,3 +32,31 @@ export interface RSVPRecord {
     foodRestrictionsText?: string;
     companions?: Companion[];
 }
+
+export type RemovalNotificationStatus = 'queued' | 'sent' | 'failed';
+
+/** Latest organizer attendance-removal marker exposed on the admin roster. */
+export interface AttendanceRemoval {
+    removalId: string;
+    removedAt: string;
+    removedByAccountId: string;
+    reason?: string;
+    removedPartySize: number;
+    removedCompanions?: string[];
+    notificationStatus: RemovalNotificationStatus;
+}
+
+export interface AttendanceRemovalRequest {
+    userId: string;
+    scope: 'party' | 'companions';
+    companionNames?: string[];
+    reason?: string;
+    idempotencyKey: string;
+}
+
+/** Admin roster capacity snapshot. Version changes on every RSVP delta or limit edit. */
+export interface AttendanceCapacity {
+    attendeeCount: number;
+    maxAttendees?: number;
+    capacityVersion: number;
+}

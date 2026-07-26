@@ -26,7 +26,9 @@ export declare const AdminEventApi: {
     readonly emailSettings: (eventId: string) => string;
     readonly about: (eventId: string) => string;
     readonly groups: (eventId: string) => string;
+    readonly capacity: (eventId: string) => string;
     readonly rsvps: (eventId: string) => string;
+    readonly attendanceRemovals: (eventId: string) => string;
     readonly roster: (eventId: string) => string;
     readonly organizerInvites: (eventId: string) => string;
     readonly members: (eventId: string) => string;

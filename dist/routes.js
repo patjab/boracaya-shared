@@ -19,6 +19,7 @@ exports.ApiRoutes = [
     // only sent fields change; the enrichment stamps (source/referer/timestamp)
     // are never writable on this lane.
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/rsvp' },
+    { label: 'admin', method: 'POST', path: '/events/{eventId}/attendance/removals' },
     // Composed, preset-resolved roster (cdk#575): identity + rsvp + stage rows in one
     // read; exclusivus items carry the invitation vocabulary, inclusivus items omit it.
     { label: 'admin', method: 'GET', path: '/events/{eventId}/roster' },
@@ -82,6 +83,7 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'DELETE', path: '/events/{eventId}/image' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}' },
     { label: 'admin', method: 'PUT', path: '/events/{eventId}/about' },
+    { label: 'admin', method: 'PUT', path: '/events/{eventId}/capacity' },
     // Flat storage, explicit write ownership (shared#133): these route names are
     // the authorization boundary between Valet editors. The generic event PATCH
     // remains only for the independently validated page-catalog write.
