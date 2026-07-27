@@ -6,8 +6,8 @@
  * Hermetic: window/document are stubbed; each case re-imports the module so the
  * memo starts cold (same pattern as env.test.ts).
  *
- * (Not run by the default `npm test`, which is the contract test only; run under
- * `npm run test:all`.)
+ * (Runs under the default `npm test`, which runs every suite except the live
+ * network smoke tests.)
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
