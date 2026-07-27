@@ -8,8 +8,8 @@ import { ApiConstants } from './api';
  * backend is the e2e narrative (narrative-guest-no-event-login.spec.ts); this pins the
  * status→result mapping and that a 200 caches the token keyed to the resolved event.
  *
- * (Not run by the default `npm test`, which is the contract test only; run under
- * `npm run test:all`.)
+ * (Runs under the default `npm test`, which runs every suite except the live
+ * network smoke tests.)
  */
 
 const store = new Map<string, string>();

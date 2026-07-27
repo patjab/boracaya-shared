@@ -23,4 +23,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Consumers (valet, shore) install this repo as a git dependency and use the
+      # committed dist/ verbatim (no prepare script rebuilds it on install), so a
+      # build that drifts from the committed output would ship stale code undetected.
+      - run: git diff --exit-code -- dist || (echo "dist/ is stale — run npm run build and commit the result" && exit 1)
+      # `npm test` runs the full hermetic suite. TODO(boracaya-cdk#1286):
+      # src/api.smoke.test.ts (live-network smoke, `npm run test:smoke`) is excluded
+      # from the default script — it currently fails because moments.pdaboracay.com
+      # does not resolve (NXDOMAIN); re-include it once that host is fixed or the
+      # smoke test gets its own opt-in CI job.
       - run: npm test
