@@ -31,9 +31,9 @@ jobs:
             echo "dist/ is stale — run npm run build and commit the result"
             exit 1
           fi
-      # `npm test` runs the full hermetic suite. TODO(boracaya-cdk#1286):
-      # src/api.smoke.test.ts (live-network smoke, `npm run test:smoke`) is excluded
-      # from the default script — it currently fails because moments.pdaboracay.com
-      # does not resolve (NXDOMAIN); re-include it once that host is fixed or the
-      # smoke test gets its own opt-in CI job.
+      # `npm test` runs the full hermetic suite. src/api.smoke.test.ts stays OUT of
+      # it on purpose: it is a live-network probe of the real APIs, so folding it in
+      # would make every commit's gate depend on prod being reachable. Run it on
+      # demand with `npm run test:smoke` (it is green again as of cdk#1364, which
+      # removed the two constants pointing at the retired moments.pdaboracay.com).
       - run: npm test

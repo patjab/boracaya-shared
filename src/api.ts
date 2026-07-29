@@ -44,7 +44,6 @@ const facesControlApi = () => host('faces-control');
 // durable half; the GPU box is a client of it, both UIs read it.
 const facesApi = () => bHost('faces-api');
 const facesBoxBase = () => host('faces');
-const momentsBase = () => host('moments');
 
 export const ApiConstants = {
     // The flat admin/guest/savethedate constants were REMOVED (shared#57): the routes
@@ -84,9 +83,12 @@ export const ApiConstants = {
     get FACES_CONTROL() { return facesControlApi(); },
     get FACES_BOX() { return facesBoxBase(); },
 
-    // Moments "Official" gallery — static objects served by CloudFront.
-    get MOMENTS_OFFICIAL_MANIFEST() { return `${momentsBase()}/uploads/official/manifest.json`; },
-    get MOMENTS_OFFICIAL_BOOT() { return `${momentsBase()}/uploads/official/_boot.json`; },
+    // The Moments "Official" gallery constants were REMOVED (cdk#1364). They named
+    // static objects on moments.pdaboracay.com, a host that no longer resolves
+    // (NXDOMAIN) — the surface was folded into event-scoped Moments (cdk#995) and
+    // the standalone gallery retired with the pdaboracay.com hosts. No repo in the
+    // fleet imported them. The event-scoped forms are AdminEventApi.moments /
+    // GuestEventApi.moments.
 } as const;
 
 /**
