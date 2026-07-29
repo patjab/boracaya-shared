@@ -32,8 +32,6 @@ const EXPECTED_PATHS: Record<keyof typeof ApiConstants, string> = {
     GUEST_LOGIN: '/auth/login',
     FACES_CONTROL: '/',
     FACES_BOX: '/',
-    MOMENTS_OFFICIAL_MANIFEST: '/uploads/official/manifest.json',
-    MOMENTS_OFFICIAL_BOOT: '/uploads/official/_boot.json',
 };
 
 const entries = Object.entries(ApiConstants) as [keyof typeof ApiConstants, string][];

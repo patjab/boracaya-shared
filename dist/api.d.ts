@@ -5,8 +5,6 @@ export declare const ApiConstants: {
     readonly GUEST_LOGIN: string;
     readonly FACES_CONTROL: string;
     readonly FACES_BOX: string;
-    readonly MOMENTS_OFFICIAL_MANIFEST: string;
-    readonly MOMENTS_OFFICIAL_BOOT: string;
 };
 /**
  * Event-scoped admin endpoints (cdk#396 / admin#101): the URL names the TARGET event;
