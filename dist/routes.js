@@ -47,6 +47,10 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/scramble/increment' },
     // Custom-stage definitions + responses (cdk#466/#513): the generic stages lane.
     { label: 'admin', method: 'POST', path: '/events/{eventId}/stages' },
+    // Reorder only (cdk#1398). Takes the stage IDS in their new order, never
+    // definitions — a route that accepted definitions could rewrite every
+    // step's content while calling itself a reorder.
+    { label: 'admin', method: 'PUT', path: '/events/{eventId}/stages' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/stages/{stageId}' },
     { label: 'admin', method: 'DELETE', path: '/events/{eventId}/stages/{stageId}' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/stages/{stageId}/responses' },
