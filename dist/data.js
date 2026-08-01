@@ -11,14 +11,14 @@ exports.runGuarded = runGuarded;
 // drifting on) each of these. React binding lives in hooks/useGuardedLoad.ts;
 // this module is plain TypeScript so Node consumers (e2e, contract tests) can
 // import it safely.
-const auth_1 = require("./auth");
+const authToken_1 = require("./authToken");
 const security_1 = require("./security");
 // authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
 // contract test) — and this module must stay Node-safe like guestAuth.ts. No
 // storage simply means no token to attach.
 const safeAuthHeaders = () => {
     try {
-        return (0, auth_1.authHeaders)();
+        return (0, authToken_1.authHeaders)();
     }
     catch (_a) {
         return {};

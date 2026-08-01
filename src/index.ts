@@ -1,4 +1,7 @@
-export { ApiConstants, AdminEventApi, GuestEventApi, AccountApi, OrganizerInviteApi, FacesApi } from './api';
+export {
+  ApiConstants, PublicApi, AdminEventApi, GuestEventApi,
+  AccountApi, OrganizerInviteApi, FacesApi,
+} from './api';
 export { SiteUrls, guestSiteUrlFor, inviteUrlFor } from './siteUrls';
 export { getEnv, isTest, envSubdomain } from './env';
 export type { StageDefinition, StageField } from './stages';
@@ -95,8 +98,8 @@ export {
   getIdToken,
   authHeaders,
   getEmail,
-  GoogleSignInButton,
 } from './auth';
+export { GoogleSignInButton } from './GoogleSignInButton';
 export {
   ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken,
   claimIdentity, loginNoEvent, unlinkIdentity,
@@ -116,8 +119,14 @@ export type {
   StageQuestion, StageSubField,
 } from './stages';
 export { StageFormRenderer } from './StageFormRenderer';
-export type { RendererField, StageFormValue, StageFormValues } from './StageFormRenderer';
+export type {
+  RendererField, StageFormRendererProps, StageFormValue, StageFormValues,
+} from './StageFormRenderer';
 export { WizardShell } from './WizardShell';
-export type { WizardStep } from './WizardShell';
+export type { WizardShellProps, WizardStep } from './WizardShell';
+export type {
+  RemoveEntryMessageParams, StageFormRendererMessages,
+  StepCountMessageParams, WizardMessages,
+} from './formMessages';
 export { SHELL_KEYS, STYLE_TIERS, CURATED_DESIGNS, TYPE_VOICES, STYLE_MODES, OCCASION_DEFAULTS, FALLBACK_DEFAULTS } from './shells';
 export type { ShellKey, StyleTier, CuratedDesignId, TypeVoice, StyleMode, ResolvedTokens, StyleConfig, ShellStyleDefaults, OccasionKey, Vocabulary } from './shells';

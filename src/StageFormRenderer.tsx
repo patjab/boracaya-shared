@@ -19,6 +19,7 @@ import type {
 } from './stages';
 import { WizardShell } from './WizardShell';
 import type { WizardStep } from './WizardShell';
+import type { StageFormRendererMessages } from './formMessages';
 
 /**
  * The ONE schema-driven stage-form renderer (cdk#961/#962/#976): Shore renders
@@ -44,10 +45,21 @@ export type StageFormValues = Record<string, StageFormValue>;
  *  mirrors here so the Add button quietly stops at the bound. */
 const DEFAULT_MAX_ENTRIES = 20;
 
+const labelFor = (
+    question: Pick<StageQuestion, 'label' | 'required'>,
+    messages: StageFormRendererMessages,
+): string => question.required
+    ? `${question.label} ${messages.requiredIndicator}`
+    : question.label;
+
+const requiredInputProps = (required: boolean | undefined): Record<string, boolean> =>
+    (required ? { required: true, 'aria-required': true } : {});
+
 const repeatingGroupInput = (
     f: StageQuestion,
     value: StageFormValue | undefined,
     onChange: (key: string, value: StageFormValue) => void,
+    messages: StageFormRendererMessages,
 ) => {
     const entries: RepeatingGroupEntry[] = Array.isArray(value)
         ? (value as RepeatingGroupEntry[]).filter((e): e is RepeatingGroupEntry =>
@@ -59,7 +71,7 @@ const repeatingGroupInput = (
     return (
         <Box key={f.key} sx={{ mt: 2, mb: 1 }}>
             <Typography variant="body2" sx={{ mb: 0.75 }}>
-                {f.label}{f.required ? ' *' : ''}
+                {labelFor(f, messages)}
             </Typography>
             <Stack spacing={1.5}>
                 {entries.map((entry, i) => (
@@ -72,7 +84,10 @@ const repeatingGroupInput = (
                     >
                         <IconButton
                             size="small"
-                            aria-label={`Remove ${f.label} entry ${i + 1}`}
+                            aria-label={messages.formatRemoveEntryActionLabel({
+                                fieldLabel: f.label,
+                                entryNumber: i + 1,
+                            })}
                             onClick={() => setEntries(entries.filter((_, j) => j !== i))}
                             sx={{ position: 'absolute', top: 4, right: 4 }}
                         >
@@ -83,6 +98,7 @@ const repeatingGroupInput = (
                             entry[sub.key],
                             (_k, v) => setEntries(entries.map((e, j) =>
                                 (j === i ? { ...e, [sub.key]: v as string | number | boolean } : e))),
+                            messages,
                         ))}
                     </Box>
                 ))}
@@ -90,7 +106,7 @@ const repeatingGroupInput = (
             {entries.length < max && (
                 <Button size="small" variant="outlined" sx={{ mt: 1 }}
                         onClick={() => setEntries([...entries, {}])}>
-                    {f.addLabel ?? 'Add another'}
+                    {f.addLabel ?? messages.addEntryActionLabel}
                 </Button>
             )}
         </Box>
@@ -101,19 +117,21 @@ const questionInput = (
     f: StageQuestion,
     value: StageFormValue | undefined,
     onChange: (key: string, value: StageFormValue) => void,
+    messages: StageFormRendererMessages,
 ) => {
     switch (f.type) {
         case 'repeatingGroup':
-            return repeatingGroupInput(f, value, onChange);
+            return repeatingGroupInput(f, value, onChange, messages);
         case 'list':
             // A list of short strings (e.g. companions), edited comma-separated —
             // the server bounds items/length (cdk#518).
             return (
                 <TextField
                     key={f.key} fullWidth margin="normal"
-                    label={f.label} required={f.required}
+                    label={labelFor(f, messages)}
                     placeholder={f.placeholder}
-                    helperText="Separate entries with commas"
+                    helperText={messages.listSeparatorHint}
+                    inputProps={requiredInputProps(f.required)}
                     value={Array.isArray(value) ? value.join(', ') : ''}
                     onChange={(e) => onChange(f.key,
                         e.target.value.split(',').map((v) => v.trim()).filter(Boolean))}
@@ -126,25 +144,32 @@ const questionInput = (
             return (
                 <Box key={f.key} sx={{ mt: 2, mb: 1 }}>
                     <Typography variant="body2" sx={{ mb: 0.75 }}>
-                        {f.label}{f.required ? ' *' : ''}
+                        {labelFor(f, messages)}
                     </Typography>
                     <ToggleButtonGroup
                         exclusive size="small" aria-label={f.label}
+                        aria-required={f.required || undefined}
                         value={value === true ? 'yes' : value === false ? 'no' : null}
                         onChange={(_, v) => { if (v !== null) onChange(f.key, v === 'yes'); }}
+                        sx={{
+                            // MUI's default unselected secondary text can miss
+                            // 4.5:1 by a few hundredths on generated palettes.
+                            '& .MuiToggleButton-root:not(.Mui-selected)': { color: 'text.primary' },
+                        }}
                     >
-                        <ToggleButton value="yes">Yes</ToggleButton>
-                        <ToggleButton value="no">No</ToggleButton>
+                        <ToggleButton value="yes">{messages.yesOptionLabel}</ToggleButton>
+                        <ToggleButton value="no">{messages.noOptionLabel}</ToggleButton>
                     </ToggleButtonGroup>
                 </Box>
             );
         case 'select':
             return (
-                <FormControl key={f.key} fullWidth margin="normal" required={f.required}>
-                    <InputLabel id={`stage-${f.key}`}>{f.label}</InputLabel>
+                <FormControl key={f.key} fullWidth margin="normal">
+                    <InputLabel id={`stage-${f.key}`}>{labelFor(f, messages)}</InputLabel>
                     <Select
                         labelId={`stage-${f.key}`}
-                        label={f.label}
+                        label={labelFor(f, messages)}
+                        required={f.required}
                         value={typeof value === 'string' ? value : ''}
                         onChange={(e) => onChange(f.key, e.target.value as string)}
                     >
@@ -158,8 +183,9 @@ const questionInput = (
             return (
                 <TextField
                     key={f.key} fullWidth margin="normal" type="number"
-                    label={f.label} required={f.required}
+                    label={labelFor(f, messages)}
                     placeholder={f.placeholder}
+                    inputProps={requiredInputProps(f.required)}
                     value={value ?? ''}
                     onChange={(e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value))}
                 />
@@ -168,8 +194,9 @@ const questionInput = (
             return (
                 <TextField
                     key={f.key} fullWidth margin="normal" type="date"
-                    label={f.label} required={f.required}
+                    label={labelFor(f, messages)}
                     InputLabelProps={{ shrink: true }}
+                    inputProps={requiredInputProps(f.required)}
                     value={value ?? ''}
                     onChange={(e) => onChange(f.key, e.target.value)}
                 />
@@ -178,11 +205,14 @@ const questionInput = (
             return (
                 <TextField
                     key={f.key} fullWidth margin="normal"
-                    label={f.label} required={f.required}
+                    label={labelFor(f, messages)}
                     placeholder={f.placeholder}
                     multiline={f.type === 'multiline'}
                     minRows={f.type === 'multiline' ? 3 : undefined}
-                    inputProps={{ maxLength: f.maxLength ?? 500 }}
+                    inputProps={{
+                        maxLength: f.maxLength ?? 500,
+                        ...requiredInputProps(f.required),
+                    }}
                     value={value ?? ''}
                     onChange={(e) => onChange(f.key, e.target.value)}
                 />
@@ -299,7 +329,7 @@ const gateTruncated = (
 const isRevealed = (el: StageElement, values: StageFormValues): boolean =>
     isDisplayBlock(el) || !el.revealWhen || values[el.revealWhen.key] === el.revealWhen.equals;
 
-export const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }: {
+export interface StageFormRendererProps {
     elements?: ReadonlyArray<StageElement>;
     fields?: ReadonlyArray<RendererField>;
     values: StageFormValues;
@@ -314,7 +344,20 @@ export const StageFormRenderer = ({ elements, fields, values, onChange, resolved
      *  and in Next's place on the final stepped screen — so submission stays
      *  with the consumer in both presentations. */
     footer?: React.ReactNode;
-}): React.ReactElement => {
+    /** All renderer-owned UI copy. Stage-authored labels/options stay in the schema. */
+    messages: StageFormRendererMessages;
+}
+
+export const StageFormRenderer = ({
+    elements,
+    fields,
+    values,
+    onChange,
+    resolved,
+    presentation,
+    footer,
+    messages,
+}: StageFormRendererProps): React.ReactElement => {
     const all = elements ?? fields ?? [];
     // A question hidden by an unmet reveal condition must not submit a stale
     // answer (typed, then the trigger flipped): clear it once it hides (cdk#1204).
@@ -338,7 +381,7 @@ export const StageFormRenderer = ({ elements, fields, values, onChange, resolved
     }
     const rendered = (el: StageElement) => (isDisplayBlock(el)
         ? displayBlock(el, resolved)
-        : questionInput(el, values[el.key], onChange));
+        : questionInput(el, values[el.key], onChange, messages));
     const renderRow = (row: StageElement[]) => (row.length === 1 ? rendered(row[0]) : (
         <Stack
             key={row.map(keyOf).join('+')}
@@ -366,7 +409,7 @@ export const StageFormRenderer = ({ elements, fields, values, onChange, resolved
                 canProceed: row.every((el) =>
                     isDisplayBlock(el) || answered(el, values[el.key])),
             }));
-        return <WizardShell steps={steps} finish={footer} />;
+        return <WizardShell steps={steps} finish={footer} messages={messages.wizard} />;
     }
 
     return (

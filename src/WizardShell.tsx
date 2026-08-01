@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
+import type { WizardMessages } from './formMessages';
 
 /**
  * The platform's ONE stepped-form shell (cdk#1010, decision cdk#1009 A5): a
@@ -39,11 +40,15 @@ export interface WizardStep {
     validate?: () => boolean;
 }
 
-export const WizardShell = ({ steps, finish }: {
+export interface WizardShellProps {
     steps: ReadonlyArray<WizardStep>;
     /** Rendered in Next's place on the final step (the consumer's submit). */
     finish?: React.ReactNode;
-}): React.ReactElement | null => {
+    /** All consumer-visible navigation and progress copy. */
+    messages: WizardMessages;
+}
+
+export const WizardShell = ({ steps, finish, messages }: WizardShellProps): React.ReactElement | null => {
     const [index, setIndex] = React.useState(0);
     // Clamp, never strand: a shrinking step list (live preview edits, a
     // definition reload) pulls the wizard back to the new end.
@@ -56,14 +61,19 @@ export const WizardShell = ({ steps, finish }: {
     if (steps.length === 0) return null;
     const step = steps[i];
     const last = i === max;
+    const stepCountLabel = messages.formatStepCount({
+        stepNumber: i + 1,
+        stepCount: steps.length,
+    });
 
     return (
         <Box>
             <Box sx={{ mb: 2 }}>
                 <Typography variant="caption" color="text.secondary">
-                    {i + 1} of {steps.length}
+                    {stepCountLabel}
                 </Typography>
                 <LinearProgress
+                    aria-label={stepCountLabel}
                     variant="determinate"
                     value={((i + 1) / steps.length) * 100}
                     sx={{ mt: 0.5, height: 3, borderRadius: 3 }}
@@ -75,7 +85,7 @@ export const WizardShell = ({ steps, finish }: {
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
                 {i > 0 && (
                     <Button variant="outlined" onClick={() => setIndex(i - 1)}>
-                        Back
+                        {messages.backActionLabel}
                     </Button>
                 )}
                 {!last && (
@@ -87,7 +97,7 @@ export const WizardShell = ({ steps, finish }: {
                             setIndex(i + 1);
                         }}
                     >
-                        Next
+                        {messages.nextActionLabel}
                     </Button>
                 )}
                 {last && finish}

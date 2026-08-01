@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GuestEventApi = exports.OrganizerInviteApi = exports.FacesApi = exports.AccountApi = exports.AdminEventApi = exports.ApiConstants = void 0;
+exports.OrganizerInviteApi = exports.FacesApi = exports.AccountApi = exports.AdminEventApi = exports.ApiConstants = exports.PublicApi = exports.GuestEventApi = void 0;
 // API endpoints. Each REST API is fronted by a stable per-frontend custom domain
 // with an EMPTY base path (e.g. public-api.pdaboracay.com), so the request path
 // the Lambda sees stays `/events/…` (no base-path prefix — a base path would be
@@ -21,27 +21,19 @@ exports.GuestEventApi = exports.OrganizerInviteApi = exports.FacesApi = exports.
 // cdk#500 rebrand) targets the testing APIs; everything else targets prod.
 // The check itself lives in env.ts (pda-boracay#119) so site links share it.
 const env_1 = require("./env");
-// Legacy pdaboracay hosts — still the home of the surfaces that have no boracaya
-// twin yet (faces, faces-control, the moments CDN). Everything API-shaped moved
-// to boracaya below (cdk#500/#501).
-const host = (sub) => `https://${sub}${(0, env_1.isTest)() ? '.test' : ''}.pdaboracay.com`;
+const publicApi_1 = require("./publicApi");
+var publicApi_2 = require("./publicApi");
+Object.defineProperty(exports, "GuestEventApi", { enumerable: true, get: function () { return publicApi_2.GuestEventApi; } });
+Object.defineProperty(exports, "PublicApi", { enumerable: true, get: function () { return publicApi_2.PublicApi; } });
 // boracaya.com API hosts (cdk#500 rebrand; cdk#501 created them in both envs).
 // admin-api is renamed valet-api to match the product. Every UI — including one
 // still served from a legacy pdaboracay host during the transition — calls these;
 // the API CORS allowlists carry both origins.
 const bHost = (sub) => `https://${sub}${(0, env_1.isTest)() ? '.test' : ''}.boracaya.com`;
-const publicApi = () => bHost('public-api');
 const adminApi = () => bHost('valet-api');
-const reservationsApi = () => bHost('reservations-api');
-const shareApi = () => bHost('share-api');
-// Moments upload API: prod = share-api.boracaya.com; testing = moments-api.test.boracaya.com
-// (no share-api.test host exists). Same lambda either way; only the fronting domain differs.
-const uploadApi = () => ((0, env_1.isTest)() ? bHost('moments-api') : shareApi());
-const facesControlApi = () => host('faces-control');
 // Face tagging data/API lane (epic cdk#782): the fenced faces REST API — the
 // durable half; the GPU box is a client of it, both UIs read it.
 const facesApi = () => bHost('faces-api');
-const facesBoxBase = () => host('faces');
 exports.ApiConstants = {
     // The flat admin/guest/savethedate constants were REMOVED (shared#57): the routes
     // they named no longer exist server-side — the cdk#427/#405 contract steps made the
@@ -60,21 +52,21 @@ exports.ApiConstants = {
     // REMOVED (cdk#352), so this base is not itself a live route and is excluded from
     // the live smoke probe (see api.smoke.test.ts). Kept because guest + admin UIs
     // still import it as the base — do NOT remove without updating those consumers.
-    get EVENTS() { return `${publicApi()}/events`; },
+    get EVENTS() { return publicApi_1.PublicApi.EVENTS; },
     // The public feed of OPEN (inclusivus) events (cdk#468/#508).
-    get DISCOVER() { return `${publicApi()}/discover`; },
+    get DISCOVER() { return publicApi_1.PublicApi.DISCOVER; },
     // No-event Google login (cdk#623, Option D): an UNSCOPED public route (no
     // eventId path segment) — a server-verified Google credential arriving with no
     // event in the URL is resolved to the event(s) the email is already a member
     // of. Exactly one → the backend mints a guest token + returns that eventId (the
     // SPA redirects into /e/<eventId>/); zero/many → the guided 404. Distinct from
     // GuestEventApi.claim, which requires the target event in its path.
-    get GUEST_LOGIN() { return `${publicApi()}/auth/login`; },
+    get GUEST_LOGIN() { return publicApi_1.PublicApi.GUEST_LOGIN; },
     // Faces — control plane (v2 API on its own stable domain) + box base.
     // FACES_BOX is an EPHEMERAL on-demand instance and is usually off, so it is
     // excluded from live smoke checks (see api.smoke.test.ts).
-    get FACES_CONTROL() { return facesControlApi(); },
-    get FACES_BOX() { return facesBoxBase(); },
+    get FACES_CONTROL() { return publicApi_1.PublicApi.FACES_CONTROL; },
+    get FACES_BOX() { return publicApi_1.PublicApi.FACES_BOX; },
     // The Moments "Official" gallery constants were REMOVED (cdk#1364). They named
     // static objects on moments.pdaboracay.com, a host that no longer resolves
     // (NXDOMAIN) — the surface was folded into event-scoped Moments (cdk#995) and
@@ -204,40 +196,4 @@ exports.OrganizerInviteApi = {
     metadata: (inviteId) => `${adminApi()}/invites/${encodeURIComponent(inviteId)}`,
     accept: (inviteId) => `${adminApi()}/invites/${encodeURIComponent(inviteId)}/accept`,
     decline: (inviteId) => `${adminApi()}/invites/${encodeURIComponent(inviteId)}/decline`,
-};
-/**
- * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
- * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
- * path segment, never a server-pinned default. The guest-authed lanes
- * (rsvp/stages/uploads/Pulse writes and personalized feed) are additionally
- * validated server-side: the token's guest must have a PROFILE row in the path
- * event (fail closed). The public lanes
- * (auth/invite/moments-public/public Pulse feed/survey) take the path event directly.
- * The flat ApiConstants forms above remain until the cdk#427 contract step deletes
- * the flat routes.
- */
-exports.GuestEventApi = {
-    // Open entry (cdk#468/#508): the invite-less quick RSVP for OPEN events.
-    openRsvp: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/rsvp/open`,
-    exchange: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/exchange`,
-    claim: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/claim`,
-    // Authenticated in-UI unlink (cdk#637): removes the caller's single primary Google.
-    unlink: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/unlink`,
-    invite: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/invite`,
-    momentsPublic: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/moments/public`,
-    wishes: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/wishes`,
-    // Pulse public feed plus guest-authenticated personalization and writes
-    // (shared#134): `/pulse` never accepts caller identity; `/pulse/mine` derives
-    // `mine` from the event-scoped guest JWT.
-    pulse: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse`,
-    pulseMine: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/mine`,
-    pulsePosts: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/posts`,
-    pulseVotes: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/votes`,
-    pulseReactions: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/pulse/reactions`,
-    survey: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/survey`,
-    rsvp: (eventId) => `${reservationsApi()}/events/${encodeURIComponent(eventId)}/rsvp`,
-    // The guest's own custom-stage submission (cdk#466/#513).
-    stage: (eventId, stageId) => `${reservationsApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
-    initiateUpload: (eventId) => `${uploadApi()}/events/${encodeURIComponent(eventId)}/initiate`,
-    completeUpload: (eventId) => `${uploadApi()}/events/${encodeURIComponent(eventId)}/complete`,
 };

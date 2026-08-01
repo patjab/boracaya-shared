@@ -27,8 +27,9 @@ jobs:
       # committed dist/ verbatim (no prepare script rebuilds it on install), so a
       # build that drifts from the committed output would ship stale code undetected.
       - run: |
-          if ! git diff --quiet -- dist || [ -n "$(git ls-files --others --exclude-standard -- dist)" ]; then
-            echo "dist/ is stale — run npm run build and commit the result"
+          if ! git diff --quiet -- dist docs/tree-shaking.md \
+            || [ -n "$(git ls-files --others --exclude-standard -- dist docs/tree-shaking.md)" ]; then
+            echo "generated output is stale — run npm run build and commit dist/ plus docs/tree-shaking.md"
             exit 1
           fi
       # `npm test` runs the full hermetic suite. src/api.smoke.test.ts stays OUT of

@@ -59,7 +59,11 @@ const WizardShell_1 = require("./WizardShell");
  *  a group's inputs look exactly like top-level ones. The default server cap
  *  mirrors here so the Add button quietly stops at the bound. */
 const DEFAULT_MAX_ENTRIES = 20;
-const repeatingGroupInput = (f, value, onChange) => {
+const labelFor = (question, messages) => question.required
+    ? `${question.label} ${messages.requiredIndicator}`
+    : question.label;
+const requiredInputProps = (required) => (required ? { required: true, 'aria-required': true } : {});
+const repeatingGroupInput = (f, value, onChange, messages) => {
     var _a, _b, _c;
     const entries = Array.isArray(value)
         ? value.filter((e) => typeof e === 'object' && e !== null && !Array.isArray(e))
@@ -67,35 +71,45 @@ const repeatingGroupInput = (f, value, onChange) => {
     const subFields = (_a = f.subFields) !== null && _a !== void 0 ? _a : [];
     const max = (_b = f.maxEntries) !== null && _b !== void 0 ? _b : DEFAULT_MAX_ENTRIES;
     const setEntries = (next) => onChange(f.key, next);
-    return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsxs)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: [f.label, f.required ? ' *' : ''] }), (0, jsx_runtime_1.jsx)(Stack_1.default, { spacing: 1.5, children: entries.map((entry, i) => ((0, jsx_runtime_1.jsxs)(Box_1.default
+    return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsx)(Stack_1.default, { spacing: 1.5, children: entries.map((entry, i) => ((0, jsx_runtime_1.jsxs)(Box_1.default
                 // Positional keys are correct here: entries carry no
                 // identity, and remove rebuilds the array.
                 // eslint-disable-next-line react/no-array-index-key
-                , { sx: { border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }, children: [(0, jsx_runtime_1.jsx)(IconButton_1.default, { size: "small", "aria-label": `Remove ${f.label} entry ${i + 1}`, onClick: () => setEntries(entries.filter((_, j) => j !== i)), sx: { position: 'absolute', top: 4, right: 4 }, children: "\u2715" }), subFields.map((sub) => questionInput({ ...sub, key: `${f.key}.${i}.${sub.key}` }, entry[sub.key], (_k, v) => setEntries(entries.map((e, j) => (j === i ? { ...e, [sub.key]: v } : e)))))] }, `${f.key}-${i}`))) }), entries.length < max && ((0, jsx_runtime_1.jsx)(Button_1.default, { size: "small", variant: "outlined", sx: { mt: 1 }, onClick: () => setEntries([...entries, {}]), children: (_c = f.addLabel) !== null && _c !== void 0 ? _c : 'Add another' }))] }, f.key));
+                , { sx: { border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }, children: [(0, jsx_runtime_1.jsx)(IconButton_1.default, { size: "small", "aria-label": messages.formatRemoveEntryActionLabel({
+                                fieldLabel: f.label,
+                                entryNumber: i + 1,
+                            }), onClick: () => setEntries(entries.filter((_, j) => j !== i)), sx: { position: 'absolute', top: 4, right: 4 }, children: "\u2715" }), subFields.map((sub) => questionInput({ ...sub, key: `${f.key}.${i}.${sub.key}` }, entry[sub.key], (_k, v) => setEntries(entries.map((e, j) => (j === i ? { ...e, [sub.key]: v } : e))), messages))] }, `${f.key}-${i}`))) }), entries.length < max && ((0, jsx_runtime_1.jsx)(Button_1.default, { size: "small", variant: "outlined", sx: { mt: 1 }, onClick: () => setEntries([...entries, {}]), children: (_c = f.addLabel) !== null && _c !== void 0 ? _c : messages.addEntryActionLabel }))] }, f.key));
 };
-const questionInput = (f, value, onChange) => {
+const questionInput = (f, value, onChange, messages) => {
     var _a, _b;
     switch (f.type) {
         case 'repeatingGroup':
-            return repeatingGroupInput(f, value, onChange);
+            return repeatingGroupInput(f, value, onChange, messages);
         case 'list':
             // A list of short strings (e.g. companions), edited comma-separated —
             // the server bounds items/length (cdk#518).
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: f.label, required: f.required, placeholder: f.placeholder, helperText: "Separate entries with commas", value: Array.isArray(value) ? value.join(', ') : '', onChange: (e) => onChange(f.key, e.target.value.split(',').map((v) => v.trim()).filter(Boolean)) }, f.key));
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, helperText: messages.listSeparatorHint, inputProps: requiredInputProps(f.required), value: Array.isArray(value) ? value.join(', ') : '', onChange: (e) => onChange(f.key, e.target.value.split(',').map((v) => v.trim()).filter(Boolean)) }, f.key));
         case 'boolean':
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton
             // styling (cdk#976).
-            return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsxs)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: [f.label, f.required ? ' *' : ''] }), (0, jsx_runtime_1.jsxs)(ToggleButtonGroup_1.default, { exclusive: true, size: "small", "aria-label": f.label, value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
-                            onChange(f.key, v === 'yes'); }, children: [(0, jsx_runtime_1.jsx)(ToggleButton_1.default, { value: "yes", children: "Yes" }), (0, jsx_runtime_1.jsx)(ToggleButton_1.default, { value: "no", children: "No" })] })] }, f.key));
+            return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsxs)(ToggleButtonGroup_1.default, { exclusive: true, size: "small", "aria-label": f.label, "aria-required": f.required || undefined, value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
+                            onChange(f.key, v === 'yes'); }, sx: {
+                            // MUI's default unselected secondary text can miss
+                            // 4.5:1 by a few hundredths on generated palettes.
+                            '& .MuiToggleButton-root:not(.Mui-selected)': { color: 'text.primary' },
+                        }, children: [(0, jsx_runtime_1.jsx)(ToggleButton_1.default, { value: "yes", children: messages.yesOptionLabel }), (0, jsx_runtime_1.jsx)(ToggleButton_1.default, { value: "no", children: messages.noOptionLabel })] })] }, f.key));
         case 'select':
-            return ((0, jsx_runtime_1.jsxs)(FormControl_1.default, { fullWidth: true, margin: "normal", required: f.required, children: [(0, jsx_runtime_1.jsx)(InputLabel_1.default, { id: `stage-${f.key}`, children: f.label }), (0, jsx_runtime_1.jsx)(Select_1.default, { labelId: `stage-${f.key}`, label: f.label, value: typeof value === 'string' ? value : '', onChange: (e) => onChange(f.key, e.target.value), children: ((_a = f.options) !== null && _a !== void 0 ? _a : []).map((o) => ((0, jsx_runtime_1.jsx)(MenuItem_1.default, { value: o, children: o }, o))) })] }, f.key));
+            return ((0, jsx_runtime_1.jsxs)(FormControl_1.default, { fullWidth: true, margin: "normal", children: [(0, jsx_runtime_1.jsx)(InputLabel_1.default, { id: `stage-${f.key}`, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsx)(Select_1.default, { labelId: `stage-${f.key}`, label: labelFor(f, messages), required: f.required, value: typeof value === 'string' ? value : '', onChange: (e) => onChange(f.key, e.target.value), children: ((_a = f.options) !== null && _a !== void 0 ? _a : []).map((o) => ((0, jsx_runtime_1.jsx)(MenuItem_1.default, { value: o, children: o }, o))) })] }, f.key));
         case 'number':
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "number", label: f.label, required: f.required, placeholder: f.placeholder, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value)) }, f.key));
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "number", label: labelFor(f, messages), placeholder: f.placeholder, inputProps: requiredInputProps(f.required), value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value)) }, f.key));
         case 'date':
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "date", label: f.label, required: f.required, InputLabelProps: { shrink: true }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value) }, f.key));
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "date", label: labelFor(f, messages), InputLabelProps: { shrink: true }, inputProps: requiredInputProps(f.required), value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value) }, f.key));
         default: // text | multiline
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: f.label, required: f.required, placeholder: f.placeholder, multiline: f.type === 'multiline', minRows: f.type === 'multiline' ? 3 : undefined, inputProps: { maxLength: (_b = f.maxLength) !== null && _b !== void 0 ? _b : 500 }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value) }, f.key));
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, multiline: f.type === 'multiline', minRows: f.type === 'multiline' ? 3 : undefined, inputProps: {
+                    maxLength: (_b = f.maxLength) !== null && _b !== void 0 ? _b : 500,
+                    ...requiredInputProps(f.required),
+                }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value) }, f.key));
     }
 };
 const blockLabel = (label) => ((0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "overline", sx: { display: 'block', color: 'primary.main', lineHeight: 1.8 }, children: label }));
@@ -163,7 +177,7 @@ const gateTruncated = (list, values) => {
  *  matches — a follow-up field (the food-restriction detail) is meaningless
  *  until the guest flags restrictions. A display block has no reveal. */
 const isRevealed = (el, values) => (0, stages_1.isDisplayBlock)(el) || !el.revealWhen || values[el.revealWhen.key] === el.revealWhen.equals;
-const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer }) => {
+const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer, messages, }) => {
     var _a;
     const all = (_a = elements !== null && elements !== void 0 ? elements : fields) !== null && _a !== void 0 ? _a : [];
     // A question hidden by an unmet reveal condition must not submit a stale
@@ -187,7 +201,7 @@ const StageFormRenderer = ({ elements, fields, values, onChange, resolved, prese
     }
     const rendered = (el) => ((0, stages_1.isDisplayBlock)(el)
         ? displayBlock(el, resolved)
-        : questionInput(el, values[el.key], onChange));
+        : questionInput(el, values[el.key], onChange, messages));
     const renderRow = (row) => (row.length === 1 ? rendered(row[0]) : ((0, jsx_runtime_1.jsx)(Stack_1.default, { direction: { xs: 'column', sm: 'row' }, spacing: { xs: 0, sm: 2 }, alignItems: "flex-start", children: row.map((el) => ((0, jsx_runtime_1.jsx)(Box_1.default, { sx: { flex: 1, minWidth: 0, width: '100%' }, children: rendered(el) }, keyOf(el)))) }, row.map(keyOf).join('+'))));
     if (presentation === 'stepped' && rows.length > 0) {
         // One row per screen: a hidden display block (value resolved to
@@ -200,7 +214,7 @@ const StageFormRenderer = ({ elements, fields, values, onChange, resolved, prese
             content: renderRow(row),
             canProceed: row.every((el) => (0, stages_1.isDisplayBlock)(el) || answered(el, values[el.key])),
         }));
-        return (0, jsx_runtime_1.jsx)(WizardShell_1.WizardShell, { steps: steps, finish: footer });
+        return (0, jsx_runtime_1.jsx)(WizardShell_1.WizardShell, { steps: steps, finish: footer, messages: messages.wizard });
     }
     return ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [rows.map(renderRow), footer] }));
 };

@@ -20,7 +20,7 @@ exports.clearGuestToken = clearGuestToken;
 // this is the per-guest reservations token, keyed to the invited userId. sessionStorage is
 // only touched inside functions, so importing this module in Node (e2e, the contract test)
 // is safe — only calling ensureGuestToken() needs a browser.
-const api_1 = require("./api");
+const publicApi_1 = require("./publicApi");
 const TOKEN_KEY = 'pdab_guest_token';
 // Refresh a little before the real edge so an in-flight request never carries a token that
 // expires mid-flight.
@@ -61,7 +61,7 @@ let cacheGeneration = 0;
 async function exchange(eventId, userId) {
     const generation = cacheGeneration;
     try {
-        const res = await fetch(api_1.GuestEventApi.exchange(eventId), {
+        const res = await fetch(publicApi_1.GuestEventApi.exchange(eventId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
@@ -124,7 +124,7 @@ async function guestLinkedEmail(eventId, userId) {
 async function claimIdentity(params) {
     try {
         const { eventId, ...body } = params;
-        const res = await fetch(api_1.GuestEventApi.claim(eventId), {
+        const res = await fetch(publicApi_1.GuestEventApi.claim(eventId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -155,7 +155,7 @@ async function claimIdentity(params) {
 }
 async function loginNoEvent(credential) {
     try {
-        const res = await fetch(api_1.ApiConstants.GUEST_LOGIN, {
+        const res = await fetch(publicApi_1.PublicApi.GUEST_LOGIN, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ credential }),
@@ -185,7 +185,7 @@ async function unlinkIdentity(eventId) {
     if (!stored || !stored.token || stored.eventId !== eventId)
         return { kind: 'unauthenticated' };
     try {
-        const res = await fetch(api_1.GuestEventApi.unlink(eventId), {
+        const res = await fetch(publicApi_1.GuestEventApi.unlink(eventId), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${stored.token}` },
         });

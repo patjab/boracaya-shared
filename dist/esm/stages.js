@@ -1,0 +1,212 @@
+/**
+ * Stage schema + prefill-source registry (cdk#962, cdk#976).
+ *
+ * This module is the TS source of truth for stage definitions: Valet (editor)
+ * and Shore (guest app) import these types instead of declaring their own
+ * mirrors. The Python validation in the stages Lambda remains the enforcement
+ * boundary — shapes here mirror it, they don't replace it.
+ *
+ * A custom-stage question may declare `defaultFrom` — where its value starts
+ * from on a fresh guest form. Sources are DATA, not code: the resolvers
+ * (flattening functions with full access to the guest row) live server-side in
+ * the stages Lambda; PREFILL_SOURCES is the {id, label} MENU the Valet picker
+ * renders, so hosts choose from human labels and never type an identifier. The
+ * Lambda validates a saved `defaultFrom` against these ids (bare un-namespaced
+ * ids remain valid too — they name event-config keys, the original cdk#953
+ * lane). Display blocks (cdk#976) resolve their `source` through the SAME
+ * registry.
+ *
+ * Registry rules (decision log on cdk#962):
+ *  - ids are namespaced (`rsvp.*`); flattenings must be SELF-CONTAINED —
+ *    meaningful without the structure they came from (names yes; a bare
+ *    allergies list never).
+ *  - flattened values are SEEDS, not schemas: guests edit them freely and
+ *    nothing downstream may parse them back.
+ *  - stage-to-stage sources are deliberately absent (star, not chain) — adding
+ *    one later is a registry entry, not a new mechanism.
+ */
+// --- The fixed core stage (cdk#1012, decisions cdk#1009 A8-A11) -------------
+/** The reserved id of the core stage — RSVP itself, riding the engine. Fixed
+ *  so every reader uses a static path (stages.RSVP...); pre-reserved in the
+ *  lambda's stage-id denylist since long before this work. */
+export const CORE_STAGE_ID = 'RSVP';
+/** The core question's fixed key: the platform's knowledge of who's coming.
+ *  Its key and boolean semantics are machine-fixed (undeletable, A11); its
+ *  wording is the host's. */
+export const ATTENDANCE_KEY = 'isAttending';
+/** The canonical initial core-stage definition (epic #1008 bootstrap): the
+ *  attendance gate, dietary needs, and companions as a repeating group.
+ *  Name/email are IDENTITY, owned by the shell (A6) — deliberately not here.
+ *  The server carries the same literal (its copy is authoritative; both sides
+ *  pin the shape in tests) and serves it VIRTUALLY until a host edits, at
+ *  which point it materializes copy-on-write. */
+export const DEFAULT_CORE_STAGE = {
+    stageId: CORE_STAGE_ID,
+    title: 'RSVP',
+    core: true,
+    settings: { presentation: 'stepped', confirmation: 'generic' },
+    elements: [
+        { kind: 'question', key: ATTENDANCE_KEY, label: 'Will you attend?',
+            type: 'boolean', required: true, core: true },
+        { kind: 'question', key: 'hasFoodRestrictions',
+            label: 'Any food restrictions or allergies?', type: 'boolean' },
+        // cdk#1171: an ANSWER that had no home in the engine — stored in the
+        // legacy rsvp map, read by the notifier, editable in valet, but never
+        // a question. A guest could flag restrictions with no way to describe
+        // them, and #1174's attribute drop would have lost the stored text.
+        // Only asked when the guest actually flagged restrictions above — a
+        // follow-up, not a standalone question (cdk#1204). Shown unconditionally
+        // it asked "What should we know?" of guests who had just said "none".
+        { kind: 'question', key: 'foodRestrictionsText',
+            label: 'What should we know?', type: 'text', maxLength: 500,
+            revealWhen: { key: 'hasFoodRestrictions', equals: true } },
+        { kind: 'question', key: 'companions', label: 'Who is coming with you?',
+            type: 'repeatingGroup', addLabel: 'Add another guest',
+            subFields: [
+                { key: 'name', label: 'Name', type: 'text', required: true },
+                { key: 'allergies', label: 'Allergies', type: 'text' },
+            ] },
+    ],
+};
+export const stagePresentation = (def) => { var _a; return (((_a = def.settings) === null || _a === void 0 ? void 0 : _a.presentation) === 'stepped' ? 'stepped' : 'flat'); };
+export const isDisplayBlock = (el) => el.kind === 'display';
+/** A definition's ordered element list: post-#976 `elements` wins; legacy
+ * `fields`-only configs read as all-questions. */
+export const stageElements = (def) => { var _a, _b; return (_b = (_a = def.elements) !== null && _a !== void 0 ? _a : def.fields) !== null && _b !== void 0 ? _b : []; };
+/** The askable subset, in order — what submissions, seeds, and response
+ * columns are built from. */
+export const stageQuestions = (elements) => elements.filter((el) => !isDisplayBlock(el));
+export const PREFILL_SOURCES = [
+    { id: 'rsvp.companionNames', label: "Companion names — from their RSVP" },
+    { id: 'rsvp.companionsWithAllergies', label: "Companions with allergies — from their RSVP" },
+    { id: 'rsvp.partyNames', label: "Party names — the guest plus companions, from their RSVP" },
+];
+/** Reserved top-level keys on stage-lane responses (cdk#962): the guest GET
+ * body is flat (field keys at top level), so these ride beside the answers and
+ * a field key may never claim them. Mirrors the Lambda's RESERVED_FIELD_KEYS. */
+export const STAGE_RESPONSE_META_KEYS = ['defaults', 'drift'];
+/** cdk#1016 (mirror of the Lambda's precedence): companions come from the
+ *  core-stage response first — an ARRAY there is an answer, [] included — and
+ *  from the legacy rsvp map only when no core list exists. */
+const companionList = (guest) => {
+    var _a;
+    const stages = guest === null || guest === void 0 ? void 0 : guest.stages;
+    const core = stages && typeof stages === 'object'
+        ? stages.RSVP : undefined;
+    const fromCore = core && typeof core === 'object'
+        ? core.companions : undefined;
+    if (Array.isArray(fromCore))
+        return fromCore;
+    return (_a = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _a === void 0 ? void 0 : _a.companions;
+};
+const companionEntries = (guest) => {
+    const companions = companionList(guest);
+    if (!Array.isArray(companions))
+        return [];
+    const entries = [];
+    for (const c of companions) {
+        if (typeof c !== 'object' || c === null)
+            continue;
+        const name = c.name;
+        if (typeof name !== 'string' || !name.trim())
+            continue;
+        const allergies = c.allergies;
+        entries.push({ name: name.trim(),
+            allergies: typeof allergies === 'string' ? allergies.trim() : '' });
+    }
+    return entries;
+};
+const str = (v) => (typeof v === 'string' ? v.trim() : '');
+/** Mirror of the Lambda's guest_display_name: row names first, then the
+ * promoted top-level preferredName (cdk#1169), then the legacy map's copies,
+ * empty string when nothing is known. cdk#1173 added the promoted candidate so
+ * this resolver survives #1174 dropping the map; the legacy pair stays for rows
+ * the backfill has not reached. */
+export const guestDisplayName = (guest) => {
+    var _a, _b;
+    const fromRow = [str(guest === null || guest === void 0 ? void 0 : guest.firstName), str(guest === null || guest === void 0 ? void 0 : guest.lastName)].filter(Boolean).join(' ');
+    if (fromRow)
+        return fromRow;
+    return str(guest === null || guest === void 0 ? void 0 : guest.preferredName)
+        || str((_a = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _a === void 0 ? void 0 : _a.preferredName)
+        || str((_b = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _b === void 0 ? void 0 : _b.name);
+};
+// Prototype-less registry (cdk#1285): resolver ids are organizer-supplied
+// (`defaultFrom` may name any string the server allows), so a plain object
+// literal would make `'toString' in RESOLVERS` true and `RESOLVERS['toString']`
+// return an inherited FUNCTION — resolvePrefillSource would then hand back the
+// string "[object Object]" typed as string[]. Object.create(null) removes the
+// prototype, fixing the `in` guard and the indexed lookup at their one source.
+const RESOLVERS = Object.assign(Object.create(null), {
+    'rsvp.companionNames': (g) => companionEntries(g).map((e) => e.name),
+    'rsvp.companionsWithAllergies': (g) => companionEntries(g)
+        .map((e) => (e.allergies ? `${e.name} (${e.allergies})` : e.name)),
+    'rsvp.partyNames': (g) => {
+        const name = guestDisplayName(g);
+        const companions = companionEntries(g).map((e) => e.name);
+        return name ? [name, ...companions] : companions;
+    },
+});
+/** One registry source's current value from the guest's own row, or undefined
+ * when the id is unknown/bare or resolves to nothing. */
+export const resolvePrefillSource = (id, guest) => {
+    var _a;
+    const resolved = (_a = RESOLVERS[id]) === null || _a === void 0 ? void 0 : _a.call(RESOLVERS, guest);
+    return resolved && resolved.length > 0 ? resolved : undefined;
+};
+/** Content compare, not representation (mirrors prefill._normalized): lists as
+ * stripped multisets — reordering companions is not drift — strings stripped. */
+const normalized = (value) => {
+    if (Array.isArray(value))
+        return JSON.stringify([...value].map((v) => String(v).trim()).sort());
+    if (typeof value === 'string')
+        return value.trim();
+    return value;
+};
+/** Question keys whose SAVED stage answer differs from its declared registry
+ * source (#965 allowance): declared edges only, direction-agnostic. Mirrors
+ * the Lambda's drift_keys — the responses grid uses the server's flag; the
+ * guest drawer computes the same thing from the roster row it already holds.
+ * Display blocks never drift (nothing saved) and are skipped by construction:
+ * they carry no `key`. */
+export const stageDriftKeys = (fields, guest, stagePayload) => {
+    const saved = stagePayload !== null && stagePayload !== void 0 ? stagePayload : {};
+    const out = [];
+    for (const f of fields) {
+        if (!f.defaultFrom || !(f.defaultFrom in RESOLVERS))
+            continue;
+        if (!(f.key in saved))
+            continue;
+        const current = resolvePrefillSource(f.defaultFrom, guest);
+        if (current === undefined)
+            continue;
+        if (normalized(saved[f.key]) !== normalized(current))
+            out.push(f.key);
+    }
+    return out;
+};
+/**
+ * The canonical core stage as a mutable StageDefinition (cdk#1201). The shared
+ * constant is `as const`, so every array on it is readonly and it is NOT
+ * assignable to the mutable StageDefinition — the reason it used to travel
+ * through `as unknown as` in both apps. A structural copy makes the two types
+ * genuinely related instead: the annotation below is checked, so a drift in the
+ * literal now fails the build rather than being waved through.
+ *
+ * Returns a FRESH copy each call so a caller can memoize/mutate its own without
+ * touching the shared literal. A host-edited core stage is materialized into the
+ * event config (cdk#1012); until then this serves virtually — the same fallback
+ * the guest app shows and Valet's editor shows.
+ */
+const cloneCoreElement = (element) => {
+    if ('subFields' in element) {
+        const { subFields, ...rest } = element;
+        return { ...rest, subFields: subFields.map((subField) => ({ ...subField })) };
+    }
+    return { ...element };
+};
+export const coreStageFallback = () => ({
+    ...DEFAULT_CORE_STAGE,
+    settings: { ...DEFAULT_CORE_STAGE.settings },
+    elements: DEFAULT_CORE_STAGE.elements.map(cloneCoreElement),
+});
