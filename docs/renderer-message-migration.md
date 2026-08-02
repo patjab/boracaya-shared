@@ -4,9 +4,17 @@
 
 `StageFormRenderer.messages` and `WizardShell.messages` are required. There is
 no shared English fallback: each app owns these strings and formatters in its
-typed catalog. This required prop is the breaking API change in
-`boracaya-shared@10.0.0`; consumers must complete the migration below before
-upgrading from version 9.
+typed catalog. Consumers must complete the migration below before upgrading
+from version 9. Catalog lookups used to build the message object must be total:
+the renderer relies on the typed contract and does not substitute copy for a
+missing translation at runtime.
+
+Version 10 also restricts package deep imports with an explicit `exports` map.
+Import from the supported root, `bootstrap`, `api`, `client`, `identity`,
+`domain`, `browser`, `forms`, `ui`, `hooks`, or `node` surfaces. Existing fleet
+imports of `dist/routes`, `dist/about`, and `dist/eventDate` remain temporarily
+supported (with or without `.js`); other `dist/*` and `src/*` imports must move
+to the public surface that owns the symbol before upgrading.
 
 The three existing `StageFormRenderer` call sites to update when a consumer
 pins this shared revision are:

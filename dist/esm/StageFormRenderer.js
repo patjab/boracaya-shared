@@ -20,9 +20,11 @@ import { WizardShell } from './WizardShell.js';
  *  a group's inputs look exactly like top-level ones. The default server cap
  *  mirrors here so the Add button quietly stops at the bound. */
 const DEFAULT_MAX_ENTRIES = 20;
-const labelFor = (question, messages) => question.required
-    ? `${question.label} ${messages.requiredIndicator}`
-    : question.label;
+const labelFor = (question, messages) => {
+    if (!question.required || messages.requiredIndicator.length === 0)
+        return question.label;
+    return `${question.label} ${messages.requiredIndicator}`;
+};
 const requiredInputProps = (required) => (required ? { required: true, 'aria-required': true } : {});
 const repeatingGroupInput = (f, value, onChange, messages) => {
     var _a, _b, _c;
@@ -54,7 +56,7 @@ const questionInput = (f, value, onChange, messages) => {
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton
             // styling (cdk#976).
-            return (_jsxs(Box, { sx: { mt: 2, mb: 1 }, children: [_jsx(Typography, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), _jsxs(ToggleButtonGroup, { exclusive: true, size: "small", "aria-label": f.label, "aria-required": f.required || undefined, value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
+            return (_jsxs(Box, { sx: { mt: 2, mb: 1 }, children: [_jsx(Typography, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), _jsxs(ToggleButtonGroup, { exclusive: true, size: "small", "aria-label": labelFor(f, messages), value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
                             onChange(f.key, v === 'yes'); }, sx: {
                             // MUI's default unselected secondary text can miss
                             // 4.5:1 by a few hundredths on generated palettes.

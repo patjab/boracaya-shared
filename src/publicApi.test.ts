@@ -1,15 +1,30 @@
-import { describe, expect, it } from 'vitest';
-import { ApiConstants, PublicApi } from './api';
+import { describe, expect, it, vi } from 'vitest';
+import { PublicApi } from './api';
 
 describe('PublicApi', () => {
-  it('preserves every public ApiConstants URL without exposing the admin lane', () => {
+  it('pins the production public endpoints without exposing the admin lane', () => {
     expect(PublicApi).toEqual({
-      EVENTS: ApiConstants.EVENTS,
-      DISCOVER: ApiConstants.DISCOVER,
-      GUEST_LOGIN: ApiConstants.GUEST_LOGIN,
-      FACES_CONTROL: ApiConstants.FACES_CONTROL,
-      FACES_BOX: ApiConstants.FACES_BOX,
+      EVENTS: 'https://public-api.boracaya.com/events',
+      DISCOVER: 'https://public-api.boracaya.com/discover',
+      GUEST_LOGIN: 'https://public-api.boracaya.com/auth/login',
+      FACES_CONTROL: 'https://faces-control.pdaboracay.com',
+      FACES_BOX: 'https://faces.pdaboracay.com',
     });
     expect('ADMIN_EVENTS' in PublicApi).toBe(false);
+  });
+
+  it('pins the testing public endpoint hosts', () => {
+    vi.stubGlobal('window', { location: { hostname: 'www.test.boracaya.com' } });
+    try {
+      expect(PublicApi).toEqual({
+        EVENTS: 'https://public-api.test.boracaya.com/events',
+        DISCOVER: 'https://public-api.test.boracaya.com/discover',
+        GUEST_LOGIN: 'https://public-api.test.boracaya.com/auth/login',
+        FACES_CONTROL: 'https://faces-control.test.pdaboracay.com',
+        FACES_BOX: 'https://faces.test.pdaboracay.com',
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

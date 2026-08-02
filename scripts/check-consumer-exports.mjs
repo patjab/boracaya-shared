@@ -116,11 +116,15 @@ for (const [condition, result] of Object.entries(bootstrap)) {
     `${prefix}/ErrorBoundary.js`,
     `${prefix}/GoogleSignInButton.js`,
   ], `${condition.toUpperCase()} bootstrap`);
-  assert.doesNotMatch(result.code, /@mui|valet-api|accounts\.google\.com\/gsi|GoogleSignInButton/);
+  assert.doesNotMatch(result.code, /@mui|valet-api|accounts\.google\.com\/gsi/);
 }
 assert(
   bootstrap.esm.gzipBytes < legacy.gzipBytes * 0.5,
   `ESM bootstrap gzip must be less than half the legacy root (${bootstrap.esm.gzipBytes} vs ${legacy.gzipBytes})`,
+);
+assert(
+  bootstrap.esm.gzipBytes < bootstrap.cjs.gzipBytes * 0.5,
+  `ESM bootstrap gzip must be less than half the granular CommonJS build (${bootstrap.esm.gzipBytes} vs ${bootstrap.cjs.gzipBytes})`,
 );
 
 assertInputs(identity.esm, [
@@ -134,7 +138,7 @@ assertNoInputs(identity.esm, [
 ], 'actual Shore ESM identity');
 assert.doesNotMatch(
   identity.esm.code,
-  /@mui|valet-api|accounts\.google\.com\/gsi|GoogleSignInButton|from\s*["']react["']/,
+  /@mui|valet-api|accounts\.google\.com\/gsi|from\s*["']react["']/,
 );
 
 // The compatibility identity barrel legitimately loads auth.js because it
@@ -306,13 +310,19 @@ const currentRootExports = new Set(Object.keys(cjsRoot));
 const missingRootExports = legacyRootExports.filter((name) => !currentRootExports.has(name));
 assert.deepEqual(missingRootExports, [], `root compatibility exports missing: ${missingRootExports.join(', ')}`);
 
+const npmCli = process.env.npm_execpath;
+assert(npmCli, 'npm_execpath is unavailable; run this export audit through an npm script');
 const packResult = JSON.parse(execFileSync(
-  'npm',
-  ['pack', '--dry-run', '--json'],
+  process.execPath,
+  [npmCli, 'pack', '--dry-run', '--json'],
   { cwd: root, encoding: 'utf8' },
 ))[0];
 assert.equal(packResult.version, packageJson.version, 'npm pack version differs from package.json');
 const packedFiles = new Set(packResult.files.map(({ path }) => path));
+assert(
+  ![...packedFiles].some((path) => path.startsWith('dist/esm/') && path.endsWith('.d.ts')),
+  'pack must not include unreferenced ESM declarations',
+);
 for (const field of ['main', 'module', 'types']) {
   assert(packedFiles.has(packageJson[field]), `pack omits package.${field} target ${packageJson[field]}`);
 }

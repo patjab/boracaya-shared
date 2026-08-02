@@ -48,9 +48,10 @@ const DEFAULT_MAX_ENTRIES = 20;
 const labelFor = (
     question: Pick<StageQuestion, 'label' | 'required'>,
     messages: StageFormRendererMessages,
-): string => question.required
-    ? `${question.label} ${messages.requiredIndicator}`
-    : question.label;
+): string => {
+    if (!question.required || messages.requiredIndicator.length === 0) return question.label;
+    return `${question.label} ${messages.requiredIndicator}`;
+};
 
 const requiredInputProps = (required: boolean | undefined): Record<string, boolean> =>
     (required ? { required: true, 'aria-required': true } : {});
@@ -147,8 +148,7 @@ const questionInput = (
                         {labelFor(f, messages)}
                     </Typography>
                     <ToggleButtonGroup
-                        exclusive size="small" aria-label={f.label}
-                        aria-required={f.required || undefined}
+                        exclusive size="small" aria-label={labelFor(f, messages)}
                         value={value === true ? 'yes' : value === false ? 'no' : null}
                         onChange={(_, v) => { if (v !== null) onChange(f.key, v === 'yes'); }}
                         sx={{

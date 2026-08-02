@@ -9,7 +9,7 @@ const temporaryConsumer = await mkdtemp(join(tmpdir(), 'boracaya-shared-legacy-n
 try {
   const packageDirectory = join(temporaryConsumer, 'node_modules', 'boracaya-shared');
   await mkdir(join(temporaryConsumer, 'node_modules'), { recursive: true });
-  await symlink(root, packageDirectory, 'dir');
+  await symlink(root, packageDirectory, process.platform === 'win32' ? 'junction' : 'dir');
   await copyFile(
     resolve(root, 'fixtures/consumers/legacy-node-resolution.ts'),
     join(temporaryConsumer, 'consumer.ts'),

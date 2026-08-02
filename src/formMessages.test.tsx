@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StageFormRenderer } from './StageFormRenderer';
 import type { StageFormRendererMessages } from './formMessages';
 import { WizardShell } from './WizardShell';
@@ -20,25 +22,64 @@ const messages: StageFormRendererMessages = {
   },
 };
 
+afterEach(cleanup);
+
 describe('consumer-supplied form messages', () => {
-  it('renders wizard progress and navigation through the typed formatter contract', () => {
+  it('drives every wizard state with consumer messages and clamps a shrinking step list', () => {
     const formatStepCount = vi.fn(messages.wizard.formatStepCount);
-    const html = renderToStaticMarkup(
+    const validate = vi.fn().mockReturnValue(true).mockReturnValueOnce(false);
+    const steps = [
+      { key: 'one', content: <span>Premier</span>, validate },
+      { key: 'two', content: <span>Deuxieme</span> },
+      { key: 'three', content: <span>Troisieme</span> },
+    ];
+    const { container, rerender } = render(
       <WizardShell
         messages={{ ...messages.wizard, formatStepCount }}
-        steps={[
-          { key: 'one', content: <span>Premier</span> },
-          { key: 'two', content: <span>Deuxième</span> },
-        ]}
+        steps={steps}
+        finish={<button type="submit">Terminer</button>}
       />,
     );
 
-    expect(formatStepCount).toHaveBeenCalledWith({ stepNumber: 1, stepCount: 2 });
-    expect(formatStepCount).toHaveBeenCalledTimes(1);
-    expect(html).toContain('Étape 1 sur 2');
-    expect(html).toContain('aria-label="Étape 1 sur 2"');
-    expect(html).toContain('Suivant');
-    expect(html).not.toContain('>Next<');
+    expect(formatStepCount).toHaveBeenCalledWith({ stepNumber: 1, stepCount: 3 });
+    expect(screen.getByText('Premier')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Retour' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    expect(validate).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Premier')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    expect(screen.getByText('Deuxieme')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retour' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+    expect(screen.getByText('Premier')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    expect(screen.getByText('Troisieme')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Terminer' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Suivant' })).toBeNull();
+
+    rerender(<WizardShell messages={messages.wizard} steps={[steps[0]]} />);
+    expect(screen.getByText('Premier')).toBeTruthy();
+    expect(screen.getByLabelText('Étape 1 sur 1')).toBeTruthy();
+
+    rerender(<WizardShell messages={messages.wizard} steps={[]} />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('disables Next when the current step cannot proceed', () => {
+    render(
+      <WizardShell
+        messages={messages.wizard}
+        steps={[
+          { key: 'blocked', content: <span>Bloque</span>, canProceed: false },
+          { key: 'next', content: <span>Suivant</span> },
+        ]}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Suivant' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('renders renderer labels, hints, add/remove actions, and required copy from messages', () => {
@@ -50,11 +91,15 @@ describe('consumer-supplied form messages', () => {
           { key: 'names', label: 'Noms', type: 'list', required: true },
           { key: 'meal', label: 'Repas', type: 'select', options: ['Jardin'], required: true },
           { key: 'date', label: 'Date', type: 'date', required: true },
+          { key: 'email', label: 'Courriel', type: 'text', required: true },
+          { key: 'notes', label: 'Notes', type: 'multiline', required: true },
+          { key: 'count', label: 'Nombre', type: 'number', required: true },
           {
             key: 'companions',
             label: 'Invité',
             type: 'repeatingGroup',
-            subFields: [{ key: 'name', label: 'Nom', type: 'text' }],
+            required: true,
+            subFields: [{ key: 'name', label: 'Nom', type: 'text', required: true }],
           },
         ]}
         values={{ companions: [{ name: 'Camille' }] }}
@@ -66,12 +111,21 @@ describe('consumer-supplied form messages', () => {
     expect(html).toContain('Noms (requis)');
     expect(html).toContain('Repas (requis)');
     expect(html).toContain('Date (requis)');
+    expect(html).toContain('Courriel (requis)');
+    expect(html).toContain('Notes (requis)');
+    expect(html).toContain('Nombre (requis)');
+    expect(html).toContain('Invité (requis)');
+    expect(html).toContain('Nom (requis)');
     expect(html).not.toContain('MuiFormLabel-asterisk');
     expect(html).toContain('Oui');
     expect(html).toContain('Non');
     expect(html).toContain('Séparez les entrées par des virgules');
     expect(html).toContain('Ajouter une entrée');
     expect(html).toContain('aria-label="Supprimer Invité 1"');
+    expect(html).toContain('aria-label="Présence (requis)"');
+    expect(html).not.toContain('role="group" aria-required="true"');
+    expect((html.match(/aria-required="true"/g) ?? []).length).toBeGreaterThanOrEqual(6);
+    expect((html.match(/ required=""/g) ?? []).length).toBeGreaterThanOrEqual(6);
     expect(html).not.toContain('Add another');
     expect(html).not.toContain('Separate entries with commas');
   });
