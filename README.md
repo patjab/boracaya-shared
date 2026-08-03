@@ -74,6 +74,7 @@ const messages: StageFormRendererMessages = {
   listSeparatorHint: t('forms.separateWithCommas'),
   addEntryActionLabel: t('forms.addAnother'),
   requiredIndicator: t('forms.requiredIndicator'),
+  requiredFieldLabel: t('forms.requiredFieldLabel'),
   formatRemoveEntryActionLabel: ({ fieldLabel, entryNumber }) =>
     t('forms.removeEntry', { fieldLabel, entryNumber }),
   wizard: {

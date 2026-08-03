@@ -13,6 +13,7 @@ const messages: StageFormRendererMessages = {
   listSeparatorHint: 'Séparez les entrées par des virgules',
   addEntryActionLabel: 'Ajouter une entrée',
   requiredIndicator: '(requis)',
+  requiredFieldLabel: 'Champ requis',
   formatRemoveEntryActionLabel: ({ fieldLabel, entryNumber }) =>
     `Supprimer ${fieldLabel} ${entryNumber}`,
   wizard: {
@@ -64,6 +65,11 @@ describe('consumer-supplied form messages', () => {
     rerender(<WizardShell messages={messages.wizard} steps={[steps[0]]} />);
     expect(screen.getByText('Premier')).toBeTruthy();
     expect(screen.getByLabelText('Étape 1 sur 1')).toBeTruthy();
+
+    rerender(<WizardShell messages={messages.wizard} steps={steps} />);
+    expect(screen.getByText('Premier')).toBeTruthy();
+    expect(screen.getByLabelText('Étape 1 sur 3')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Retour' })).toBeNull();
 
     rerender(<WizardShell messages={messages.wizard} steps={[]} />);
     expect(container.innerHTML).toBe('');
@@ -122,11 +128,25 @@ describe('consumer-supplied form messages', () => {
     expect(html).toContain('Séparez les entrées par des virgules');
     expect(html).toContain('Ajouter une entrée');
     expect(html).toContain('aria-label="Supprimer Invité 1"');
-    expect(html).toContain('aria-label="Présence (requis)"');
+    expect(html).toContain('aria-label="Présence Champ requis"');
     expect(html).not.toContain('role="group" aria-required="true"');
     expect((html.match(/aria-required="true"/g) ?? []).length).toBeGreaterThanOrEqual(6);
     expect((html.match(/ required=""/g) ?? []).length).toBeGreaterThanOrEqual(6);
     expect(html).not.toContain('Add another');
     expect(html).not.toContain('Separate entries with commas');
   });
+
+  it.each(['*', ''])('announces required boolean groups when the visual indicator is %j',
+    (requiredIndicator) => {
+      render(
+        <StageFormRenderer
+          messages={{ ...messages, requiredIndicator }}
+          elements={[{ key: 'attending', label: 'Présence', type: 'boolean', required: true }]}
+          values={{}}
+          onChange={() => undefined}
+        />,
+      );
+
+      expect(screen.getByRole('group', { name: 'Présence Champ requis' })).toBeTruthy();
+    });
 });

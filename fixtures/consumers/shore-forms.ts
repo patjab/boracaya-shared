@@ -9,6 +9,7 @@ export const messages: StageFormRendererMessages = {
   listSeparatorHint: 'Separa las entradas con comas',
   addEntryActionLabel: 'Añadir otra',
   requiredIndicator: '*',
+  requiredFieldLabel: 'Obligatorio',
   formatRemoveEntryActionLabel: ({ fieldLabel, entryNumber }) =>
     `Quitar ${fieldLabel}, entrada ${entryNumber}`,
   wizard: {

@@ -31,6 +31,8 @@ export interface StageFormRendererMessages {
   addEntryActionLabel: string;
   /** Copy only (for example `*` or `(required)`); the renderer owns spacing. */
   requiredIndicator: string;
+  /** Spoken required-state copy for non-native controls (for example `Required`). */
+  requiredFieldLabel: string;
   formatRemoveEntryActionLabel: (params: RemoveEntryMessageParams) => string;
   wizard: WizardMessages;
 }

@@ -13,6 +13,7 @@ export const valetMessages: StageFormRendererMessages = {
   listSeparatorHint: 'Separate entries with commas',
   addEntryActionLabel: 'Add another',
   requiredIndicator: '*',
+  requiredFieldLabel: 'Required',
   formatRemoveEntryActionLabel: ({ fieldLabel, entryNumber }) =>
     `Remove ${fieldLabel}, entry ${entryNumber}`,
   wizard: {

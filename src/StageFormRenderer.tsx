@@ -56,6 +56,13 @@ const labelFor = (
 const requiredInputProps = (required: boolean | undefined): Record<string, boolean> =>
     (required ? { required: true, 'aria-required': true } : {});
 
+const booleanGroupLabelFor = (
+    question: Pick<StageQuestion, 'label' | 'required'>,
+    messages: StageFormRendererMessages,
+): string => question.required
+    ? `${question.label} ${messages.requiredFieldLabel}`
+    : question.label;
+
 const repeatingGroupInput = (
     f: StageQuestion,
     value: StageFormValue | undefined,
@@ -148,7 +155,7 @@ const questionInput = (
                         {labelFor(f, messages)}
                     </Typography>
                     <ToggleButtonGroup
-                        exclusive size="small" aria-label={labelFor(f, messages)}
+                        exclusive size="small" aria-label={booleanGroupLabelFor(f, messages)}
                         value={value === true ? 'yes' : value === false ? 'no' : null}
                         onChange={(_, v) => { if (v !== null) onChange(f.key, v === 'yes'); }}
                         sx={{
