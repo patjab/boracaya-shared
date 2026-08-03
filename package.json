@@ -1,16 +1,133 @@
 {
   "name": "boracaya-shared",
-  "version": "9.1.0",
+  "version": "10.0.0",
   "description": "Shared API constants, types, and hooks for PDA Boracay apps",
   "main": "dist/index.js",
+  "module": "dist/esm/index.js",
   "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./bootstrap": {
+      "types": "./dist/entries/bootstrap.d.ts",
+      "import": "./dist/esm/entries/bootstrap.js",
+      "require": "./dist/entries/bootstrap.js"
+    },
+    "./api": {
+      "types": "./dist/entries/api.d.ts",
+      "import": "./dist/esm/entries/api.js",
+      "require": "./dist/entries/api.js"
+    },
+    "./client": {
+      "types": "./dist/entries/client.d.ts",
+      "import": "./dist/esm/entries/client.js",
+      "require": "./dist/entries/client.js"
+    },
+    "./identity": {
+      "types": "./dist/entries/identity.d.ts",
+      "import": "./dist/esm/entries/identity.js",
+      "require": "./dist/entries/identity.js"
+    },
+    "./domain": {
+      "types": "./dist/entries/domain.d.ts",
+      "import": "./dist/esm/entries/domain.js",
+      "require": "./dist/entries/domain.js"
+    },
+    "./browser": {
+      "types": "./dist/entries/browser.d.ts",
+      "import": "./dist/esm/entries/browser.js",
+      "require": "./dist/entries/browser.js"
+    },
+    "./forms": {
+      "types": "./dist/entries/forms.d.ts",
+      "import": "./dist/esm/entries/forms.js",
+      "require": "./dist/entries/forms.js"
+    },
+    "./ui": {
+      "types": "./dist/entries/ui.d.ts",
+      "import": "./dist/esm/entries/ui.js",
+      "require": "./dist/entries/ui.js"
+    },
+    "./hooks": {
+      "types": "./dist/entries/hooks.d.ts",
+      "import": "./dist/esm/entries/hooks.js",
+      "require": "./dist/entries/hooks.js"
+    },
+    "./node": {
+      "types": "./dist/entries/node.d.ts",
+      "import": "./dist/esm/entries/node.js",
+      "require": "./dist/entries/node.js"
+    },
+    "./dist/routes": {
+      "types": "./dist/routes.d.ts",
+      "import": "./dist/esm/routes.js",
+      "require": "./dist/routes.js"
+    },
+    "./dist/routes.js": {
+      "types": "./dist/routes.d.ts",
+      "import": "./dist/esm/routes.js",
+      "require": "./dist/routes.js"
+    },
+    "./dist/about": {
+      "types": "./dist/about.d.ts",
+      "import": "./dist/esm/about.js",
+      "require": "./dist/about.js"
+    },
+    "./dist/about.js": {
+      "types": "./dist/about.d.ts",
+      "import": "./dist/esm/about.js",
+      "require": "./dist/about.js"
+    },
+    "./dist/eventDate": {
+      "types": "./dist/eventDate.d.ts",
+      "import": "./dist/esm/eventDate.js",
+      "require": "./dist/eventDate.js"
+    },
+    "./dist/eventDate.js": {
+      "types": "./dist/eventDate.d.ts",
+      "import": "./dist/esm/eventDate.js",
+      "require": "./dist/eventDate.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "api": ["dist/entries/api.d.ts"],
+      "bootstrap": ["dist/entries/bootstrap.d.ts"],
+      "browser": ["dist/entries/browser.d.ts"],
+      "client": ["dist/entries/client.d.ts"],
+      "domain": ["dist/entries/domain.d.ts"],
+      "forms": ["dist/entries/forms.d.ts"],
+      "hooks": ["dist/entries/hooks.d.ts"],
+      "identity": ["dist/entries/identity.d.ts"],
+      "node": ["dist/entries/node.d.ts"],
+      "ui": ["dist/entries/ui.d.ts"],
+      "dist/routes": ["dist/routes.d.ts"],
+      "dist/routes.js": ["dist/routes.d.ts"],
+      "dist/about": ["dist/about.d.ts"],
+      "dist/about.js": ["dist/about.d.ts"],
+      "dist/eventDate": ["dist/eventDate.d.ts"],
+      "dist/eventDate.js": ["dist/eventDate.d.ts"]
+    }
+  },
   "files": [
     "dist",
-    "src"
+    "src",
+    "docs"
   ],
   "scripts": {
-    "build": "tsc",
-    "test": "vitest run --exclude src/api.smoke.test.ts",
+    "build": "npm run clean && npm run build:cjs && npm run build:esm && npm run report:exports",
+    "clean": "node scripts/clean-dist.mjs",
+    "build:cjs": "tsc -p tsconfig.json",
+    "build:esm": "node scripts/clean-esm.mjs && tsc -p tsconfig.esm.json && node scripts/finalize-esm.mjs",
+    "report:exports": "node scripts/check-consumer-exports.mjs --write",
+    "test:exports": "tsc -p tsconfig.consumers.json && node scripts/check-legacy-node-consumer.mjs && node scripts/check-consumer-exports.mjs",
+    "test": "vitest run --exclude src/api.smoke.test.ts && npm run test:exports",
     "test:smoke": "vitest run src/api.smoke.test.ts"
   },
   "peerDependencies": {
@@ -21,7 +138,13 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.11",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.4",
+    "esbuild": "^0.28.1",
+    "jsdom": "^29.1.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
   }

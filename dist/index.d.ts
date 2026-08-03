@@ -1,4 +1,4 @@
-export { ApiConstants, AdminEventApi, GuestEventApi, AccountApi, OrganizerInviteApi, FacesApi } from './api';
+export { ApiConstants, PublicApi, AdminEventApi, GuestEventApi, AccountApi, OrganizerInviteApi, FacesApi, } from './api';
 export { SiteUrls, guestSiteUrlFor, inviteUrlFor } from './siteUrls';
 export { getEnv, isTest, envSubdomain } from './env';
 export type { StageDefinition, StageField } from './stages';
@@ -39,7 +39,8 @@ export type { GuardedState } from './data';
 export { ArrayUtils, ColorUtils, DateUtils, NumberUtils, StringUtils } from './utils';
 export { DEFAULT_CACHE_TTL_MS, MAX_CACHE_ENTRIES, createCachedLoad, invalidateCache, readCache, resetCache, seedFromCache, writeCache, } from './cache';
 export type { CacheHit, CachedLoadHandle, CachedLoadOptions } from './cache';
-export { initAuth, signOut, getIdToken, authHeaders, getEmail, GoogleSignInButton, } from './auth';
+export { initAuth, signOut, getIdToken, authHeaders, getEmail, } from './auth';
+export { GoogleSignInButton } from './GoogleSignInButton';
 export { ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, } from './guestAuth';
 export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
@@ -47,8 +48,9 @@ export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPag
 export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation, stageQuestions, } from './stages';
 export type { DisplayPresentation, GuestRowLike, PrefillSource, RepeatingGroupEntry, StageDisplayBlock, StageElement, StageFieldType, StagePresentation, StageQuestion, StageSubField, } from './stages';
 export { StageFormRenderer } from './StageFormRenderer';
-export type { RendererField, StageFormValue, StageFormValues } from './StageFormRenderer';
+export type { RendererField, StageFormRendererProps, StageFormValue, StageFormValues, } from './StageFormRenderer';
 export { WizardShell } from './WizardShell';
-export type { WizardStep } from './WizardShell';
+export type { WizardShellProps, WizardStep } from './WizardShell';
+export type { RemoveEntryMessageParams, StageFormRendererMessages, StepCountMessageParams, WizardMessages, } from './formMessages';
 export { SHELL_KEYS, STYLE_TIERS, CURATED_DESIGNS, TYPE_VOICES, STYLE_MODES, OCCASION_DEFAULTS, FALLBACK_DEFAULTS } from './shells';
 export type { ShellKey, StyleTier, CuratedDesignId, TypeVoice, StyleMode, ResolvedTokens, StyleConfig, ShellStyleDefaults, OccasionKey, Vocabulary } from './shells';

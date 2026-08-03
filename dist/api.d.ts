@@ -1,3 +1,4 @@
+export { GuestEventApi, PublicApi } from './publicApi';
 export declare const ApiConstants: {
     readonly ADMIN_EVENTS: string;
     readonly EVENTS: string;
@@ -100,34 +101,4 @@ export declare const OrganizerInviteApi: {
     readonly metadata: (inviteId: string) => string;
     readonly accept: (inviteId: string) => string;
     readonly decline: (inviteId: string) => string;
-};
-/**
- * Event-scoped GUEST + public endpoints (cdk#427 / #386 SI-5): the URL names the
- * TARGET event — the guest SPA's path-prefix tenant (cdk#447) reaches the API as a
- * path segment, never a server-pinned default. The guest-authed lanes
- * (rsvp/stages/uploads/Pulse writes and personalized feed) are additionally
- * validated server-side: the token's guest must have a PROFILE row in the path
- * event (fail closed). The public lanes
- * (auth/invite/moments-public/public Pulse feed/survey) take the path event directly.
- * The flat ApiConstants forms above remain until the cdk#427 contract step deletes
- * the flat routes.
- */
-export declare const GuestEventApi: {
-    readonly openRsvp: (eventId: string) => string;
-    readonly exchange: (eventId: string) => string;
-    readonly claim: (eventId: string) => string;
-    readonly unlink: (eventId: string) => string;
-    readonly invite: (eventId: string) => string;
-    readonly momentsPublic: (eventId: string) => string;
-    readonly wishes: (eventId: string) => string;
-    readonly pulse: (eventId: string) => string;
-    readonly pulseMine: (eventId: string) => string;
-    readonly pulsePosts: (eventId: string) => string;
-    readonly pulseVotes: (eventId: string) => string;
-    readonly pulseReactions: (eventId: string) => string;
-    readonly survey: (eventId: string) => string;
-    readonly rsvp: (eventId: string) => string;
-    readonly stage: (eventId: string, stageId: string) => string;
-    readonly initiateUpload: (eventId: string) => string;
-    readonly completeUpload: (eventId: string) => string;
 };

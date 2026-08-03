@@ -1,4 +1,5 @@
 import * as React from 'react';
+import type { WizardMessages } from './formMessages';
 /**
  * The platform's ONE stepped-form shell (cdk#1010, decision cdk#1009 A5): a
  * consumer-agnostic wizard over an ordered list of steps. The stage renderer's
@@ -33,8 +34,11 @@ export interface WizardStep {
      *  = advance freely. Composes with canProceed (checked first). */
     validate?: () => boolean;
 }
-export declare const WizardShell: ({ steps, finish }: {
+export interface WizardShellProps {
     steps: ReadonlyArray<WizardStep>;
     /** Rendered in Next's place on the final step (the consumer's submit). */
     finish?: React.ReactNode;
-}) => React.ReactElement | null;
+    /** All consumer-visible navigation and progress copy. */
+    messages: WizardMessages;
+}
+export declare const WizardShell: ({ steps, finish, messages }: WizardShellProps) => React.ReactElement | null;

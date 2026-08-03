@@ -1,13 +1,6 @@
-import * as React from 'react';
+export { authHeaders, getEmail, getIdToken } from './authToken';
 type App = 'checkin' | 'admin';
 export declare function initAuth(_app?: App): Promise<void>;
-export declare function getIdToken(): string | null;
-export declare function authHeaders(): Record<string, string>;
-/** Email claim from the current Google ID token (for display / scoping), or null. */
-export declare function getEmail(): string | null;
-export declare function GoogleSignInButton(props: {
-    onSignIn?: () => void;
-    text?: string;
-}): React.ReactElement;
+/** Internal UI adapter used by GoogleSignInButton after initAuth resolves. */
+export declare function renderGoogleSignInButton(element: HTMLElement, text?: string): void;
 export declare function signOut(): void;
-export {};

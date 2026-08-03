@@ -11,7 +11,7 @@
 // this is the per-guest reservations token, keyed to the invited userId. sessionStorage is
 // only touched inside functions, so importing this module in Node (e2e, the contract test)
 // is safe — only calling ensureGuestToken() needs a browser.
-import { ApiConstants, GuestEventApi } from './api';
+import { GuestEventApi, PublicApi } from './publicApi';
 
 const TOKEN_KEY = 'pdab_guest_token';
 // Refresh a little before the real edge so an in-flight request never carries a token that
@@ -240,7 +240,7 @@ export type NoEventLoginResult =
 
 export async function loginNoEvent(credential: string): Promise<NoEventLoginResult> {
   try {
-    const res = await fetch(ApiConstants.GUEST_LOGIN, {
+    const res = await fetch(PublicApi.GUEST_LOGIN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential }),

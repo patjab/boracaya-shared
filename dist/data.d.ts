@@ -10,7 +10,7 @@ export declare class ApiError extends Error {
     readonly retryAfterSeconds?: number;
     constructor(label: string, message: string, status?: number, retryAfter?: number);
 }
-interface CallOptions {
+export interface CallOptions {
     /** Short human name for the call, used in errors/logs. Defaults to the URL. */
     label?: string;
     /** Extra headers; merged over the auto-attached auth headers. */
@@ -36,7 +36,7 @@ export declare function getJson<T>(url: string, opts?: CallOptions): Promise<T |
  * independently reinvented, homed.)
  */
 export declare function jsonOr<T>(url: string, label: string, fallback: T, opts?: CallOptions): Promise<T>;
-interface SendOptions extends CallOptions {
+export interface SendOptions extends CallOptions {
     method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     /** JSON-serialized as the request body when provided. */
     body?: unknown;
@@ -77,4 +77,3 @@ export interface GuardedState<T> {
  * this to component state.
  */
 export declare function runGuarded<T>(load: () => Promise<T>, set: (next: GuardedState<T>) => void, errorMessage: string): Promise<void>;
-export {};

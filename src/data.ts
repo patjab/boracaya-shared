@@ -4,7 +4,7 @@
 // drifting on) each of these. React binding lives in hooks/useGuardedLoad.ts;
 // this module is plain TypeScript so Node consumers (e2e, contract tests) can
 // import it safely.
-import { authHeaders } from './auth';
+import { authHeaders } from './authToken';
 import { retryAfterSeconds as parseRetryAfterSeconds } from './security';
 
 // authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
@@ -54,7 +54,7 @@ const readBody = async (res: Response, label: string): Promise<string> => {
   }
 };
 
-interface CallOptions {
+export interface CallOptions {
   /** Short human name for the call, used in errors/logs. Defaults to the URL. */
   label?: string;
   /** Extra headers; merged over the auto-attached auth headers. */
@@ -106,7 +106,7 @@ export async function jsonOr<T>(url: string, label: string, fallback: T, opts: C
   }
 }
 
-interface SendOptions extends CallOptions {
+export interface SendOptions extends CallOptions {
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** JSON-serialized as the request body when provided. */
   body?: unknown;

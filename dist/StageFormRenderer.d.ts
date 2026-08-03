@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { RepeatingGroupEntry, StageElement, StagePresentation, StageQuestion } from './stages';
+import type { StageFormRendererMessages } from './formMessages';
 /**
  * The ONE schema-driven stage-form renderer (cdk#961/#962/#976): Shore renders
  * the guest's real form with it, and Valet's stage editor embeds the same
@@ -15,7 +16,7 @@ import type { RepeatingGroupEntry, StageElement, StagePresentation, StageQuestio
 export type RendererField = StageQuestion;
 export type StageFormValue = string | number | boolean | string[] | RepeatingGroupEntry[];
 export type StageFormValues = Record<string, StageFormValue>;
-export declare const StageFormRenderer: ({ elements, fields, values, onChange, resolved, presentation, footer }: {
+export interface StageFormRendererProps {
     elements?: ReadonlyArray<StageElement>;
     fields?: ReadonlyArray<RendererField>;
     values: StageFormValues;
@@ -30,4 +31,7 @@ export declare const StageFormRenderer: ({ elements, fields, values, onChange, r
      *  and in Next's place on the final stepped screen — so submission stays
      *  with the consumer in both presentations. */
     footer?: React.ReactNode;
-}) => React.ReactElement;
+    /** All renderer-owned UI copy. Stage-authored labels/options stay in the schema. */
+    messages: StageFormRendererMessages;
+}
+export declare const StageFormRenderer: ({ elements, fields, values, onChange, resolved, presentation, footer, messages, }: StageFormRendererProps) => React.ReactElement;

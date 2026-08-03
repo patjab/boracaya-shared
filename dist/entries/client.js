@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = void 0;
+/** Runtime-agnostic fetch helpers. Browser identity headers are attached when available. */
+var data_1 = require("../data");
+Object.defineProperty(exports, "ApiError", { enumerable: true, get: function () { return data_1.ApiError; } });
+Object.defineProperty(exports, "asArray", { enumerable: true, get: function () { return data_1.asArray; } });
+Object.defineProperty(exports, "clean", { enumerable: true, get: function () { return data_1.clean; } });
+Object.defineProperty(exports, "getJson", { enumerable: true, get: function () { return data_1.getJson; } });
+Object.defineProperty(exports, "jsonOr", { enumerable: true, get: function () { return data_1.jsonOr; } });
+Object.defineProperty(exports, "runGuarded", { enumerable: true, get: function () { return data_1.runGuarded; } });
+Object.defineProperty(exports, "sendJson", { enumerable: true, get: function () { return data_1.sendJson; } });
+var cache_1 = require("../cache");
+Object.defineProperty(exports, "DEFAULT_CACHE_TTL_MS", { enumerable: true, get: function () { return cache_1.DEFAULT_CACHE_TTL_MS; } });
+Object.defineProperty(exports, "MAX_CACHE_ENTRIES", { enumerable: true, get: function () { return cache_1.MAX_CACHE_ENTRIES; } });
+Object.defineProperty(exports, "createCachedLoad", { enumerable: true, get: function () { return cache_1.createCachedLoad; } });
+Object.defineProperty(exports, "invalidateCache", { enumerable: true, get: function () { return cache_1.invalidateCache; } });
+Object.defineProperty(exports, "readCache", { enumerable: true, get: function () { return cache_1.readCache; } });
+Object.defineProperty(exports, "resetCache", { enumerable: true, get: function () { return cache_1.resetCache; } });
+Object.defineProperty(exports, "seedFromCache", { enumerable: true, get: function () { return cache_1.seedFromCache; } });
+Object.defineProperty(exports, "writeCache", { enumerable: true, get: function () { return cache_1.writeCache; } });
