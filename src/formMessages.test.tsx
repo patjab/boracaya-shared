@@ -129,6 +129,7 @@ describe('consumer-supplied form messages', () => {
     expect(html).toContain('Ajouter une entrée');
     expect(html).toContain('aria-label="Supprimer Invité 1"');
     expect(html).toContain('aria-label="Présence Champ requis"');
+    expect(html).toContain('role="group" aria-label="Invité Champ requis"');
     expect(html).not.toContain('role="group" aria-required="true"');
     expect((html.match(/aria-required="true"/g) ?? []).length).toBeGreaterThanOrEqual(6);
     expect((html.match(/ required=""/g) ?? []).length).toBeGreaterThanOrEqual(6);
@@ -136,17 +137,24 @@ describe('consumer-supplied form messages', () => {
     expect(html).not.toContain('Separate entries with commas');
   });
 
-  it.each(['*', ''])('announces required boolean groups when the visual indicator is %j',
+  it.each(['*', ''])('announces required non-native groups when the visual indicator is %j',
     (requiredIndicator) => {
       render(
         <StageFormRenderer
           messages={{ ...messages, requiredIndicator }}
-          elements={[{ key: 'attending', label: 'Présence', type: 'boolean', required: true }]}
+          elements={[
+            { key: 'attending', label: 'Présence', type: 'boolean', required: true },
+            {
+              key: 'companions', label: 'Invités', type: 'repeatingGroup', required: true,
+              subFields: [{ key: 'name', label: 'Nom', type: 'text' }],
+            },
+          ]}
           values={{}}
           onChange={() => undefined}
         />,
       );
 
       expect(screen.getByRole('group', { name: 'Présence Champ requis' })).toBeTruthy();
+      expect(screen.getByRole('group', { name: 'Invités Champ requis' })).toBeTruthy();
     });
 });

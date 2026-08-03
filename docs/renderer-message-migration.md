@@ -30,6 +30,7 @@ translation function and pass it to every renderer. Add catalog entries for:
 - the comma-separated-list hint;
 - the default add-entry action;
 - the required indicator;
+- the spoken required-field label (used for non-native controls such as boolean and repeating groups);
 - the remove-entry accessible name with `{fieldLabel}` and one-based
   `{entryNumber}` parameters;
 - Back and Next actions; and

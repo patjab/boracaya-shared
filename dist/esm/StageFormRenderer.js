@@ -26,7 +26,7 @@ const labelFor = (question, messages) => {
     return `${question.label} ${messages.requiredIndicator}`;
 };
 const requiredInputProps = (required) => (required ? { required: true, 'aria-required': true } : {});
-const booleanGroupLabelFor = (question, messages) => question.required
+const requiredGroupLabelFor = (question, messages) => question.required
     ? `${question.label} ${messages.requiredFieldLabel}`
     : question.label;
 const repeatingGroupInput = (f, value, onChange, messages) => {
@@ -37,7 +37,7 @@ const repeatingGroupInput = (f, value, onChange, messages) => {
     const subFields = (_a = f.subFields) !== null && _a !== void 0 ? _a : [];
     const max = (_b = f.maxEntries) !== null && _b !== void 0 ? _b : DEFAULT_MAX_ENTRIES;
     const setEntries = (next) => onChange(f.key, next);
-    return (_jsxs(Box, { sx: { mt: 2, mb: 1 }, children: [_jsx(Typography, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), _jsx(Stack, { spacing: 1.5, children: entries.map((entry, i) => (_jsxs(Box
+    return (_jsxs(Box, { role: "group", "aria-label": requiredGroupLabelFor(f, messages), sx: { mt: 2, mb: 1 }, children: [_jsx(Typography, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), _jsx(Stack, { spacing: 1.5, children: entries.map((entry, i) => (_jsxs(Box
                 // Positional keys are correct here: entries carry no
                 // identity, and remove rebuilds the array.
                 // eslint-disable-next-line react/no-array-index-key
@@ -59,7 +59,7 @@ const questionInput = (f, value, onChange, messages) => {
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton
             // styling (cdk#976).
-            return (_jsxs(Box, { sx: { mt: 2, mb: 1 }, children: [_jsx(Typography, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), _jsxs(ToggleButtonGroup, { exclusive: true, size: "small", "aria-label": booleanGroupLabelFor(f, messages), value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
+            return (_jsxs(Box, { sx: { mt: 2, mb: 1 }, children: [_jsx(Typography, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), _jsxs(ToggleButtonGroup, { exclusive: true, size: "small", "aria-label": requiredGroupLabelFor(f, messages), value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
                             onChange(f.key, v === 'yes'); }, sx: {
                             // MUI's default unselected secondary text can miss
                             // 4.5:1 by a few hundredths on generated palettes.
