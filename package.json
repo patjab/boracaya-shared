@@ -1,6 +1,6 @@
 {
   "name": "boracaya-shared",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "description": "Shared API constants, types, and hooks for PDA Boracay apps",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
@@ -97,22 +97,54 @@
   },
   "typesVersions": {
     "*": {
-      "api": ["dist/entries/api.d.ts"],
-      "bootstrap": ["dist/entries/bootstrap.d.ts"],
-      "browser": ["dist/entries/browser.d.ts"],
-      "client": ["dist/entries/client.d.ts"],
-      "domain": ["dist/entries/domain.d.ts"],
-      "forms": ["dist/entries/forms.d.ts"],
-      "hooks": ["dist/entries/hooks.d.ts"],
-      "identity": ["dist/entries/identity.d.ts"],
-      "node": ["dist/entries/node.d.ts"],
-      "ui": ["dist/entries/ui.d.ts"],
-      "dist/routes": ["dist/routes.d.ts"],
-      "dist/routes.js": ["dist/routes.d.ts"],
-      "dist/about": ["dist/about.d.ts"],
-      "dist/about.js": ["dist/about.d.ts"],
-      "dist/eventDate": ["dist/eventDate.d.ts"],
-      "dist/eventDate.js": ["dist/eventDate.d.ts"]
+      "api": [
+        "dist/entries/api.d.ts"
+      ],
+      "bootstrap": [
+        "dist/entries/bootstrap.d.ts"
+      ],
+      "browser": [
+        "dist/entries/browser.d.ts"
+      ],
+      "client": [
+        "dist/entries/client.d.ts"
+      ],
+      "domain": [
+        "dist/entries/domain.d.ts"
+      ],
+      "forms": [
+        "dist/entries/forms.d.ts"
+      ],
+      "hooks": [
+        "dist/entries/hooks.d.ts"
+      ],
+      "identity": [
+        "dist/entries/identity.d.ts"
+      ],
+      "node": [
+        "dist/entries/node.d.ts"
+      ],
+      "ui": [
+        "dist/entries/ui.d.ts"
+      ],
+      "dist/routes": [
+        "dist/routes.d.ts"
+      ],
+      "dist/routes.js": [
+        "dist/routes.d.ts"
+      ],
+      "dist/about": [
+        "dist/about.d.ts"
+      ],
+      "dist/about.js": [
+        "dist/about.d.ts"
+      ],
+      "dist/eventDate": [
+        "dist/eventDate.d.ts"
+      ],
+      "dist/eventDate.js": [
+        "dist/eventDate.d.ts"
+      ]
     }
   },
   "files": [

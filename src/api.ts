@@ -148,6 +148,9 @@ export const AdminEventApi = {
     template: (eventId: string, templateId: string) =>
         `${adminApi()}/events/${encodeURIComponent(eventId)}/templates/${encodeURIComponent(templateId)}`,
     emailTemplate: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/email-template`,
+    // Test-send (cdk#1422): the composer's "Send test to me" — POST the draft
+    // {templateSubject, templateHTML}; the server mails the CALLER only.
+    templatesTest: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/templates/test`,
     surveys: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/surveys`,
 } as const;
 
