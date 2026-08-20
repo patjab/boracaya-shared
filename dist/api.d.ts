@@ -50,6 +50,7 @@ export declare const AdminEventApi: {
     readonly templates: (eventId: string) => string;
     readonly template: (eventId: string, templateId: string) => string;
     readonly emailTemplate: (eventId: string) => string;
+    readonly templatesTest: (eventId: string) => string;
     readonly surveys: (eventId: string) => string;
 };
 /**

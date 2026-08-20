@@ -64,6 +64,10 @@ export const ApiRoutes = [
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/templates' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/templates/{templateId}' },
     { label: 'admin', method: 'POST', path: '/events/{eventId}/email-template' },
+    // Test-send (cdk#1422, the valet#512 decision): mail the DRAFT to the
+    // authenticated caller's own address only — no send record, sample values,
+    // [TEST]-marked subject.
+    { label: 'admin', method: 'POST', path: '/events/{eventId}/templates/test' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys' },
     { label: 'admin', method: 'GET', path: '/events' },
     // Account/registration lane (cdk#387, decision cdk#464): identity-level routes —
