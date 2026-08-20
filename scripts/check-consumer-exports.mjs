@@ -228,7 +228,7 @@ const expectedSubpaths = [
   './package.json',
   './ui',
 ];
-assert.equal(packageJson.version, '10.0.0');
+assert.equal(packageJson.version, '10.1.0');
 assert.equal(packageJson.sideEffects, false);
 assert.deepEqual(Object.keys(packageJson.exports).sort(), expectedSubpaths);
 assert(!Object.keys(packageJson.exports).some((key) => key.includes('*')), 'exports must stay explicit');
