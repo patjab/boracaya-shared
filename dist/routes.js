@@ -45,6 +45,10 @@ exports.ApiRoutes = [
     { label: 'admin', method: 'POST', path: '/invites/{inviteId}/decline' },
     { label: 'admin', method: 'POST', path: '/events/{eventId}/scramble' },
     { label: 'admin', method: 'PATCH', path: '/events/{eventId}/scramble/increment' },
+    // Bulk invite send (cdk#1448, decision valet#580): the server mails each
+    // eligible guest their personal invite link and bumps sentCount itself —
+    // Valet no longer copies one link at a time.
+    { label: 'admin', method: 'POST', path: '/events/{eventId}/scramble/send' },
     // Custom-stage definitions + responses (cdk#466/#513): the generic stages lane.
     { label: 'admin', method: 'POST', path: '/events/{eventId}/stages' },
     // Reorder only (cdk#1398). Takes the stage IDS in their new order, never

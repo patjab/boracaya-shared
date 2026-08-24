@@ -116,6 +116,10 @@ exports.AdminEventApi = {
     organizerInvite: (eventId, inviteId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/invites/${encodeURIComponent(inviteId)}`,
     scramble: (eventId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/scramble`,
     scrambleIncrement: (eventId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/scramble/increment`,
+    // Bulk invite send (cdk#1448, valet#580): POST {subject, message, userIds?} —
+    // the server renders {{firstName}}/{{lastName}}/{{link}} per guest, mails
+    // through SES and bumps sentCount on each delivered send.
+    scrambleSend: (eventId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/scramble/send`,
     // Custom-stage definitions + the responses grid (cdk#466/#513).
     stages: (eventId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages`,
     stage: (eventId, stageId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
