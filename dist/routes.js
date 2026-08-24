@@ -71,6 +71,8 @@ exports.ApiRoutes = [
     // authenticated caller's own address only — no send record, sample values,
     // [TEST]-marked subject.
     { label: 'admin', method: 'POST', path: '/events/{eventId}/templates/test' },
+    // LLM drafting relay (cdk#1439) — the composer's AI rail.
+    { label: 'admin', method: 'POST', path: '/events/{eventId}/draft-message' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys' },
     { label: 'admin', method: 'GET', path: '/events' },
     // Account/registration lane (cdk#387, decision cdk#464): identity-level routes —
