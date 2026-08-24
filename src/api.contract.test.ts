@@ -125,6 +125,7 @@ describe('AdminEventApi contract', () => {
         templates: '/events/e-1/templates',
         emailTemplate: '/events/e-1/email-template',
         templatesTest: '/events/e-1/templates/test',
+        draftMessage: '/events/e-1/draft-message',
         surveys: '/events/e-1/surveys',
     };
 

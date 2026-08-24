@@ -138,6 +138,10 @@ exports.AdminEventApi = {
     // Test-send (cdk#1422): the composer's "Send test to me" — POST the draft
     // {templateSubject, templateHTML}; the server mails the CALLER only.
     templatesTest: (eventId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/templates/test`,
+    // LLM drafting (cdk#1439): POST {instruction, history, regionHtml} — the
+    // server relays to the model; the composer inserts the draft through its
+    // own sanitizer (cdk#1437).
+    draftMessage: (eventId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/draft-message`,
     surveys: (eventId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/surveys`,
 };
 /**
