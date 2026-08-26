@@ -48,9 +48,13 @@ permissions:
 jobs:
   review:
     # issue_comment fires for every comment on every issue; only a `/codex`
-    # comment on a PR reaches the runner. Fork heads never do.
+    # comment on a PR, written by the owner or a collaborator, reaches the
+    # runner - anyone can comment on a public repo, and the runner must not be
+    # allocated (nor the App token minted) for a stranger's comment (Codex r1
+    # on #159). Fork heads never reach it on pull_request events; on a comment
+    # the head is unknown until the harness resolves the PR and refuses it.
     if: >-
-      (github.event_name != 'issue_comment' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '/codex')))
+      (github.event_name != 'issue_comment' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '/codex') && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)))
       && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, windows, codex]
     timeout-minutes: 45
