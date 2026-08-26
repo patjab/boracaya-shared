@@ -1,0 +1,53 @@
+name: codex-review
+
+# Codex reviews this repo's PRs from the desktop, unattended (cdk#1475): one
+# aimed round per push (`broad` first, then the sequence in
+# .github/codex-review.yml, `final` after it), `/codex [axis]` on the PR for a
+# round by hand, "Run workflow" with a PR number for the same. The round, the
+# guards (drafts skip, docs-only skip, round cap, one round at a time per PR,
+# fork heads refused) and the posting live in boracaya-ops; this file owns the
+# triggers. Reviews post as the Codex Reviewer App when this repo holds
+# CODEX_APP_ID + CODEX_APP_PRIVATE_KEY, else as github-actions[bot].
+# Manual: boracaya-ops docs/codex-review.md.
+#
+# This repo is PUBLIC and its CI gate stays hosted (cdk#1464). The review is
+# the one job that runs on the desktop (`wirel-desktop-shared`, label
+# `codex`; decision cdk#1480): it never checks out or executes fork code -
+# the `if` below refuses fork heads before a runner is involved, the reusable
+# workflow refuses them again, and `/codex` is honoured only from the owner
+# or a collaborator.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+      axis:
+        description: "broad | tests | coupling | chain | unexamined | final (empty = next in the sequence)"
+        default: ''
+
+# A called workflow cannot exceed these: the review and the findings ledger
+# comment are PR writes (the ledger goes through the issues endpoint).
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    # issue_comment fires for every comment on every issue; only a `/codex`
+    # comment on a PR reaches the runner. Fork heads never do.
+    if: >-
+      (github.event_name != 'issue_comment' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '/codex')))
+      && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    uses: patjab/boracaya-ops/.github/workflows/codex-review.yml@main
+    with:
+      pr: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
+      axis: ${{ inputs.axis || '' }}
+    secrets: inherit
