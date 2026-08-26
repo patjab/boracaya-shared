@@ -125,7 +125,15 @@ export type EventConfigureFields = Pick<AdminEventMetadata,
   'daysBeforeEventLastDayToBook' | 'theme' | 'blockHotelName' |
   'blockHotelArea' | 'extraAttendanceLabel' | 'hotelAreaOptions'>;
 
-export type EventPulseFields = Pick<AdminEventMetadata, 'pulse'>;
+/**
+ * The pulse lane's WRITE shape (boracaya-valet#599, decision valet#612,
+ * cdk#1458): an explicit `null` is the off switch — the server issues a
+ * DynamoDB REMOVE of `metadata.pulse`, so the key is ABSENT afterwards
+ * (what every reader already treats as "off"; a stored null never exists).
+ * The READ shape (`AdminEventMetadata.pulse`) stays `PulseConfig | undefined`.
+ * Idempotent: a second null is a no-op 200. `{}` is a SET, not the off switch.
+ */
+export type EventPulseFields = { pulse?: PulseConfig | null };
 export type EventAlbumsFields = Pick<AdminEventMetadata, 'albums'>;
 export type EventEmailSettingsFields = Pick<AdminEventMetadata,
   'notificationsEmail' | 'replyToEmail'>;
