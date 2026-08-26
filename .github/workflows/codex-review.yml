@@ -1,0 +1,144 @@
+name: codex-review
+
+# Codex reviews this repo's PRs from the desktop, unattended (cdk#1475): one
+# aimed round per push (`broad` first, then the sequence in
+# .github/codex-review.yml, `final` after it), `/codex [axis]` on the PR for a
+# round by hand, "Run workflow" with a PR number for the same. Dispositions go
+# in the finding's thread (reply + resolve); the next round carries them.
+# Manual: boracaya-ops docs/codex-review.md.
+#
+# THE PUBLIC-REPO EXCEPTION. The other four repos are ~25-line callers of the
+# reusable `codex-review` workflow in boracaya-ops. A public repository cannot
+# use a private repository's reusable workflows or actions - the first attempt
+# from here failed at parse time with "workflow was not found" (run
+# 33013019258) while the same reference worked from the private repos - so this
+# file carries the job itself and takes the harness from the boracaya-ops
+# clone on the desktop (`git archive` of `origin/main:review`, after a fetch;
+# nothing in the clone's working tree is touched). Same steps as the reusable
+# workflow, same composite action, same identity rule: the Codex Reviewer App
+# when CODEX_APP_ID + CODEX_APP_PRIVATE_KEY exist here, else GITHUB_TOKEN
+# (reviews then appear as github-actions[bot]; the summary says so).
+#
+# Public repo, desktop runner: the CI gate stays hosted (cdk#1464). This is the
+# one job that runs on the desktop (`wirel-desktop-shared`, label `codex`,
+# decision cdk#1480) and it never runs fork code - the job `if` refuses fork
+# heads before a runner is involved, the harness refuses them again, and
+# `/codex` is honoured only from the owner or a collaborator.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+      axis:
+        description: "broad | tests | coupling | chain | unexamined | final (empty = next in the sequence)"
+        default: ''
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    # issue_comment fires for every comment on every issue; only a `/codex`
+    # comment on a PR, written by the owner or a collaborator, reaches the
+    # runner - anyone can comment on a public repo, and the runner must not be
+    # allocated (nor the App token minted) for a stranger's comment (Codex r1
+    # on #159). Fork heads never reach it on pull_request events; on a comment
+    # the head is unknown until the harness resolves the PR and refuses it.
+    if: >-
+      (github.event_name != 'issue_comment' || (github.event.issue.pull_request && contains(fromJSON('["/codex","/codex broad","/codex tests","/codex coupling","/codex chain","/codex unexamined","/codex final"]'), github.event.comment.body) && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)))
+      && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, windows, codex]
+    timeout-minutes: 45
+    concurrency:
+      group: codex-${{ github.repository }}-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: powershell
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
+      CODEX_APP_ID: ${{ secrets.CODEX_APP_ID }}
+      # Where the desktop keeps boracaya-ops (bootstrap layout); override with a
+      # repository variable when the clone lives elsewhere.
+      OPS_CLONE: ${{ vars.BORACAYA_OPS_CLONE || '' }}
+    steps:
+      - name: Guard - Windows desktop runner
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "::error::codex-review: runner OS '${{ runner.os }}' is not the Windows desktop that holds the Codex login"
+          exit 1
+
+      - name: Codex Reviewer App token
+        id: app
+        if: env.CODEX_APP_ID != ''
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ secrets.CODEX_APP_ID }}
+          private-key: ${{ secrets.CODEX_APP_PRIVATE_KEY }}
+
+      - name: Identity
+        id: identity
+        env:
+          HAS_APP_TOKEN: ${{ steps.app.outputs.token != '' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:HAS_APP_TOKEN -eq 'true') {
+            $identity = 'app'
+            $line = 'codex-review: posting as the Codex Reviewer App'
+          } else {
+            $identity = 'github-token'
+            $line = 'codex-review: no CODEX_APP_ID secret in this repo - posting as github-actions[bot] (owner: create the Codex Reviewer App, see boracaya-ops docs/codex-review.md)'
+            Write-Output "::warning::$line"
+          }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "identity=$identity"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $line
+          Write-Output $line
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      # The harness, from boracaya-ops main via the desktop clone: fetch, then
+      # `git archive` review/ into a folder of this checkout so the composite
+      # action can be used as a local action (`uses: ./.ops-review`). The
+      # folder is untracked here and never committed (checkout cleans it).
+      - name: Fetch the review harness from boracaya-ops (desktop clone)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $clone = $env:OPS_CLONE
+          if (-not $clone) { $clone = Join-Path $env:USERPROFILE 'Desktop\boracaya\boracaya-ops' }
+          if (-not (Test-Path (Join-Path $clone '.git'))) { Write-Output "::error::codex-review: no boracaya-ops clone at $clone (set the BORACAYA_OPS_CLONE repository variable)"; exit 1 }
+          & git -C $clone fetch -q origin main
+          if ($LASTEXITCODE -ne 0) { Write-Output "::error::codex-review: git fetch of boracaya-ops failed in $clone"; exit 1 }
+          $sha = (& git -C $clone rev-parse origin/main).Trim()
+          $zip = Join-Path $env:RUNNER_TEMP 'ops-review.zip'
+          & git -C $clone archive --format=zip -o $zip origin/main review
+          if ($LASTEXITCODE -ne 0) { Write-Output '::error::codex-review: git archive of review/ failed'; exit 1 }
+          $dest = Join-Path $env:GITHUB_WORKSPACE '.ops-review'
+          if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+          New-Item -ItemType Directory -Path $dest | Out-Null
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          Move-Item -Path (Join-Path $dest 'review\*') -Destination $dest
+          Remove-Item -Recurse -Force (Join-Path $dest 'review')
+          Remove-Item -Force $zip
+          Write-Output "harness from boracaya-ops $sha"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "harness: boracaya-ops review/ at $sha"
+
+      - name: Codex round
+        id: round
+        uses: ./.ops-review
+        with:
+          pr: ${{ env.PR_NUMBER }}
+          token: ${{ steps.app.outputs.token || github.token }}
+          identity: ${{ steps.identity.outputs.identity }}
+          axis: ${{ inputs.axis || '' }}
