@@ -1,8 +1,17 @@
 name: CI
 
+# boracaya-shared is PUBLIC, so this gate stays on GitHub-hosted runners: the
+# minutes are free on a public repo, and a self-hosted runner here would run
+# fork code on the desktop. It therefore does not call boracaya-ops's
+# reusable `pr-gate` (private, Windows-shaped) - it only applies the same
+# policy (cdk#1464): drafts skip the gate, `ready_for_review` fires it once,
+# and the Node pin is read from .node-version (a copy of versions.yml's
+# `node` in boracaya-ops; a public workflow cannot read the private file).
+
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 # Cancel superseded PR runs: a rapid re-push shouldn't run stale CI to completion.
 concurrency:
@@ -14,12 +23,13 @@ permissions:
 
 jobs:
   ci:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version-file: .node-version
           cache: npm
       - run: npm ci
       - run: npm run build
