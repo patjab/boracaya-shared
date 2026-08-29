@@ -81,6 +81,22 @@ describe('the e2e bootstrap seam', () => {
     expect(m.authHeaders()).toEqual({});
   });
 
+  // Codex r2 on shared#161. The credential must never be held while a copy of
+  // it is still at rest — adopting first meant a throwing removeItem left BOTH,
+  // which is precisely what this change exists to prevent. Failing to delete
+  // therefore fails to authenticate, and the app renders its LoginPanel.
+  it('does not adopt a seed it could not delete', async () => {
+    sessionStorage.setItem(ID_TOKEN_KEY, jwt({ exp: future() }));
+    const spy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError');
+    });
+    const m = await freshModule();
+    spy.mockRestore();
+
+    expect(m.getIdToken()).toBeNull();
+    expect(m.authHeaders()).toEqual({});
+  });
+
   it('survives storage that throws outright (private mode, blocked site data)', async () => {
     const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('denied', 'SecurityError');

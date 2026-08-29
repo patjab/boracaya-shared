@@ -30,8 +30,14 @@ const adoptSeededToken = () => {
     try {
         const seeded = sessionStorage.getItem(ID_TOKEN_KEY);
         if (seeded) {
-            idToken = seeded;
+            // Delete BEFORE adopting, so the token is never held while a copy of it
+            // is still at rest (Codex r2 on shared#161). Adopting first meant a
+            // throwing removeItem left both — the credential live in memory AND the
+            // original sitting in sessionStorage, which is the exact thing this
+            // change exists to prevent. Failing to delete now means failing to
+            // authenticate, which is the safe direction: the app renders LoginPanel.
             sessionStorage.removeItem(ID_TOKEN_KEY);
+            idToken = seeded;
         }
     }
     catch (_a) {
