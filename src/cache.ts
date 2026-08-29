@@ -304,6 +304,15 @@ export function createCachedLoad<T>(opts: CachedLoadOptions<T>): CachedLoadHandl
         // fresh generation. `retries` bounds it, because the alternative under
         // pathological churn is a loop, and one honest re-read is worth more
         // than a guarantee bought with an unbounded one.
+        //
+        // Guarded like every other write on this path, and it needs the guard
+        // MORE than they do (Codex r4): a `run()` is not a state write it can
+        // drop — it bumps runSeq and aborts whatever is in flight. A loader
+        // that ignores its signal, which is the very case these abort checks
+        // exist for, would otherwise let a dead run cancel the live one and
+        // replace its result. A superseded run has no standing to do anything;
+        // the run that overtook it owns this key now.
+        if (disposed || signal.aborted || seq !== runSeq) return;
         if (retries > 0) {
           run(retries - 1);
           return;

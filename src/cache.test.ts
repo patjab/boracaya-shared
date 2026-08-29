@@ -432,6 +432,28 @@ describe('createCachedLoad — a write supersedes a read captured before it', ()
     expect(seen.map((s) => s.data)).not.toContain('the stale body');
   });
 
+  it('an obsolete run may not launch the retry and cancel the current one', async () => {
+    // Codex r4. Every state write here goes through `guardedSet`, which drops
+    // anything from a superseded run — but the retry is a fresh `run()`, and
+    // that bumps runSeq and aborts whatever is in flight. A loader that
+    // ignores its signal (the case the abort checks exist for) could therefore
+    // let a dead run cancel the live one and replace its result.
+    const { set } = states<string>();
+    const { load, calls } = deferredLoad<string>();
+    const handle = createCachedLoad({ key: 'k', load, set, errorMessage: 'failed' });
+    handle.run();
+
+    writeCache('k', 'the write');   // supersedes the in-flight read
+    handle.reload();                // invalidates (so the entry is gone) and starts run B
+
+    calls[0].resolve('the dead run’s body');
+    await flush();
+
+    // Two loads: the original and the reload. A third would be the dead run
+    // retrying — and it would have aborted the live one to do it.
+    expect(calls).toHaveLength(2);
+  });
+
   it('one consumer’s fetch does not veto another consumer’s read of the same key', async () => {
     // Why a fetch commits through `store` and not `writeCache`: if a fetched
     // body counted as a local write, the FIRST revalidation to settle would
