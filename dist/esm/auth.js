@@ -4,8 +4,8 @@
 // send it on gated API calls and the API authorizer verifies it (Google JWKS, aud =
 // our client) against the RSVP guest list. One Google OAuth Web client serves test
 // and prod (its Authorized JavaScript origins list every app origin). Google-only —
-// no email OTP. Token lives in sessionStorage and is attached by useApi.
-import { ID_TOKEN_KEY } from './authToken.js';
+// no email OTP. Token is held in module scope (authToken.ts) and attached by useApi.
+import { setIdToken, clearIdToken } from './authToken.js';
 export { authHeaders, getEmail, getIdToken } from './authToken.js';
 const CLIENT_ID = '129809912902-gudslqiduqd2opdk7n1rat829msgtias.apps.googleusercontent.com';
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
@@ -34,10 +34,18 @@ export function initAuth(_app) {
     }).then(() => {
         gsi().initialize({
             client_id: CLIENT_ID,
-            auto_select: false,
+            // TRUE since valet#640 moved the token out of sessionStorage. Nothing
+            // now carries a session across a page load, so with auto-select off the
+            // organizer would re-click "Continue with Google" on every refresh, tab
+            // restore and deploy reload. Auto-select re-issues silently when there is
+            // one active Google session and prior consent; anything else (several
+            // accounts, or a previous signOut, which calls disableAutoSelect) falls
+            // through to the existing LoginPanel, so the failure mode is the screen
+            // the app already renders rather than an error.
+            auto_select: true,
             callback: (r) => {
                 if (r.credential) {
-                    sessionStorage.setItem(ID_TOKEN_KEY, r.credential);
+                    setIdToken(r.credential);
                     window.dispatchEvent(new Event('pdab-auth-change'));
                 }
             },
@@ -67,7 +75,7 @@ export function renderGoogleSignInButton(element, text = 'continue_with') {
 // ---- sign out ------------------------------------------------------------
 export function signOut() {
     var _a;
-    sessionStorage.removeItem(ID_TOKEN_KEY);
+    clearIdToken();
     try {
         (_a = gsi()) === null || _a === void 0 ? void 0 : _a.disableAutoSelect();
     }
