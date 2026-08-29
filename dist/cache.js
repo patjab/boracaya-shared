@@ -147,19 +147,15 @@ function createCachedLoad(opts) {
             // A loader that ignores the signal can still settle after an abort — it
             // must not repopulate the cache, or a late response would silently undo
             // a write's invalidation.
-            if (own.signal.aborted)
-                return { value, superseded: false };
-            if (writeSeq(key) !== writesAtIssue) {
-                // Overtaken. Drop the body without touching the entry: the write that
-                // overtook it is already there, and it is the newer truth.
-                return { value, superseded: true };
-            }
-            store(key, value);
-            return { value, superseded: false };
+            // Overtaken? Drop the body without touching the entry: the write that
+            // overtook it is already there, and it is the newer truth.
+            if (!own.signal.aborted && writeSeq(key) === writesAtIssue)
+                store(key, value);
+            return value;
         })();
-        return { signal: own.signal, promise };
+        return { signal: own.signal, writesAtIssue, promise };
     };
-    const run = () => {
+    const run = (retries = 1) => {
         if (disposed)
             return;
         runSeq += 1;
@@ -175,17 +171,34 @@ function createCachedLoad(opts) {
             guardedSet({ data: hit.value, isLoading: false, error: null });
             if (hit.isFresh)
                 return;
-            const { signal, promise } = startFetch();
-            void promise.then(({ value, superseded }) => {
-                // A superseded body must not reach the screen either. Publish the
-                // ENTRY instead of the body: the write that overtook this read is
-                // in there and is the newer truth. Its own author has usually
-                // already set the same value locally, so this is normally a no-op —
-                // but it is what makes the invariant hold on every path, including
-                // a second consumer of this key that did no write of its own and
-                // would otherwise sit on the pre-write value until its next run.
-                const hitAfter = superseded ? readCache(key, Infinity) : undefined;
-                guardedSet({ data: hitAfter ? hitAfter.value : value, isLoading: false, error: null });
+            const { signal, writesAtIssue, promise } = startFetch();
+            void promise.then((value) => {
+                // Re-checked HERE, not only where the body was stored. Those are two
+                // different microtasks — the store happens in the continuation of
+                // `await load(...)`, this handler runs a tick later — and a write
+                // queued in that gap updates the entry and its own author's screen
+                // first. Publishing a verdict computed before it would roll the
+                // screen back to the pre-write body while the cache stayed correct,
+                // which is the exact symptom this module exists to prevent (Codex r1
+                // on shared#160).
+                if (writeSeq(key) === writesAtIssue) {
+                    guardedSet({ data: value, isLoading: false, error: null });
+                    return;
+                }
+                // Superseded. Publish the ENTRY — the write that overtook this read
+                // is in there and is the newer truth. Usually a no-op, since its
+                // author set the same value locally; it matters for a SECOND
+                // consumer of this key, which did no write of its own and would
+                // otherwise sit on the pre-write value until its next run.
+                //
+                // If the entry is gone (evicted at MAX_CACHE_ENTRIES while this was
+                // in the air) there is nothing newer to show — but this screen
+                // already has data, because a stale hit served it before the
+                // revalidation started. Leave it alone rather than publish a body
+                // the generation check has proved obsolete.
+                const hitAfter = readCache(key, Infinity);
+                if (hitAfter)
+                    guardedSet({ data: hitAfter.value, isLoading: false, error: null });
             }, (e) => {
                 // A failed revalidation keeps serving the stale value rather than
                 // blanking a screen that already has data; an ABORTED one (a newer
@@ -202,14 +215,32 @@ function createCachedLoad(opts) {
         // no state write (the writes are already sequence-guarded; this consults
         // the request's own captured signal, per the revalidation path).
         guardedSet({ data: null, isLoading: true, error: null });
-        const { signal, promise } = startFetch();
-        void promise.then(({ value, superseded }) => {
-            // On a cold miss there is nothing on screen yet, so refusing outright
-            // would strand the spinner. The write that overtook this read is the
-            // newer truth AND is already in the entry, so publish that instead —
-            // the loading state always clears, and the write is never lost.
-            const hitAfter = superseded ? readCache(key, Infinity) : undefined;
-            guardedSet({ data: hitAfter ? hitAfter.value : value, isLoading: false, error: null });
+        const { signal, writesAtIssue, promise } = startFetch();
+        void promise.then((value) => {
+            // Same recheck as the revalidation path, for the same microtask-gap
+            // reason — and here the screen has nothing yet, so the loading state
+            // must still clear on every branch.
+            if (writeSeq(key) === writesAtIssue) {
+                guardedSet({ data: value, isLoading: false, error: null });
+                return;
+            }
+            const hitAfter = readCache(key, Infinity);
+            if (hitAfter) {
+                // The write that overtook this read is the newer truth.
+                guardedSet({ data: hitAfter.value, isLoading: false, error: null });
+                return;
+            }
+            // Superseded AND its replacement has been evicted, so nothing on hand
+            // is both current and true — and a cold load cannot simply stop, or
+            // the spinner never clears. Read again: a fresh request carries a
+            // fresh generation. `retries` bounds it, because the alternative under
+            // pathological churn is a loop, and one honest re-read is worth more
+            // than a guarantee bought with an unbounded one.
+            if (retries > 0) {
+                run(retries - 1);
+                return;
+            }
+            guardedSet({ data: null, isLoading: false, error: errorMessage });
         }, (e) => {
             if (signal.aborted)
                 return;
@@ -218,7 +249,7 @@ function createCachedLoad(opts) {
         });
     };
     return {
-        run,
+        run: () => run(),
         reload() {
             invalidateCache(key);
             run();

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  MAX_CACHE_ENTRIES,
   DEFAULT_CACHE_TTL_MS,
   MAX_CACHE_ENTRIES,
   createCachedLoad,
@@ -385,6 +386,49 @@ describe('createCachedLoad — a write supersedes a read captured before it', ()
     await flush();
     expect(seen.at(-1)?.data).toBe('fetched');
   });
+  it('re-checks at PUBLICATION, not just at classification', async () => {
+    // Codex r1 on shared#160. Classification happens in the continuation of
+    // `await load(...)`; the `.then` that publishes runs one microtask later.
+    // A write queued in that gap updates the entry and the writer's own screen
+    // first, and the handler — holding a verdict computed before it — would
+    // then publish the older body over the top. The cache stays right and the
+    // SCREEN is rolled back, which is the exact symptom this module is here to
+    // prevent.
+    writeCache('e1/roster', { sent: 0 });
+    advance(DEFAULT_CACHE_TTL_MS + 1);
+    const { seen, set } = states<{ sent: number }>();
+    const { load, calls } = deferredLoad<{ sent: number }>();
+    createCachedLoad({ key: 'e1/roster', load, set, errorMessage: 'failed' }).run();
+    await flush();
+
+    calls[0].resolve({ sent: 0 });
+    await Promise.resolve(); // the classification microtask, and only that one
+    writeCache('e1/roster', { sent: 1 }); // lands in the gap
+    await flush();
+
+    expect(seen.at(-1)?.data).toEqual({ sent: 1 });
+    expect(readCache('e1/roster')?.value).toEqual({ sent: 1 });
+  });
+
+  it('never falls back to a superseded body when its replacement was evicted', async () => {
+    // The entry that overtook this read is not guaranteed to outlive it: the
+    // cache evicts at MAX_CACHE_ENTRIES. A body the generation check has
+    // already proved obsolete must not reach the screen just because the
+    // newer value is no longer there to publish instead.
+    const { seen, set } = states<string>();
+    const { load, calls } = deferredLoad<string>();
+    createCachedLoad({ key: 'e1/roster', load, set, errorMessage: 'failed' }).run();
+
+    writeCache('e1/roster', 'the write');
+    for (let i = 0; i < MAX_CACHE_ENTRIES; i += 1) writeCache(`filler/${i}`, i);
+    expect(readCache('e1/roster')).toBeUndefined();
+
+    calls[0].resolve('the stale body');
+    await flush();
+
+    expect(seen.map((s) => s.data)).not.toContain('the stale body');
+  });
+
   it('one consumer’s fetch does not veto another consumer’s read of the same key', async () => {
     // Why a fetch commits through `store` and not `writeCache`: if a fetched
     // body counted as a local write, the FIRST revalidation to settle would
