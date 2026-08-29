@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  MAX_CACHE_ENTRIES,
   DEFAULT_CACHE_TTL_MS,
   MAX_CACHE_ENTRIES,
   createCachedLoad,
