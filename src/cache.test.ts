@@ -310,3 +310,175 @@ describe('createCachedLoad', () => {
     expect(seen.at(-1)).toEqual({ data: 'fetched', isLoading: false, error: null });
   });
 });
+
+/**
+ * THE STALE-COMMIT CLASS (valet#465, valet#466).
+ *
+ * A revalidation whose GET was captured BEFORE a local write settles AFTER
+ * it, and the commit is unconditional — so the pre-write body lands in both
+ * the cache entry and screen state, at full freshness. The organizer sees
+ * their action undone with nothing in flight to correct it, and a tab bounce
+ * repaints the wrong value with no fetch.
+ *
+ * Three consumer-side guards were built and withdrawn in valet#464 before it
+ * was established the class cannot be closed above this module: this is the
+ * only place that owns BOTH the cache write and the state publish.
+ */
+describe('createCachedLoad — a write supersedes a read captured before it', () => {
+  it('drops a revalidation body that a local write has overtaken', async () => {
+    writeCache('e1/roster', { sent: 0 });
+    advance(DEFAULT_CACHE_TTL_MS + 1);
+    const { seen, set } = states<{ sent: number }>();
+    const { load, calls } = deferredLoad<{ sent: number }>();
+    createCachedLoad({ key: 'e1/roster', load, set, errorMessage: 'failed' }).run();
+    await flush();
+
+    // The organizer copies an invite: the bump is written through the entry
+    // while the revalidation above is still in the air.
+    writeCache('e1/roster', { sent: 1 });
+    // …and the pre-bump body settles last.
+    calls[0].resolve({ sent: 0 });
+    await flush();
+
+    expect(readCache('e1/roster')?.value).toEqual({ sent: 1 });
+    expect(seen.at(-1)?.data).toEqual({ sent: 1 });
+  });
+
+  it('still commits a revalidation body when nothing was written under it', async () => {
+    writeCache('e1/roster', { sent: 0 });
+    advance(DEFAULT_CACHE_TTL_MS + 1);
+    const { seen, set } = states<{ sent: number }>();
+    const { load, calls } = deferredLoad<{ sent: number }>();
+    createCachedLoad({ key: 'e1/roster', load, set, errorMessage: 'failed' }).run();
+    await flush();
+
+    calls[0].resolve({ sent: 7 });
+    await flush();
+
+    expect(readCache('e1/roster')?.value).toEqual({ sent: 7 });
+    expect(seen.at(-1)?.data).toEqual({ sent: 7 });
+  });
+
+  it('publishes the write rather than stranding a cold load on its spinner', async () => {
+    // The same race with no cached value behind it. Refusing the body must not
+    // leave the screen loading for ever — the write IS the newer truth, so it
+    // is what gets published.
+    const { seen, set } = states<{ sent: number }>();
+    const { load, calls } = deferredLoad<{ sent: number }>();
+    createCachedLoad({ key: 'e1/roster', load, set, errorMessage: 'failed' }).run();
+    expect(seen[0]).toEqual({ data: null, isLoading: true, error: null });
+
+    writeCache('e1/roster', { sent: 1 });
+    calls[0].resolve({ sent: 0 });
+    await flush();
+
+    expect(seen.at(-1)).toEqual({ data: { sent: 1 }, isLoading: false, error: null });
+    expect(readCache('e1/roster')?.value).toEqual({ sent: 1 });
+  });
+
+  it('a write under one key does not veto another key’s read', async () => {
+    const { seen, set } = states<string>();
+    const { load, calls } = deferredLoad<string>();
+    createCachedLoad({ key: 'e1/guests', load, set, errorMessage: 'failed' }).run();
+    writeCache('e1/roster', 'unrelated');
+    calls[0].resolve('fetched');
+    await flush();
+    expect(seen.at(-1)?.data).toBe('fetched');
+    // Storage as well as publication (Codex r2): a generation that was global
+    // rather than per-key would skip the store while a fallback still made the
+    // published assertion pass. Both halves of the commit are pinned.
+    expect(readCache('e1/guests')?.value).toBe('fetched');
+  });
+  it('re-checks at PUBLICATION, not just at classification', async () => {
+    // Codex r1 on shared#160. Classification happens in the continuation of
+    // `await load(...)`; the `.then` that publishes runs one microtask later.
+    // A write queued in that gap updates the entry and the writer's own screen
+    // first, and the handler — holding a verdict computed before it — would
+    // then publish the older body over the top. The cache stays right and the
+    // SCREEN is rolled back, which is the exact symptom this module is here to
+    // prevent.
+    writeCache('e1/roster', { sent: 0 });
+    advance(DEFAULT_CACHE_TTL_MS + 1);
+    const { seen, set } = states<{ sent: number }>();
+    const { load, calls } = deferredLoad<{ sent: number }>();
+    createCachedLoad({ key: 'e1/roster', load, set, errorMessage: 'failed' }).run();
+    await flush();
+
+    calls[0].resolve({ sent: 0 });
+    await Promise.resolve(); // the classification microtask, and only that one
+    writeCache('e1/roster', { sent: 1 }); // lands in the gap
+    await flush();
+
+    expect(seen.at(-1)?.data).toEqual({ sent: 1 });
+    expect(readCache('e1/roster')?.value).toEqual({ sent: 1 });
+  });
+
+  it('never falls back to a superseded body when its replacement was evicted', async () => {
+    // The entry that overtook this read is not guaranteed to outlive it: the
+    // cache evicts at MAX_CACHE_ENTRIES. A body the generation check has
+    // already proved obsolete must not reach the screen just because the
+    // newer value is no longer there to publish instead.
+    const { seen, set } = states<string>();
+    const { load, calls } = deferredLoad<string>();
+    createCachedLoad({ key: 'e1/roster', load, set, errorMessage: 'failed' }).run();
+
+    writeCache('e1/roster', 'the write');
+    for (let i = 0; i < MAX_CACHE_ENTRIES; i += 1) writeCache(`filler/${i}`, i);
+    expect(readCache('e1/roster')).toBeUndefined();
+
+    calls[0].resolve('the stale body');
+    await flush();
+
+    expect(seen.map((s) => s.data)).not.toContain('the stale body');
+  });
+
+  it('an obsolete run may not launch the retry and cancel the current one', async () => {
+    // Codex r4. Every state write here goes through `guardedSet`, which drops
+    // anything from a superseded run — but the retry is a fresh `run()`, and
+    // that bumps runSeq and aborts whatever is in flight. A loader that
+    // ignores its signal (the case the abort checks exist for) could therefore
+    // let a dead run cancel the live one and replace its result.
+    const { set } = states<string>();
+    const { load, calls } = deferredLoad<string>();
+    const handle = createCachedLoad({ key: 'k', load, set, errorMessage: 'failed' });
+    handle.run();
+
+    writeCache('k', 'the write');   // supersedes the in-flight read
+    handle.reload();                // invalidates (so the entry is gone) and starts run B
+
+    calls[0].resolve('the dead run’s body');
+    await flush();
+
+    // Two loads: the original and the reload. A third would be the dead run
+    // retrying — and it would have aborted the live one to do it.
+    expect(calls).toHaveLength(2);
+  });
+
+  it('one consumer’s fetch does not veto another consumer’s read of the same key', async () => {
+    // Why a fetch commits through `store` and not `writeCache`: if a fetched
+    // body counted as a local write, the FIRST revalidation to settle would
+    // veto every other in-flight read of the key. Issue order is not settle
+    // order, so that veto would be arbitrary — it would drop bodies that are
+    // newer than the one that won.
+    const a = states<string>();
+    const b = states<string>();
+    const first = deferredLoad<string>();
+    const second = deferredLoad<string>();
+    createCachedLoad({ key: 'e1/shared', load: first.load, set: a.set, errorMessage: 'failed' }).run();
+    createCachedLoad({ key: 'e1/shared', load: second.load, set: b.set, errorMessage: 'failed' }).run();
+
+    // SECOND-ISSUED SETTLES FIRST, on purpose (Codex r2): resolving in issue
+    // order cannot tell last-settled-wins from last-issued-wins, so the
+    // assertion would hold under either and prove neither.
+    second.calls[0].resolve('from B');
+    await flush();
+    first.calls[0].resolve('from A');
+    await flush();
+
+    // Neither body is a stale read — nothing was WRITTEN under either — so
+    // both commit, and the one that SETTLED last is what stands.
+    expect(a.seen.at(-1)?.data).toBe('from A');
+    expect(b.seen.at(-1)?.data).toBe('from B');
+    expect(readCache('e1/shared')?.value).toBe('from A');
+  });
+});
