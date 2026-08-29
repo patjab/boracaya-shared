@@ -10,7 +10,7 @@ exports.signOut = signOut;
 // send it on gated API calls and the API authorizer verifies it (Google JWKS, aud =
 // our client) against the RSVP guest list. One Google OAuth Web client serves test
 // and prod (its Authorized JavaScript origins list every app origin). Google-only —
-// no email OTP. Token lives in sessionStorage and is attached by useApi.
+// no email OTP. Token is held in module scope (authToken.ts) and attached by useApi.
 const authToken_1 = require("./authToken");
 var authToken_2 = require("./authToken");
 Object.defineProperty(exports, "authHeaders", { enumerable: true, get: function () { return authToken_2.authHeaders; } });
@@ -43,10 +43,29 @@ function initAuth(_app) {
     }).then(() => {
         gsi().initialize({
             client_id: CLIENT_ID,
-            auto_select: false,
+            // TRUE since valet#640 moved the token out of sessionStorage: nothing
+            // carries a session across a page load any more, so without automatic
+            // selection the organizer re-clicks "Continue with Google" on every
+            // refresh, tab restore and deploy reload.
+            //
+            // NECESSARY BUT NOT SUFFICIENT, and the distinction cost a review round
+            // (Codex r3 on shared#161). `auto_select` governs what happens when a One
+            // Tap prompt RUNS; `initialize()` does not start one. Setting it here and
+            // stopping would configure automatic selection for a prompt nothing ever
+            // fires — the option would read as delivering silent re-auth while
+            // changing nothing at all.
+            //
+            // Starting the prompt is the CONSUMER's call, deliberately: it puts
+            // visible UI on the page, and this GIS client is shared across apps, so
+            // one app opting in must not decide for the rest. boracaya-valet does it
+            // on load when unauthenticated, with a fallback to the rendered button —
+            // still needed, since One Tap can be suppressed by a post-dismissal
+            // cooldown or by third-party-cookie restrictions. An app that never
+            // prompts simply gets the button, exactly as before.
+            auto_select: true,
             callback: (r) => {
                 if (r.credential) {
-                    sessionStorage.setItem(authToken_1.ID_TOKEN_KEY, r.credential);
+                    (0, authToken_1.setIdToken)(r.credential);
                     window.dispatchEvent(new Event('pdab-auth-change'));
                 }
             },
@@ -76,7 +95,7 @@ function renderGoogleSignInButton(element, text = 'continue_with') {
 // ---- sign out ------------------------------------------------------------
 function signOut() {
     var _a;
-    sessionStorage.removeItem(authToken_1.ID_TOKEN_KEY);
+    (0, authToken_1.clearIdToken)();
     try {
         (_a = gsi()) === null || _a === void 0 ? void 0 : _a.disableAutoSelect();
     }

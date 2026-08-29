@@ -22,7 +22,8 @@ interface StubScript {
 interface Harness {
   initAuth: (app?: 'checkin' | 'admin') => Promise<void>;
   scripts: StubScript[];
-  win: { google?: { accounts?: { id?: { initialize: (cfg: unknown) => void } } } };
+  win: { google?: { accounts?: { id?: { initialize: (cfg: unknown) => void } } }; dispatchEvent?: (e: Event) => boolean };
+  events: string[];
 }
 
 /** Fresh import with stubbed window/document; returns handles to the stub scripts. */
@@ -30,6 +31,11 @@ const load = async (): Promise<Harness> => {
   vi.resetModules();
   const scripts: StubScript[] = [];
   const win: Harness['win'] = {};
+  // The GIS callback dispatches `pdab-auth-change` on window — that event is how
+  // the console learns to re-probe. Recording it keeps the stub faithful to the
+  // code under test AND makes the notification assertable.
+  const events: string[] = [];
+  win.dispatchEvent = (e: Event) => { events.push(e.type); return true; };
   vi.stubGlobal('window', win);
   vi.stubGlobal('document', {
     createElement: () => {
@@ -40,11 +46,17 @@ const load = async (): Promise<Harness> => {
     head: { appendChild: () => undefined },
   });
   const mod = await import('./auth');
-  return { initAuth: mod.initAuth, scripts, win };
+  return { initAuth: mod.initAuth, scripts, win, events };
 };
 
 const gsiOk = (win: Harness['win'], initialize: (cfg: unknown) => void = () => undefined) => {
   win.google = { accounts: { id: { initialize } } };
+};
+
+/** A JWT whose exp is an hour out, so getIdToken treats it as live. */
+const liveJwt = (): string => {
+  const claims = JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 });
+  return `h.${btoa(claims).replace(/\+/g, '-').replace(/\//g, '_')}.s`;
 };
 
 afterEach(() => vi.unstubAllGlobals());
@@ -105,6 +117,67 @@ describe('initAuth (cdk#1278)', () => {
     await p2;
     expect(initAuth()).toBe(p2);
     expect(scripts).toHaveLength(2);
+  });
+
+  // valet#640: the token no longer lives in sessionStorage, so NOTHING carries a
+  // session across a page load, and automatic selection is what stops that
+  // becoming a "Continue with Google" click on every refresh.
+  //
+  // This asserts the CONFIGURATION and nothing more — Codex called it an
+  // implementation echo in r2 and was right, then proved it in r3 by finding
+  // that the option alone does nothing without a One Tap prompt, which this
+  // package deliberately leaves to its consumers. Kept because the value is
+  // precisely what a future edit would flip, but it is not evidence that silent
+  // re-authentication works; the test that could show that lives with whoever
+  // calls prompt().
+  it('initializes GIS with auto_select ON, so a refresh can re-auth silently', async () => {
+    const { initAuth, scripts, win } = await load();
+    const seen: Array<Record<string, unknown>> = [];
+    const p = initAuth();
+    gsiOk(win, (cfg) => { seen.push(cfg as Record<string, unknown>); });
+    scripts[0].onload!();
+    await p;
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].auto_select).toBe(true);
+    expect(typeof seen[0].client_id).toBe('string');
+  });
+
+  // Codex r2 on shared#161, both of these. The suite proved setIdToken and
+  // clearIdToken in ISOLATION and proved initAuth's GIS config, but nothing
+  // joined them up: deleting `setIdToken(r.credential)` from the callback, or
+  // `clearIdToken()` from signOut, left all 16 tests green while the app was
+  // respectively never signed in and never signed out. These drive the public
+  // outcome — getIdToken / authHeaders — through the real lifecycle.
+  const signIn = async (credential: string) => {
+    const { initAuth, scripts, win, events } = await load();
+    let callback: (r: { credential?: string }) => void = () => undefined;
+    const p = initAuth();
+    gsiOk(win, (cfg) => { callback = (cfg as { callback: typeof callback }).callback; });
+    scripts[0].onload!();
+    await p;
+    callback({ credential });
+    return { mod: await import('./auth'), events };
+  };
+
+  it('a GIS credential reaches the token holder, not just the auth-change event', async () => {
+    const token = liveJwt();
+    const { mod, events } = await signIn(token);
+
+    expect(mod.getIdToken()).toBe(token);
+    expect(mod.authHeaders()).toEqual({ Authorization: `Bearer ${token}` });
+    // Both halves, since the event alone was what the old suite could see.
+    expect(events).toEqual(['pdab-auth-change']);
+  });
+
+  it('signOut invalidates the held token, not only the GIS auto-select state', async () => {
+    const { mod } = await signIn(liveJwt());
+    expect(mod.getIdToken()).not.toBeNull();
+
+    mod.signOut();
+
+    expect(mod.getIdToken()).toBeNull();
+    expect(mod.authHeaders()).toEqual({});
   });
 
   it('resolves immediately without a window (SSR guard)', async () => {
