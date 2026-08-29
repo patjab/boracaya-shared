@@ -385,6 +385,10 @@ describe('createCachedLoad — a write supersedes a read captured before it', ()
     calls[0].resolve('fetched');
     await flush();
     expect(seen.at(-1)?.data).toBe('fetched');
+    // Storage as well as publication (Codex r2): a generation that was global
+    // rather than per-key would skip the store while a fallback still made the
+    // published assertion pass. Both halves of the commit are pinned.
+    expect(readCache('e1/guests')?.value).toBe('fetched');
   });
   it('re-checks at PUBLICATION, not just at classification', async () => {
     // Codex r1 on shared#160. Classification happens in the continuation of
@@ -442,14 +446,18 @@ describe('createCachedLoad — a write supersedes a read captured before it', ()
     createCachedLoad({ key: 'e1/shared', load: first.load, set: a.set, errorMessage: 'failed' }).run();
     createCachedLoad({ key: 'e1/shared', load: second.load, set: b.set, errorMessage: 'failed' }).run();
 
-    first.calls[0].resolve('from A');
-    await flush();
+    // SECOND-ISSUED SETTLES FIRST, on purpose (Codex r2): resolving in issue
+    // order cannot tell last-settled-wins from last-issued-wins, so the
+    // assertion would hold under either and prove neither.
     second.calls[0].resolve('from B');
     await flush();
+    first.calls[0].resolve('from A');
+    await flush();
 
-    // B's body is not a stale read — nothing was WRITTEN under it — so it
-    // commits, and last-settled wins as it always has.
+    // Neither body is a stale read — nothing was WRITTEN under either — so
+    // both commit, and the one that SETTLED last is what stands.
+    expect(a.seen.at(-1)?.data).toBe('from A');
     expect(b.seen.at(-1)?.data).toBe('from B');
-    expect(readCache('e1/shared')?.value).toBe('from B');
+    expect(readCache('e1/shared')?.value).toBe('from A');
   });
 });
