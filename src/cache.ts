@@ -34,6 +34,27 @@ interface CacheEntry {
 const entries = new Map<string, CacheEntry>();
 
 /**
+ * Completed LOCAL writes per key — the seam that lets a read know it has been
+ * overtaken (valet#465, valet#466).
+ *
+ * A read captured before a write and settling after it carries a document the
+ * write has already superseded. Nothing in an AbortSignal says so: the request
+ * was never cancelled, it is simply answering a question that is now out of
+ * date. Committing it puts the pre-write body in the entry at FULL freshness
+ * and publishes it to the screen, so the organizer watches their own action
+ * undone with nothing in flight to correct it.
+ *
+ * Only `writeCache` bumps this, and `writeCache` is the write-through callers
+ * use after a persisted mutation. A fetch commits through `commitFetched`,
+ * which does NOT bump — otherwise one consumer's revalidation would veto
+ * another's concurrent read of the same key, and issue order is not settle
+ * order, so the veto would be arbitrary.
+ */
+const localWrites = new Map<string, number>();
+
+const writeSeq = (key: string): number => localWrites.get(key) ?? 0;
+
+/**
  * Eviction cap. The cache is a screen-bounce accelerator, not a datastore: an
  * admin session touches tens of eventId+resource keys, so 200 sits far above
  * any real working set while bounding memory when a long-lived session churns
@@ -66,6 +87,16 @@ export function readCache<T>(key: string, ttlMs: number = DEFAULT_CACHE_TTL_MS):
  * recency. At MAX_CACHE_ENTRIES the least-recently-written entry is evicted.
  */
 export function writeCache<T>(key: string, value: T): void {
+  // A caller's write is the local truth an in-flight read may not overwrite.
+  localWrites.set(key, writeSeq(key) + 1);
+  store(key, value);
+}
+
+/**
+ * Store without counting it as a local write — the path a fetched body takes.
+ * See `localWrites` for why a fetch commit must not bump the counter.
+ */
+function store<T>(key: string, value: T): void {
   // Delete-then-set moves the key to the back of the Map's insertion order,
   // so recency follows writes.
   entries.delete(key);
@@ -110,6 +141,7 @@ export function seedFromCache<T>(key: string, ttlMs: number = DEFAULT_CACHE_TTL_
 /** Clear the whole cache. For tests (and sign-out-shaped resets). */
 export function resetCache(): void {
   entries.clear();
+  localWrites.clear();
 }
 
 export interface CachedLoadOptions<T> {
@@ -127,6 +159,16 @@ export interface CachedLoadOptions<T> {
   errorMessage: string;
   /** Freshness window; defaults to DEFAULT_CACHE_TTL_MS. */
   ttlMs?: number;
+}
+
+/**
+ * A settled fetch plus whether a local write overtook it while it was in the
+ * air. `superseded` is the whole point of this type: the request was not
+ * aborted and did not fail — its answer is simply out of date.
+ */
+interface Settled<T> {
+  value: T;
+  superseded: boolean;
 }
 
 export interface CachedLoadHandle {
@@ -171,17 +213,26 @@ export function createCachedLoad<T>(opts: CachedLoadOptions<T>): CachedLoadHandl
   // request's signal alongside the promise: settlement handlers must consult
   // the signal of the request they belong to, not the mutable latest
   // controller, or a newer run would misclassify an intentional abort.
-  const startFetch = (): { signal: AbortSignal; promise: Promise<T> } => {
+  const startFetch = (): { signal: AbortSignal; promise: Promise<Settled<T>> } => {
     controller?.abort();
     const own = new AbortController();
     controller = own;
-    const promise = (async (): Promise<T> => {
+    // The key's local-write count as of ISSUE. If it has moved by the time
+    // this settles, a persisted mutation overtook the request in flight.
+    const writesAtIssue = writeSeq(key);
+    const promise = (async (): Promise<Settled<T>> => {
       const value = await load(own.signal);
       // A loader that ignores the signal can still settle after an abort — it
       // must not repopulate the cache, or a late response would silently undo
       // a write's invalidation.
-      if (!own.signal.aborted) writeCache(key, value);
-      return value;
+      if (own.signal.aborted) return { value, superseded: false };
+      if (writeSeq(key) !== writesAtIssue) {
+        // Overtaken. Drop the body without touching the entry: the write that
+        // overtook it is already there, and it is the newer truth.
+        return { value, superseded: true };
+      }
+      store(key, value);
+      return { value, superseded: false };
     })();
     return { signal: own.signal, promise };
   };
@@ -202,7 +253,17 @@ export function createCachedLoad<T>(opts: CachedLoadOptions<T>): CachedLoadHandl
       if (hit.isFresh) return;
       const { signal, promise } = startFetch();
       void promise.then(
-        (value) => guardedSet({ data: value, isLoading: false, error: null }),
+        ({ value, superseded }) => {
+          // A superseded body must not reach the screen either. Publish the
+          // ENTRY instead of the body: the write that overtook this read is
+          // in there and is the newer truth. Its own author has usually
+          // already set the same value locally, so this is normally a no-op —
+          // but it is what makes the invariant hold on every path, including
+          // a second consumer of this key that did no write of its own and
+          // would otherwise sit on the pre-write value until its next run.
+          const hitAfter = superseded ? readCache<T>(key, Infinity) : undefined;
+          guardedSet({ data: hitAfter ? hitAfter.value : value, isLoading: false, error: null });
+        },
         (e) => {
           // A failed revalidation keeps serving the stale value rather than
           // blanking a screen that already has data; an ABORTED one (a newer
@@ -221,7 +282,14 @@ export function createCachedLoad<T>(opts: CachedLoadOptions<T>): CachedLoadHandl
     guardedSet({ data: null, isLoading: true, error: null });
     const { signal, promise } = startFetch();
     void promise.then(
-      (value) => guardedSet({ data: value, isLoading: false, error: null }),
+      ({ value, superseded }) => {
+        // On a cold miss there is nothing on screen yet, so refusing outright
+        // would strand the spinner. The write that overtook this read is the
+        // newer truth AND is already in the entry, so publish that instead —
+        // the loading state always clears, and the write is never lost.
+        const hitAfter = superseded ? readCache<T>(key, Infinity) : undefined;
+        guardedSet({ data: hitAfter ? hitAfter.value : value, isLoading: false, error: null });
+      },
       (e) => {
         if (signal.aborted) return;
         console.error(`cache: guarded load failed (${errorMessage}):`, e);
