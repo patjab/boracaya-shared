@@ -4,8 +4,8 @@
 // send it on gated API calls and the API authorizer verifies it (Google JWKS, aud =
 // our client) against the RSVP guest list. One Google OAuth Web client serves test
 // and prod (its Authorized JavaScript origins list every app origin). Google-only —
-// no email OTP. Token lives in sessionStorage and is attached by useApi.
-import { ID_TOKEN_KEY } from './authToken';
+// no email OTP. Token is held in module scope (authToken.ts) and attached by useApi.
+import { setIdToken, clearIdToken } from './authToken';
 
 export { authHeaders, getEmail, getIdToken } from './authToken';
 
@@ -43,10 +43,18 @@ export function initAuth(_app?: App): Promise<void> {
   }).then(() => {
     gsi()!.initialize({
       client_id: CLIENT_ID,
-      auto_select: false,
+      // TRUE since valet#640 moved the token out of sessionStorage. Nothing
+      // now carries a session across a page load, so with auto-select off the
+      // organizer would re-click "Continue with Google" on every refresh, tab
+      // restore and deploy reload. Auto-select re-issues silently when there is
+      // one active Google session and prior consent; anything else (several
+      // accounts, or a previous signOut, which calls disableAutoSelect) falls
+      // through to the existing LoginPanel, so the failure mode is the screen
+      // the app already renders rather than an error.
+      auto_select: true,
       callback: (r) => {
         if (r.credential) {
-          sessionStorage.setItem(ID_TOKEN_KEY, r.credential);
+          setIdToken(r.credential);
           window.dispatchEvent(new Event('pdab-auth-change'));
         }
       },
@@ -75,7 +83,7 @@ export function renderGoogleSignInButton(element: HTMLElement, text = 'continue_
 
 // ---- sign out ------------------------------------------------------------
 export function signOut(): void {
-  sessionStorage.removeItem(ID_TOKEN_KEY);
+  clearIdToken();
   try {
     gsi()?.disableAutoSelect();
   } catch {

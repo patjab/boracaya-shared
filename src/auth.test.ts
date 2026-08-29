@@ -107,6 +107,24 @@ describe('initAuth (cdk#1278)', () => {
     expect(scripts).toHaveLength(2);
   });
 
+  // valet#640: the token no longer lives in sessionStorage, so NOTHING carries a
+  // session across a page load. Auto-select is what stops that becoming a
+  // "Continue with Google" click on every refresh. Turning it off again silently
+  // reintroduces that, which is why it is pinned here rather than left to the
+  // comment beside it.
+  it('initializes GIS with auto_select ON, so a refresh can re-auth silently', async () => {
+    const { initAuth, scripts, win } = await load();
+    const seen: Array<Record<string, unknown>> = [];
+    const p = initAuth();
+    gsiOk(win, (cfg) => { seen.push(cfg as Record<string, unknown>); });
+    scripts[0].onload!();
+    await p;
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].auto_select).toBe(true);
+    expect(typeof seen[0].client_id).toBe('string');
+  });
+
   it('resolves immediately without a window (SSR guard)', async () => {
     vi.resetModules();
     vi.stubGlobal('window', undefined);
