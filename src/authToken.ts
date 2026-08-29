@@ -27,8 +27,15 @@ let idToken: string | null = null;
  * `setIdToken` directly — so on a real page load there is nothing here to read.
  */
 const adoptSeededToken = (): void => {
-  if (typeof sessionStorage === 'undefined') return;
   try {
+    // INSIDE the try, deliberately (Codex r4 on shared#161). Resolving the
+    // `sessionStorage` global is itself a getter call that throws SecurityError
+    // on an opaque origin or when storage access is denied — `typeof` does not
+    // save you, because the property lookup happens first. Outside the try that
+    // throw escaped module evaluation and stopped authToken, and therefore
+    // auth, from being imported AT ALL: a browser with site data blocked got a
+    // dead app rather than the unauthenticated page promised below.
+    if (typeof sessionStorage === 'undefined') return;
     const seeded = sessionStorage.getItem(ID_TOKEN_KEY);
     if (seeded) {
       // Delete BEFORE adopting, so the token is never held while a copy of it

@@ -23,6 +23,8 @@ const freshModule = async () => {
   return import('./authToken');
 };
 
+const originalSessionStorage = window.sessionStorage;
+
 beforeEach(() => {
   sessionStorage.clear();
 });
@@ -95,6 +97,28 @@ describe('the e2e bootstrap seam', () => {
 
     expect(m.getIdToken()).toBeNull();
     expect(m.authHeaders()).toEqual({});
+  });
+
+  // Codex r4 on shared#161. Resolving the sessionStorage GLOBAL is a getter
+  // call that throws on an opaque origin or with site data blocked, and the
+  // bootstrap runs at module evaluation — so an unguarded check took the whole
+  // module down and auth with it. Verified before the fix: imported=false,
+  // SecurityError. A dead app, not an unauthenticated one.
+  it('still imports when resolving sessionStorage itself throws', async () => {
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      get() { throw new DOMException('denied', 'SecurityError'); },
+    });
+
+    const m = await freshModule();
+
+    expect(m.getIdToken()).toBeNull();
+    expect(m.authHeaders()).toEqual({});
+    // Restore so the shared jsdom window is clean for the next case.
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      value: originalSessionStorage,
+    });
   });
 
   it('survives storage that throws outright (private mode, blocked site data)', async () => {
