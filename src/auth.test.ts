@@ -120,10 +120,16 @@ describe('initAuth (cdk#1278)', () => {
   });
 
   // valet#640: the token no longer lives in sessionStorage, so NOTHING carries a
-  // session across a page load. Auto-select is what stops that becoming a
-  // "Continue with Google" click on every refresh. Turning it off again silently
-  // reintroduces that, which is why it is pinned here rather than left to the
-  // comment beside it.
+  // session across a page load, and automatic selection is what stops that
+  // becoming a "Continue with Google" click on every refresh.
+  //
+  // This asserts the CONFIGURATION and nothing more — Codex called it an
+  // implementation echo in r2 and was right, then proved it in r3 by finding
+  // that the option alone does nothing without a One Tap prompt, which this
+  // package deliberately leaves to its consumers. Kept because the value is
+  // precisely what a future edit would flip, but it is not evidence that silent
+  // re-authentication works; the test that could show that lives with whoever
+  // calls prompt().
   it('initializes GIS with auto_select ON, so a refresh can re-auth silently', async () => {
     const { initAuth, scripts, win } = await load();
     const seen: Array<Record<string, unknown>> = [];

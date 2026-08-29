@@ -43,14 +43,25 @@ function initAuth(_app) {
     }).then(() => {
         gsi().initialize({
             client_id: CLIENT_ID,
-            // TRUE since valet#640 moved the token out of sessionStorage. Nothing
-            // now carries a session across a page load, so with auto-select off the
-            // organizer would re-click "Continue with Google" on every refresh, tab
-            // restore and deploy reload. Auto-select re-issues silently when there is
-            // one active Google session and prior consent; anything else (several
-            // accounts, or a previous signOut, which calls disableAutoSelect) falls
-            // through to the existing LoginPanel, so the failure mode is the screen
-            // the app already renders rather than an error.
+            // TRUE since valet#640 moved the token out of sessionStorage: nothing
+            // carries a session across a page load any more, so without automatic
+            // selection the organizer re-clicks "Continue with Google" on every
+            // refresh, tab restore and deploy reload.
+            //
+            // NECESSARY BUT NOT SUFFICIENT, and the distinction cost a review round
+            // (Codex r3 on shared#161). `auto_select` governs what happens when a One
+            // Tap prompt RUNS; `initialize()` does not start one. Setting it here and
+            // stopping would configure automatic selection for a prompt nothing ever
+            // fires — the option would read as delivering silent re-auth while
+            // changing nothing at all.
+            //
+            // Starting the prompt is the CONSUMER's call, deliberately: it puts
+            // visible UI on the page, and this GIS client is shared across apps, so
+            // one app opting in must not decide for the rest. boracaya-valet does it
+            // on load when unauthenticated, with a fallback to the rendered button —
+            // still needed, since One Tap can be suppressed by a post-dismissal
+            // cooldown or by third-party-cookie restrictions. An app that never
+            // prompts simply gets the button, exactly as before.
             auto_select: true,
             callback: (r) => {
                 if (r.credential) {
