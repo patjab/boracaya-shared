@@ -4,6 +4,7 @@ exports.ID_TOKEN_KEY = void 0;
 exports.setIdToken = setIdToken;
 exports.clearIdToken = clearIdToken;
 exports.getIdToken = getIdToken;
+exports.idTokenExpiresInSeconds = idTokenExpiresInSeconds;
 exports.authHeaders = authHeaders;
 exports.getEmail = getEmail;
 // Token-only browser identity primitives. Keeping these separate from the GIS
@@ -84,6 +85,24 @@ function getIdToken() {
     }
     catch (_a) {
         return null;
+    }
+}
+/**
+ * Seconds until the held Google ID token expires, or undefined when no token
+ * is held (cdk#1495): the auth-state field on a client error report. Reads
+ * `exp` only — the token itself never leaves this module through here.
+ */
+function idTokenExpiresInSeconds() {
+    const token = getIdToken();
+    if (!token)
+        return undefined;
+    try {
+        const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const { exp } = JSON.parse(atob(payload));
+        return Math.max(0, Math.round(exp - Date.now() / 1000));
+    }
+    catch (_a) {
+        return undefined;
     }
 }
 function authHeaders() {

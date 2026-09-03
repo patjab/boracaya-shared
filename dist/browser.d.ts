@@ -41,6 +41,33 @@ export declare const onWindowResize: (handler: () => void) => (() => void);
  * dispatched by the auth lane on sign-in/out); returns the unsubscribe.
  */
 export declare const onAuthChange: (handler: () => void) => (() => void);
+/**
+ * Client error telemetry wiring (cdk#1495): the window-touching half of the
+ * reporter. `report.ts` is DOM-free; this installs the global handlers and
+ * supplies the page context it cannot read itself. Returns the unsubscribe.
+ *
+ *  - `error` / `unhandledrejection` -> one report each (kind uncaught / rejection)
+ *  - `pagehide` -> flush the queue with keepalive, so a report from the last
+ *    click before a tab closes still lands
+ */
+export declare const onUncaughtErrors: (handlers: {
+    onError: (message: string, error: unknown) => void;
+    onRejection: (reason: unknown) => void;
+    onPageHide: () => void;
+}) => (() => void);
+/**
+ * Capture-phase click subscription for the reporter's click breadcrumbs
+ * (cdk#1495). The handler receives the pressed control's ACCESSIBLE NAME only
+ * — aria-label, then data-testid, then the tag — never input values or text
+ * a guest typed. Returns the unsubscribe.
+ */
+export declare const onDocumentClick: (handler: (name: string) => void) => (() => void);
+/** The page facts a client error report carries (cdk#1495): connectivity + UA + path. */
+export declare const pageTelemetryContext: () => {
+    route: string;
+    online: boolean;
+    ua: string;
+};
 /** Subscribe to global keydown (dialog/lightbox keyboard nav); returns the unsubscribe. */
 export declare const onGlobalKeydown: (handler: (e: KeyboardEvent) => void) => (() => void);
 /**

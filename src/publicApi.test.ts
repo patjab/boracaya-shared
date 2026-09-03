@@ -7,6 +7,7 @@ describe('PublicApi', () => {
       EVENTS: 'https://public-api.boracaya.com/events',
       DISCOVER: 'https://public-api.boracaya.com/discover',
       GUEST_LOGIN: 'https://public-api.boracaya.com/auth/login',
+      TELEMETRY_ERRORS: 'https://public-api.boracaya.com/telemetry/errors',
       FACES_CONTROL: 'https://faces-control.pdaboracay.com',
       FACES_BOX: 'https://faces.pdaboracay.com',
     });
@@ -20,6 +21,7 @@ describe('PublicApi', () => {
         EVENTS: 'https://public-api.test.boracaya.com/events',
         DISCOVER: 'https://public-api.test.boracaya.com/discover',
         GUEST_LOGIN: 'https://public-api.test.boracaya.com/auth/login',
+        TELEMETRY_ERRORS: 'https://public-api.test.boracaya.com/telemetry/errors',
         FACES_CONTROL: 'https://faces-control.test.pdaboracay.com',
         FACES_BOX: 'https://faces.test.pdaboracay.com',
       });

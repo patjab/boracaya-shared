@@ -56,6 +56,39 @@ import { StageFormRenderer } from 'boracaya-shared/forms';
 the compatibility `ApiConstants` object. Admin consumers import
 `AdminEventApi` from `boracaya-shared/api` (or `boracaya-shared/node` in Node).
 
+## Client error reporting (cdk#1495)
+
+`report.ts` is the one funnel every browser-side failure passes through: the
+`ApiError` throw sites and swallow sites in `data.ts` / `cache.ts` (through the
+`apiObserver` seam, so the bootstrap graph stays small), `ErrorBoundary`, and
+the window `error` / `unhandledrejection` handlers an app installs with
+`onUncaughtErrors` from `boracaya-shared/browser`. An app enables it once at
+bootstrap:
+
+```ts
+import { initReporter, addBreadcrumb, flushReports, report } from 'boracaya-shared/client';
+import { onDocumentClick, onUncaughtErrors, pageTelemetryContext } from 'boracaya-shared/browser';
+
+initReporter({
+  app: 'valet',
+  release: import.meta.env.VITE_RELEASE ?? 'local',
+  endpoint: PublicApi.TELEMETRY_ERRORS,
+  context: () => ({ ...pageTelemetryContext(), eventId, auth: { hasToken, expiresInS } }),
+});
+onUncaughtErrors({
+  onError: (message, error) => report('uncaught', { message, stack: (error as Error)?.stack }),
+  onRejection: (reason) => report('rejection', { message: String(reason) }),
+  onPageHide: flushReports,
+});
+onDocumentClick((name) => addBreadcrumb({ type: 'click', detail: name }));
+```
+
+Reports are batched (`keepalive` POSTs to `POST /telemetry/errors`), capped at
+20 per page load, deduped by fingerprint, and PII-scrubbed inside the module
+(emails, JWTs and bearer tokens are redacted from every free-text field; the
+shape is a fixed key allowlist). Before `initReporter` runs — and in every
+Node consumer — the funnel is a no-op. `report()` never throws.
+
 ## Renderer and wizard messages
 
 Shared form UI has no built-in English product copy. Consumers must supply the

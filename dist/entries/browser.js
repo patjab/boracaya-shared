@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.viewportSnapshot = exports.replaceUrl = exports.reloadPage = exports.queryParam = exports.onWindowResize = exports.onGlobalKeydown = exports.onBeforeUnload = exports.onAuthChange = exports.navigateTo = exports.localFlag = exports.isLocalhost = exports.currentUrl = exports.currentPathname = void 0;
+exports.viewportSnapshot = exports.replaceUrl = exports.reloadPage = exports.queryParam = exports.onWindowResize = exports.pageTelemetryContext = exports.onUncaughtErrors = exports.onGlobalKeydown = exports.onDocumentClick = exports.onBeforeUnload = exports.onAuthChange = exports.navigateTo = exports.localFlag = exports.isLocalhost = exports.currentUrl = exports.currentPathname = void 0;
 /** Direct browser capabilities. This entry intentionally has no React or MUI dependency. */
 var browser_1 = require("../browser");
 Object.defineProperty(exports, "currentPathname", { enumerable: true, get: function () { return browser_1.currentPathname; } });
@@ -10,7 +10,10 @@ Object.defineProperty(exports, "localFlag", { enumerable: true, get: function ()
 Object.defineProperty(exports, "navigateTo", { enumerable: true, get: function () { return browser_1.navigateTo; } });
 Object.defineProperty(exports, "onAuthChange", { enumerable: true, get: function () { return browser_1.onAuthChange; } });
 Object.defineProperty(exports, "onBeforeUnload", { enumerable: true, get: function () { return browser_1.onBeforeUnload; } });
+Object.defineProperty(exports, "onDocumentClick", { enumerable: true, get: function () { return browser_1.onDocumentClick; } });
 Object.defineProperty(exports, "onGlobalKeydown", { enumerable: true, get: function () { return browser_1.onGlobalKeydown; } });
+Object.defineProperty(exports, "onUncaughtErrors", { enumerable: true, get: function () { return browser_1.onUncaughtErrors; } });
+Object.defineProperty(exports, "pageTelemetryContext", { enumerable: true, get: function () { return browser_1.pageTelemetryContext; } });
 Object.defineProperty(exports, "onWindowResize", { enumerable: true, get: function () { return browser_1.onWindowResize; } });
 Object.defineProperty(exports, "queryParam", { enumerable: true, get: function () { return browser_1.queryParam; } });
 Object.defineProperty(exports, "reloadPage", { enumerable: true, get: function () { return browser_1.reloadPage; } });

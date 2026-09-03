@@ -137,6 +137,11 @@ export const ApiRoutes = [
     // in-handler by the guest JWT (no APIGW authorizer on the auth lanes), event-scoped so
     // the unlink email can name the event.
     { label: 'public', method: 'POST', path: '/events/{eventId}/auth/unlink' },
+    // Client error telemetry ingest (cdk#1495/#1496, epic cdk#1494): the ONE
+    // unscoped public write — a batch of PII-free error reports from either app,
+    // landing in the boracaya-client-errors log group. No tenant in the path by
+    // design: a report may describe the failure to resolve one.
+    { label: 'public', method: 'POST', path: '/telemetry/errors' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/invite' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/moments/public' },
     { label: 'public', method: 'GET', path: '/events/{eventId}/wishes' },

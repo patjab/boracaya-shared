@@ -10,6 +10,14 @@ export {
 } from '../data';
 export type { CallOptions, GuardedState, SendOptions } from '../data';
 export {
+  addBreadcrumb, flushReports, initReporter, report, reportCaught, reporterSnapshot,
+  resetReporter, routeTemplate, scrub,
+} from '../report';
+export type {
+  Breadcrumb, BreadcrumbType, ErrorReport, ReportContext, ReportFields, ReportKind,
+  ReporterConfig,
+} from '../report';
+export {
   DEFAULT_CACHE_TTL_MS,
   MAX_CACHE_ENTRIES,
   createCachedLoad,

@@ -78,6 +78,24 @@ export function getIdToken() {
         return null;
     }
 }
+/**
+ * Seconds until the held Google ID token expires, or undefined when no token
+ * is held (cdk#1495): the auth-state field on a client error report. Reads
+ * `exp` only — the token itself never leaves this module through here.
+ */
+export function idTokenExpiresInSeconds() {
+    const token = getIdToken();
+    if (!token)
+        return undefined;
+    try {
+        const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const { exp } = JSON.parse(atob(payload));
+        return Math.max(0, Math.round(exp - Date.now() / 1000));
+    }
+    catch (_a) {
+        return undefined;
+    }
+}
 export function authHeaders() {
     const token = getIdToken();
     return token ? { Authorization: `Bearer ${token}` } : {};

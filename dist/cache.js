@@ -7,6 +7,25 @@ exports.invalidateCache = invalidateCache;
 exports.seedFromCache = seedFromCache;
 exports.resetCache = resetCache;
 exports.createCachedLoad = createCachedLoad;
+// The shared per-event client cache + request-abort primitive (admin#159,
+// Wave 2 of admin#164): every Valet tab bounce today is a cold fetch because
+// each screen hook starts from nothing on mount. This module adds ONE seam on
+// top of the data-access layer (data.ts): a module-level TTL cache keyed by an
+// explicit string key (callers key per eventId+resource, e.g.
+// `${eventId}/guests`), stale-while-revalidate serving, prefix invalidation
+// for writes, and AbortController wiring so switching keys cancels the old
+// key's in-flight fetch instead of letting it run to completion.
+//
+// It COMPOSES with the existing guarded contract rather than replacing it:
+// the cold-miss path implements the same loading/error contract as
+// runGuarded/useGuardedLoad (loading set first, then data or errorMessage,
+// loading always cleared) — inlined only so an INTENTIONAL abort (dispose,
+// key switch, a newer run superseding) is fully silent instead of logging.
+// The React binding lives in hooks/useCachedLoad.ts; this module is plain
+// TypeScript so the semantics are testable without React and Node consumers
+// stay safe (no window, no storage).
+const apiObserver_1 = require("./apiObserver");
+const data_1 = require("./data");
 /**
  * Default freshness window. Sized for the tab-bounce pattern: a value fetched
  * on one screen visit is served instantly on a re-visit within this window
@@ -203,8 +222,11 @@ function createCachedLoad(opts) {
                 // A failed revalidation keeps serving the stale value rather than
                 // blanking a screen that already has data; an ABORTED one (a newer
                 // run or dispose cancelled this specific request) is silent.
-                if (!signal.aborted)
+                if (!signal.aborted) {
                     console.error(`cache: revalidate failed (${key}):`, e);
+                    if (!(e instanceof data_1.ApiError))
+                        (0, apiObserver_1.apiCaught)(key, e);
+                }
             });
             return;
         }
@@ -255,6 +277,8 @@ function createCachedLoad(opts) {
             if (signal.aborted)
                 return;
             console.error(`cache: guarded load failed (${errorMessage}):`, e);
+            if (!(e instanceof data_1.ApiError))
+                (0, apiObserver_1.apiCaught)(errorMessage, e);
             guardedSet({ data: null, isLoading: false, error: errorMessage });
         });
     };

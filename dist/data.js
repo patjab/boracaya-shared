@@ -12,6 +12,7 @@ exports.runGuarded = runGuarded;
 // this module is plain TypeScript so Node consumers (e2e, contract tests) can
 // import it safely.
 const authToken_1 = require("./authToken");
+const apiObserver_1 = require("./apiObserver");
 const security_1 = require("./security");
 // authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
 // contract test) — and this module must stay Node-safe like guestAuth.ts. No
@@ -50,6 +51,24 @@ const readBody = async (res, label) => {
         throw new ApiError(label, `${label}: failed to read the response body (${e instanceof Error ? e.message : String(e)})`, res.status);
     }
 };
+// cdk#1495: every failure the call primitives raise is observed ONCE, here,
+// with the join key to the backend (`x-amzn-RequestId`, exposed through CORS
+// by cdk#1496) and the call's duration; a success leaves only a breadcrumb.
+// Through the apiObserver seam, not the reporter itself, so this module stays
+// out of the reporter's graph (the bootstrap size gate).
+const requestIdOf = (res) => {
+    const id = res.headers && typeof res.headers.get === 'function'
+        ? res.headers.get('x-amzn-RequestId')
+        : null;
+    return id !== null && id !== void 0 ? id : undefined;
+};
+const failed = (err, method, url, startedAt, res) => {
+    (0, apiObserver_1.apiFailed)({
+        label: err.label, message: err.message, status: err.status, method, url,
+        requestId: res ? requestIdOf(res) : undefined, durationMs: Date.now() - startedAt,
+    });
+    return err;
+};
 /**
  * Read primitive: GET the URL, guard `res.ok`, parse JSON. The signed-in Google
  * token (when present) is attached automatically — same behavior consumers get
@@ -58,26 +77,40 @@ const readBody = async (res, label) => {
  * undefined — reflected in the return type — rather than failing JSON parse.
  */
 async function getJson(url, opts = {}) {
-    var _a;
+    var _a, _b;
     const label = (_a = opts.label) !== null && _a !== void 0 ? _a : url;
+    const startedAt = Date.now();
     let res;
     try {
         res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers }, signal: opts.signal });
     }
     catch (e) {
-        throw new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
+        // An intentional abort (a key switch, dispose) is not a failure worth a report.
+        const err = new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
+        throw ((_b = opts.signal) === null || _b === void 0 ? void 0 : _b.aborted) ? err : failed(err, 'GET', url, startedAt);
     }
     if (!res.ok)
-        throw new ApiError(label, `${label}: HTTP ${res.status}`, res.status);
-    const text = await readBody(res, label);
-    if (!text.trim())
-        return undefined;
+        throw failed(new ApiError(label, `${label}: HTTP ${res.status}`, res.status), 'GET', url, startedAt, res);
+    let text;
     try {
-        return JSON.parse(text);
+        text = await readBody(res, label);
     }
-    catch (_b) {
-        throw new ApiError(label, `${label}: response was not valid JSON`, res.status);
+    catch (e) {
+        throw failed(e, 'GET', url, startedAt, res);
     }
+    if (!text.trim()) {
+        (0, apiObserver_1.apiSucceeded)('GET', url, res.status);
+        return undefined;
+    }
+    let parsed;
+    try {
+        parsed = JSON.parse(text);
+    }
+    catch (_c) {
+        throw failed(new ApiError(label, `${label}: response was not valid JSON`, res.status), 'GET', url, startedAt, res);
+    }
+    (0, apiObserver_1.apiSucceeded)('GET', url, res.status);
+    return parsed;
 }
 /**
  * Resilient read: like getJson but NEVER throws — a failure logs and returns
@@ -92,6 +125,10 @@ async function jsonOr(url, label, fallback, opts = {}) {
     }
     catch (e) {
         console.error(`data: ${label} failed to load:`, e);
+        // An ApiError already reported itself at the throw site; anything else
+        // (a parse of the parsed body throwing) is a swallowed failure worth one.
+        if (!(e instanceof ApiError))
+            (0, apiObserver_1.apiCaught)(label, e);
         return fallback;
     }
 }
@@ -103,8 +140,9 @@ async function jsonOr(url, label, fallback, opts = {}) {
  * (reflected in the return type).
  */
 async function sendJson(url, opts) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     const label = (_a = opts.label) !== null && _a !== void 0 ? _a : url;
+    const startedAt = Date.now();
     let res;
     try {
         res = await fetch(url, {
@@ -119,15 +157,22 @@ async function sendJson(url, opts) {
         });
     }
     catch (e) {
-        throw new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
+        const err = new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
+        throw ((_b = opts.signal) === null || _b === void 0 ? void 0 : _b.aborted) ? err : failed(err, opts.method, url, startedAt);
     }
-    const text = await readBody(res, label);
+    let text;
+    try {
+        text = await readBody(res, label);
+    }
+    catch (e) {
+        throw failed(e, opts.method, url, startedAt, res);
+    }
     if (!res.ok) {
         let serverMessage;
         let bodyRetryAfter;
         try {
             const parsed = JSON.parse(text);
-            const m = (_b = parsed === null || parsed === void 0 ? void 0 : parsed.error) !== null && _b !== void 0 ? _b : parsed === null || parsed === void 0 ? void 0 : parsed.message;
+            const m = (_c = parsed === null || parsed === void 0 ? void 0 : parsed.error) !== null && _c !== void 0 ? _c : parsed === null || parsed === void 0 ? void 0 : parsed.message;
             if (typeof m === 'string' && m.trim())
                 serverMessage = m;
             if (typeof parsed.retryAfterSeconds === 'number'
@@ -136,22 +181,27 @@ async function sendJson(url, opts) {
                 bodyRetryAfter = parsed.retryAfterSeconds;
             }
         }
-        catch (_d) {
+        catch (_e) {
             /* non-JSON error body -> fall through to the status message */
         }
         const retryHeader = res.headers && typeof res.headers.get === 'function'
             ? res.headers.get('Retry-After')
             : null;
-        throw new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_c = (0, security_1.retryAfterSeconds)(retryHeader)) !== null && _c !== void 0 ? _c : bodyRetryAfter);
+        throw failed(new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_d = (0, security_1.retryAfterSeconds)(retryHeader)) !== null && _d !== void 0 ? _d : bodyRetryAfter), opts.method, url, startedAt, res);
     }
-    if (!text.trim())
+    if (!text.trim()) {
+        (0, apiObserver_1.apiSucceeded)(opts.method, url, res.status);
         return undefined;
+    }
+    let parsed;
     try {
-        return JSON.parse(text);
+        parsed = JSON.parse(text);
     }
-    catch (_e) {
-        throw new ApiError(label, `${label}: response was not valid JSON`, res.status);
+    catch (_f) {
+        throw failed(new ApiError(label, `${label}: response was not valid JSON`, res.status), opts.method, url, startedAt, res);
     }
+    (0, apiObserver_1.apiSucceeded)(opts.method, url, res.status);
+    return parsed;
 }
 /**
  * Defensive text coercion, homed here so every surface handles response-shape
@@ -191,6 +241,8 @@ async function runGuarded(load, set, errorMessage) {
     }
     catch (e) {
         console.error(`data: guarded load failed (${errorMessage}):`, e);
+        if (!(e instanceof ApiError))
+            (0, apiObserver_1.apiCaught)(errorMessage, e);
         error = errorMessage;
     }
     finally {

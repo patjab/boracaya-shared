@@ -67,7 +67,7 @@ export { ErrorBoundary } from './ErrorBoundary';
 export {
   currentUrl, currentPathname, queryParam, isLocalhost, viewportSnapshot,
   localFlag, replaceUrl, navigateTo, reloadPage, onWindowResize, onAuthChange,
-  onGlobalKeydown, onBeforeUnload,
+  onGlobalKeydown, onBeforeUnload, onUncaughtErrors, onDocumentClick, pageTelemetryContext,
 } from './browser';
 export { laneOf } from './saveLane';
 export type { SaveLane } from './saveLane';
@@ -79,6 +79,14 @@ export {
 } from './hooks';
 export type { RaceGuard, RaceToken, SaveGroupResult, SaveGroupMessages } from './hooks';
 export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data';
+export {
+  addBreadcrumb, flushReports, initReporter, report, reportCaught, reporterSnapshot,
+  resetReporter, routeTemplate, scrub,
+} from './report';
+export type {
+  Breadcrumb, BreadcrumbType, ErrorReport, ReportContext, ReportFields, ReportKind,
+  ReporterConfig,
+} from './report';
 export type { GuardedState } from './data';
 export { ArrayUtils, ColorUtils, DateUtils, NumberUtils, StringUtils } from './utils';
 export {
@@ -99,10 +107,11 @@ export {
   authHeaders,
   getEmail,
 } from './auth';
+export { idTokenExpiresInSeconds } from './authToken';
 export { GoogleSignInButton } from './GoogleSignInButton';
 export {
   ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken,
-  claimIdentity, loginNoEvent, unlinkIdentity,
+  claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds,
 } from './guestAuth';
 export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';

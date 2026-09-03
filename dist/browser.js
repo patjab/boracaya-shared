@@ -11,7 +11,7 @@
  * rather than being re-derived per app.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onBeforeUnload = exports.onGlobalKeydown = exports.onAuthChange = exports.onWindowResize = exports.reloadPage = exports.navigateTo = exports.replaceUrl = exports.localFlag = exports.viewportSnapshot = exports.isLocalhost = exports.queryParam = exports.currentPathname = exports.currentUrl = void 0;
+exports.onBeforeUnload = exports.onGlobalKeydown = exports.pageTelemetryContext = exports.onDocumentClick = exports.onUncaughtErrors = exports.onAuthChange = exports.onWindowResize = exports.reloadPage = exports.navigateTo = exports.replaceUrl = exports.localFlag = exports.viewportSnapshot = exports.isLocalhost = exports.queryParam = exports.currentPathname = exports.currentUrl = void 0;
 /** The page URL as a fresh, mutable URL object. */
 const currentUrl = () => new URL(window.location.href);
 exports.currentUrl = currentUrl;
@@ -68,6 +68,56 @@ const onAuthChange = (handler) => {
     return () => window.removeEventListener('pdab-auth-change', handler);
 };
 exports.onAuthChange = onAuthChange;
+/**
+ * Client error telemetry wiring (cdk#1495): the window-touching half of the
+ * reporter. `report.ts` is DOM-free; this installs the global handlers and
+ * supplies the page context it cannot read itself. Returns the unsubscribe.
+ *
+ *  - `error` / `unhandledrejection` -> one report each (kind uncaught / rejection)
+ *  - `pagehide` -> flush the queue with keepalive, so a report from the last
+ *    click before a tab closes still lands
+ */
+const onUncaughtErrors = (handlers) => {
+    const onError = (e) => handlers.onError(e.message, e.error);
+    const onRejection = (e) => handlers.onRejection(e.reason);
+    const onPageHide = () => handlers.onPageHide();
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+        window.removeEventListener('error', onError);
+        window.removeEventListener('unhandledrejection', onRejection);
+        window.removeEventListener('pagehide', onPageHide);
+    };
+};
+exports.onUncaughtErrors = onUncaughtErrors;
+/**
+ * Capture-phase click subscription for the reporter's click breadcrumbs
+ * (cdk#1495). The handler receives the pressed control's ACCESSIBLE NAME only
+ * — aria-label, then data-testid, then the tag — never input values or text
+ * a guest typed. Returns the unsubscribe.
+ */
+const onDocumentClick = (handler) => {
+    const listener = (e) => {
+        var _a, _b, _c;
+        const el = (_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.closest) === null || _b === void 0 ? void 0 : _b.call(_a, 'button, a, [role="button"], [role="tab"], [role="menuitem"], input, [data-testid]');
+        if (!el)
+            return;
+        const name = el.getAttribute('aria-label') || el.getAttribute('data-testid')
+            || (el.tagName === 'INPUT' ? `input:${(_c = el.getAttribute('type')) !== null && _c !== void 0 ? _c : 'text'}` : el.tagName.toLowerCase());
+        handler(name);
+    };
+    window.document.addEventListener('click', listener, true);
+    return () => window.document.removeEventListener('click', listener, true);
+};
+exports.onDocumentClick = onDocumentClick;
+/** The page facts a client error report carries (cdk#1495): connectivity + UA + path. */
+const pageTelemetryContext = () => ({
+    route: window.location.pathname,
+    online: window.navigator.onLine,
+    ua: window.navigator.userAgent,
+});
+exports.pageTelemetryContext = pageTelemetryContext;
 /** Subscribe to global keydown (dialog/lightbox keyboard nav); returns the unsubscribe. */
 const onGlobalKeydown = (handler) => {
     window.addEventListener('keydown', handler);

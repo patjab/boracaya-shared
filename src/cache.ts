@@ -15,7 +15,8 @@
 // The React binding lives in hooks/useCachedLoad.ts; this module is plain
 // TypeScript so the semantics are testable without React and Node consumers
 // stay safe (no window, no storage).
-import { GuardedState } from './data';
+import { apiCaught } from './apiObserver';
+import { ApiError, GuardedState } from './data';
 
 /**
  * Default freshness window. Sized for the tab-bounce pattern: a value fetched
@@ -270,7 +271,10 @@ export function createCachedLoad<T>(opts: CachedLoadOptions<T>): CachedLoadHandl
           // A failed revalidation keeps serving the stale value rather than
           // blanking a screen that already has data; an ABORTED one (a newer
           // run or dispose cancelled this specific request) is silent.
-          if (!signal.aborted) console.error(`cache: revalidate failed (${key}):`, e);
+          if (!signal.aborted) {
+            console.error(`cache: revalidate failed (${key}):`, e);
+            if (!(e instanceof ApiError)) apiCaught(key, e);
+          }
         },
       );
       return;
@@ -322,6 +326,7 @@ export function createCachedLoad<T>(opts: CachedLoadOptions<T>): CachedLoadHandl
       (e) => {
         if (signal.aborted) return;
         console.error(`cache: guarded load failed (${errorMessage}):`, e);
+        if (!(e instanceof ApiError)) apiCaught(errorMessage, e);
         guardedSet({ data: null, isLoading: false, error: errorMessage });
       },
     );

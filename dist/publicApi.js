@@ -17,6 +17,9 @@ exports.PublicApi = {
     get EVENTS() { return `${publicApi()}/events`; },
     get DISCOVER() { return `${publicApi()}/discover`; },
     get GUEST_LOGIN() { return `${publicApi()}/auth/login`; },
+    // Client error telemetry ingest (cdk#1495/#1496): both apps POST report
+    // batches here; unauthenticated, WAF + stage-throttled like every public lane.
+    get TELEMETRY_ERRORS() { return `${publicApi()}/telemetry/errors`; },
     get FACES_CONTROL() { return legacyHost('faces-control'); },
     get FACES_BOX() { return legacyHost('faces'); },
 };

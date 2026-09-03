@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.viewportSnapshot = exports.isLocalhost = exports.queryParam = exports.currentPathname = exports.currentUrl = exports.ErrorBoundary = exports.isVideo = exports.lookup = exports.interpolate = exports.stringOr = exports.asRecord = exports.requiredString = exports.requiredEntry = exports.required = exports.TRANSIENT_FLAG_MS = exports.useTransientValue = exports.useCachedLoad = exports.useGuardedLoad = exports.useApi = exports.useLoading = exports.ApiRoutes = exports.retryAfterSeconds = exports.MUTATION_SECURITY_ERROR_CODES = exports.MUTATION_LIMITS = exports.supportedEventTimeZones = exports.isEventTimeZone = exports.isEventDate = exports.formatEventDate = exports.eventDayWindow = exports.eventDateInTimeZone = exports.eventDateFromLegacyISO = exports.eventCalendarWithLegacyFallback = exports.daysUntilEventDate = exports.compareEventDates = exports.EVENT_CONFIG_WRITE_ERROR_CODES = exports.isEmojiIcon = exports.isShellKey = exports.envSubdomain = exports.isTest = exports.getEnv = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.FacesApi = exports.OrganizerInviteApi = exports.AccountApi = exports.GuestEventApi = exports.AdminEventApi = exports.PublicApi = exports.ApiConstants = void 0;
-exports.loginNoEvent = exports.claimIdentity = exports.clearGuestToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.StringUtils = exports.NumberUtils = exports.DateUtils = exports.ColorUtils = exports.ArrayUtils = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useUnsavedGuardHost = exports.useSaveGroup = exports.useStoredToggle = exports.useCloseGuard = exports.useSetupPolling = exports.createRaceGuard = exports.useRaceGuard = exports.useUnsavedGuard = exports.UnsavedGuardContext = exports.laneOf = exports.onBeforeUnload = exports.onGlobalKeydown = exports.onAuthChange = exports.onWindowResize = exports.reloadPage = exports.navigateTo = exports.replaceUrl = exports.localFlag = void 0;
-exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.SHELL_KEYS = exports.WizardShell = exports.StageFormRenderer = exports.stageQuestions = exports.stagePresentation = exports.stageElements = exports.stageDriftKeys = exports.resolvePrefillSource = exports.isDisplayBlock = exports.guestDisplayName = exports.coreStageFallback = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = exports.DEFAULT_CORE_STAGE = exports.CORE_STAGE_ID = exports.ATTENDANCE_KEY = exports.ABOUT_ICON_NAMES = exports.ABOUT_ICONS = exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.unlinkIdentity = void 0;
+exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.StringUtils = exports.NumberUtils = exports.DateUtils = exports.ColorUtils = exports.ArrayUtils = exports.scrub = exports.routeTemplate = exports.resetReporter = exports.reporterSnapshot = exports.reportCaught = exports.report = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = exports.useUnsavedGuardHost = exports.useSaveGroup = exports.useStoredToggle = exports.useCloseGuard = exports.useSetupPolling = exports.createRaceGuard = exports.useRaceGuard = exports.useUnsavedGuard = exports.UnsavedGuardContext = exports.laneOf = exports.pageTelemetryContext = exports.onDocumentClick = exports.onUncaughtErrors = exports.onBeforeUnload = exports.onGlobalKeydown = exports.onAuthChange = exports.onWindowResize = exports.reloadPage = exports.navigateTo = exports.replaceUrl = exports.localFlag = void 0;
+exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.SHELL_KEYS = exports.WizardShell = exports.StageFormRenderer = exports.stageQuestions = exports.stagePresentation = exports.stageElements = exports.stageDriftKeys = exports.resolvePrefillSource = exports.isDisplayBlock = exports.guestDisplayName = exports.coreStageFallback = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = exports.DEFAULT_CORE_STAGE = exports.CORE_STAGE_ID = exports.ATTENDANCE_KEY = exports.ABOUT_ICON_NAMES = exports.ABOUT_ICONS = exports.ABOUT_SCHEMA = exports.ABOUT_PAGE_FIELDS = exports.ABOUT_BLOCK_TYPES = exports.guestTokenExpiresInSeconds = exports.unlinkIdentity = exports.loginNoEvent = exports.claimIdentity = exports.clearGuestToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.ensureGuestToken = exports.GoogleSignInButton = exports.idTokenExpiresInSeconds = exports.getEmail = exports.authHeaders = exports.getIdToken = exports.signOut = exports.initAuth = void 0;
 var api_1 = require("./api");
 Object.defineProperty(exports, "ApiConstants", { enumerable: true, get: function () { return api_1.ApiConstants; } });
 Object.defineProperty(exports, "PublicApi", { enumerable: true, get: function () { return api_1.PublicApi; } });
@@ -81,6 +81,9 @@ Object.defineProperty(exports, "onWindowResize", { enumerable: true, get: functi
 Object.defineProperty(exports, "onAuthChange", { enumerable: true, get: function () { return browser_1.onAuthChange; } });
 Object.defineProperty(exports, "onGlobalKeydown", { enumerable: true, get: function () { return browser_1.onGlobalKeydown; } });
 Object.defineProperty(exports, "onBeforeUnload", { enumerable: true, get: function () { return browser_1.onBeforeUnload; } });
+Object.defineProperty(exports, "onUncaughtErrors", { enumerable: true, get: function () { return browser_1.onUncaughtErrors; } });
+Object.defineProperty(exports, "onDocumentClick", { enumerable: true, get: function () { return browser_1.onDocumentClick; } });
+Object.defineProperty(exports, "pageTelemetryContext", { enumerable: true, get: function () { return browser_1.pageTelemetryContext; } });
 var saveLane_1 = require("./saveLane");
 Object.defineProperty(exports, "laneOf", { enumerable: true, get: function () { return saveLane_1.laneOf; } });
 var unsavedGuard_1 = require("./unsavedGuard");
@@ -102,6 +105,16 @@ Object.defineProperty(exports, "getJson", { enumerable: true, get: function () {
 Object.defineProperty(exports, "jsonOr", { enumerable: true, get: function () { return data_1.jsonOr; } });
 Object.defineProperty(exports, "runGuarded", { enumerable: true, get: function () { return data_1.runGuarded; } });
 Object.defineProperty(exports, "sendJson", { enumerable: true, get: function () { return data_1.sendJson; } });
+var report_1 = require("./report");
+Object.defineProperty(exports, "addBreadcrumb", { enumerable: true, get: function () { return report_1.addBreadcrumb; } });
+Object.defineProperty(exports, "flushReports", { enumerable: true, get: function () { return report_1.flushReports; } });
+Object.defineProperty(exports, "initReporter", { enumerable: true, get: function () { return report_1.initReporter; } });
+Object.defineProperty(exports, "report", { enumerable: true, get: function () { return report_1.report; } });
+Object.defineProperty(exports, "reportCaught", { enumerable: true, get: function () { return report_1.reportCaught; } });
+Object.defineProperty(exports, "reporterSnapshot", { enumerable: true, get: function () { return report_1.reporterSnapshot; } });
+Object.defineProperty(exports, "resetReporter", { enumerable: true, get: function () { return report_1.resetReporter; } });
+Object.defineProperty(exports, "routeTemplate", { enumerable: true, get: function () { return report_1.routeTemplate; } });
+Object.defineProperty(exports, "scrub", { enumerable: true, get: function () { return report_1.scrub; } });
 var utils_1 = require("./utils");
 Object.defineProperty(exports, "ArrayUtils", { enumerable: true, get: function () { return utils_1.ArrayUtils; } });
 Object.defineProperty(exports, "ColorUtils", { enumerable: true, get: function () { return utils_1.ColorUtils; } });
@@ -123,6 +136,8 @@ Object.defineProperty(exports, "signOut", { enumerable: true, get: function () {
 Object.defineProperty(exports, "getIdToken", { enumerable: true, get: function () { return auth_1.getIdToken; } });
 Object.defineProperty(exports, "authHeaders", { enumerable: true, get: function () { return auth_1.authHeaders; } });
 Object.defineProperty(exports, "getEmail", { enumerable: true, get: function () { return auth_1.getEmail; } });
+var authToken_1 = require("./authToken");
+Object.defineProperty(exports, "idTokenExpiresInSeconds", { enumerable: true, get: function () { return authToken_1.idTokenExpiresInSeconds; } });
 var GoogleSignInButton_1 = require("./GoogleSignInButton");
 Object.defineProperty(exports, "GoogleSignInButton", { enumerable: true, get: function () { return GoogleSignInButton_1.GoogleSignInButton; } });
 var guestAuth_1 = require("./guestAuth");
@@ -133,6 +148,7 @@ Object.defineProperty(exports, "clearGuestToken", { enumerable: true, get: funct
 Object.defineProperty(exports, "claimIdentity", { enumerable: true, get: function () { return guestAuth_1.claimIdentity; } });
 Object.defineProperty(exports, "loginNoEvent", { enumerable: true, get: function () { return guestAuth_1.loginNoEvent; } });
 Object.defineProperty(exports, "unlinkIdentity", { enumerable: true, get: function () { return guestAuth_1.unlinkIdentity; } });
+Object.defineProperty(exports, "guestTokenExpiresInSeconds", { enumerable: true, get: function () { return guestAuth_1.guestTokenExpiresInSeconds; } });
 var about_1 = require("./about");
 Object.defineProperty(exports, "ABOUT_BLOCK_TYPES", { enumerable: true, get: function () { return about_1.ABOUT_BLOCK_TYPES; } });
 Object.defineProperty(exports, "ABOUT_PAGE_FIELDS", { enumerable: true, get: function () { return about_1.ABOUT_PAGE_FIELDS; } });

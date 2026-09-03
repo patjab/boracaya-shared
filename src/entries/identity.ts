@@ -6,12 +6,14 @@ export {
   initAuth,
   signOut,
 } from '../auth';
+export { idTokenExpiresInSeconds } from '../authToken';
 export {
   claimIdentity,
   clearGuestToken,
   ensureGuestToken,
   guestAuthHeaders,
   guestLinkedEmail,
+  guestTokenExpiresInSeconds,
   loginNoEvent,
   unlinkIdentity,
 } from '../guestAuth';
