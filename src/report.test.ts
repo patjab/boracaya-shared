@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  FLUSH_DELAY_MS, MAX_BATCH, MAX_BREADCRUMBS, MAX_REPORTS_PER_SESSION, MAX_REPORT_BYTES,
+  MAX_BREADCRUMBS, MAX_REPORT_BYTES,
   addBreadcrumb, fingerprintOf, flushReports, initReporter, report, reportCaught,
   reporterSnapshot, resetReporter, routeTemplate, scrub,
 } from './report';
+import type { ReportContext, ReportFields } from './report';
 
 const ENDPOINT = 'https://public-api.test.boracaya.com/telemetry/errors';
 
 const fetchMock = () => fetch as unknown as ReturnType<typeof vi.fn>;
+/** The raw JSON string handed to fetch for the n-th batch — what actually crosses the wire. */
+const sentBody = (n = 0) => (fetchMock().mock.calls[n][1] as RequestInit).body as string;
 const sentBatches = () => fetchMock().mock.calls.map(
   (c) => JSON.parse((c[1] as RequestInit).body as string).reports as Array<Record<string, unknown>>,
 );
@@ -113,22 +116,85 @@ describe('report', () => {
     expect(Object.keys(r).sort()).toEqual(['app', 'breadcrumbs', 'fingerprint', 'kind', 'message', 'release', 'sessionId', 't', 'v']);
   });
 
-  it('dedupes a fingerprint within the session and caps the session', () => {
-    for (let i = 0; i < 3; i += 1) report('api', { message: `m${i}`, label: 'x', method: 'GET', url: '/a', status: 500 });
-    expect(reporterSnapshot().queued).toBe(1);
-    for (let i = 0; i < MAX_REPORTS_PER_SESSION + 5; i += 1) report('api', { message: 'm', label: `l${i}`, method: 'GET', url: '/a', status: 500 });
+  it('drops unknown keys from the fields and from the context: neither key nor value reaches the wire', () => {
+    // Values are deliberately NOT scrub-shaped, so only the allowlist can keep them off the wire.
+    initReporter({ app: 'valet', release: 'abc123', endpoint: ENDPOINT,
+      context: () => ({ route: '/r', secretToken: 'sk-CTX-LEAK', password: 'hunter2-ctx' } as ReportContext) });
+    report('api', { message: 'a', label: 'a', status: 500,
+      secretToken: 'sk-FIELD-LEAK', apiKey: 'ak-FIELD-LEAK' } as ReportFields);
     flushReports();
-    expect(sentBatches().flat()).toHaveLength(MAX_REPORTS_PER_SESSION);
+    const body = sentBody();
+    expect(JSON.parse(body).reports[0]).toMatchObject({ message: 'a', label: 'a', route: '/r' });
+    for (const s of ['secretToken', 'sk-CTX-LEAK', 'sk-FIELD-LEAK', 'password', 'hunter2-ctx', 'apiKey', 'ak-FIELD-LEAK']) {
+      expect(body).not.toContain(s);
+    }
   });
 
-  it('batches on a timer and flushes early at the batch size', () => {
-    report('api', { message: 'a', label: 'a', status: 500 });
+  it('scrubs every free-text field it redacts, end to end: message, each stack frame, componentStack, each crumb', () => {
+    // One email, one JWT and one bearer token per field, all distinct, so a leak names the field that leaked.
+    const email = (f: string) => `${f}.owner@leak-${f}.example`;
+    const jwt = (f: string) => `eyJ${f}aaaaaaaa.eyJ${f}bbbbbbbb.${f}cccccccc`;
+    const bearer = (f: string) => `Bearer ${f}-bearer-secret`;
+    const sentinels: string[] = [];
+    const sensitive = (f: string) => {
+      sentinels.push(email(f), jwt(f), `${f}-bearer-secret`);
+      return `${f}: ${email(f)} ${jwt(f)} ${bearer(f)}`;
+    };
+    addBreadcrumb({ type: 'route', detail: sensitive('crumbRoute') });
+    addBreadcrumb({ type: 'api', detail: sensitive('crumbApi'), status: 500 });
+    addBreadcrumb({ type: 'click', detail: sensitive('crumbClick') });
+    addBreadcrumb({ type: 'auth', detail: sensitive('crumbAuth') });
+    addBreadcrumb({ type: 'note', detail: sensitive('crumbNote') });
+    report('render', {
+      message: sensitive('message'),
+      stack: [sensitive('stack0'), `at f (${sensitive('stack1')}:1:1)`, `at g (${sensitive('stack2')}:2:2)`].join('\n'),
+      componentStack: sensitive('componentStack'),
+    });
+    flushReports();
+    const body = sentBody();
+    const r = JSON.parse(body).reports[0];
+    // Every field is still on the wire (redacted, not dropped) ...
+    expect(r.message).toContain('[email]');
+    expect(r.stack).toHaveLength(3);
+    expect(r.componentStack).toContain('[token]');
+    expect(r.breadcrumbs).toHaveLength(5);
+    // ... and none of the 30 sentinels (10 fields x email/JWT/bearer) survives in the raw request body.
+    expect(sentinels).toHaveLength(30);
+    for (const s of sentinels) expect(body).not.toContain(s);
+  });
+
+  it('dedupes a fingerprint within the session', () => {
+    for (let i = 0; i < 3; i += 1) report('api', { message: `m${i}`, label: 'x', method: 'GET', url: '/a', status: 500 });
+    expect(reporterSnapshot().queued).toBe(1);
+  });
+
+  // The three operational limits below are pinned as LITERALS, not via the exported constants:
+  // the contract is 20 reports per page load, 10 per batch, 5 s to flush (cdk#1495).
+  it('accepts exactly 20 reports per page load: the 21st distinct fingerprint is dropped', () => {
+    for (let i = 1; i <= 21; i += 1) report('api', { message: 'm', label: `l${i}`, method: 'GET', url: '/a', status: 500 });
+    flushReports();
+    const labels = sentBatches().flat().map((r) => r.label);
+    expect(labels).toHaveLength(20);
+    expect(labels[0]).toBe('l1');
+    expect(labels[19]).toBe('l20');
+    expect(labels).not.toContain('l21');
+  });
+
+  it('flushes a batch at exactly 10 reports: 9 wait, the 10th sends', () => {
+    for (let i = 1; i <= 9; i += 1) report('api', { message: 'b', label: `b${i}`, status: 500 });
     expect(fetchMock()).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(FLUSH_DELAY_MS);
+    report('api', { message: 'b', label: 'b10', status: 500 });
     expect(fetchMock()).toHaveBeenCalledTimes(1);
-    for (let i = 0; i < MAX_BATCH; i += 1) report('api', { message: 'b', label: `b${i}`, status: 500 });
-    expect(fetchMock()).toHaveBeenCalledTimes(2);
-    expect(sentBatches()[1]).toHaveLength(MAX_BATCH);
+    expect(sentBatches()[0]).toHaveLength(10);
+  });
+
+  it('flushes a lone report after exactly 5000 ms: nothing at 4999 ms, sent at 5000 ms', () => {
+    report('api', { message: 'a', label: 'a', status: 500 });
+    vi.advanceTimersByTime(4999);
+    expect(fetchMock()).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(fetchMock()).toHaveBeenCalledTimes(1);
+    expect(sentBatches()[0]).toHaveLength(1);
   });
 
   it('keeps the breadcrumb ring at its cap', () => {

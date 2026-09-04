@@ -6,7 +6,7 @@ import { ApiError, getJson, jsonOr, runGuarded, sendJson } from './data';
 import { createCachedLoad, resetCache } from './cache';
 import { ErrorBoundary } from './ErrorBoundary';
 import { onDocumentClick, onUncaughtErrors, pageTelemetryContext } from './browser';
-import { flushReports, initReporter, reporterSnapshot, resetReporter } from './report';
+import { flushReports, initReporter, report, reporterSnapshot, resetReporter } from './report';
 import { idTokenExpiresInSeconds, setIdToken, clearIdToken } from './authToken';
 import { guestTokenExpiresInSeconds } from './guestAuth';
 
@@ -171,18 +171,44 @@ describe('ErrorBoundary reports the render throw with its component stack', () =
 });
 
 describe('browser.ts telemetry adapters', () => {
+  /** An `unhandledrejection` event carrying `reason`, the way the browser dispatches it. */
+  const rejectionEvent = (reason: unknown): PromiseRejectionEvent => {
+    const promise = Promise.reject(reason);
+    promise.catch(() => undefined); // the rejection is the event's payload, not a test failure
+    return new PromiseRejectionEvent('unhandledrejection', { reason, promise });
+  };
+
   it('onUncaughtErrors wires error / unhandledrejection / pagehide and unsubscribes', () => {
     const h = { onError: vi.fn(), onRejection: vi.fn(), onPageHide: vi.fn() };
     const off = onUncaughtErrors(h);
     window.dispatchEvent(new ErrorEvent('error', { message: 'm', error: new Error('e') }));
-    window.dispatchEvent(new Event('unhandledrejection'));
+    window.dispatchEvent(rejectionEvent(new Error('r')));
     window.dispatchEvent(new Event('pagehide'));
     expect(h.onError).toHaveBeenCalledWith('m', expect.any(Error));
     expect(h.onRejection).toHaveBeenCalledTimes(1);
     expect(h.onPageHide).toHaveBeenCalledTimes(1);
     off();
     window.dispatchEvent(new Event('pagehide'));
+    window.dispatchEvent(rejectionEvent(new Error('after off')));
     expect(h.onPageHide).toHaveBeenCalledTimes(1);
+    expect(h.onRejection).toHaveBeenCalledTimes(1);
+  });
+
+  it('onUncaughtErrors hands the handler the rejection reason itself, so the wire report keeps name and message', () => {
+    const reason = new RangeError('rejected boom');
+    // The handler the apps install: an unhandled rejection becomes one `rejection` report.
+    const onRejection = vi.fn((r: unknown) => {
+      const e = r instanceof Error ? r : new Error(String(r));
+      report('rejection', { message: e.message, name: e.name, stack: e.stack });
+    });
+    const off = onUncaughtErrors({ onError: vi.fn(), onRejection, onPageHide: vi.fn() });
+    window.dispatchEvent(rejectionEvent(reason));
+    off();
+    expect(onRejection).toHaveBeenCalledTimes(1);
+    expect(onRejection.mock.calls[0][0]).toBe(reason);
+    const [r] = wire();
+    expect(r).toMatchObject({ kind: 'rejection', name: 'RangeError', message: 'rejected boom' });
+    expect((r.stack as string[])[0]).toContain('RangeError: rejected boom');
   });
 
   it('onDocumentClick reports a stable identifier, never the accessible name', () => {
