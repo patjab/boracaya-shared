@@ -130,7 +130,7 @@ describe('report', () => {
     }
   });
 
-  it('scrubs every free-text field it redacts, end to end: message, each stack frame, componentStack, each crumb', () => {
+  it('scrubs every free-text field end to end: message, name, label, url, requestId, stack, componentStack, crumbs, context', () => {
     // One email, one JWT and one bearer token per field, all distinct, so a leak names the field that leaked.
     const email = (f: string) => `${f}.owner@leak-${f}.example`;
     const jwt = (f: string) => `eyJ${f}aaaaaaaa.eyJ${f}bbbbbbbb.${f}cccccccc`;
@@ -145,8 +145,21 @@ describe('report', () => {
     addBreadcrumb({ type: 'click', detail: sensitive('crumbClick') });
     addBreadcrumb({ type: 'auth', detail: sensitive('crumbAuth') });
     addBreadcrumb({ type: 'note', detail: sensitive('crumbNote') });
+    // The context too: a path segment, an event id and the UA string are text a
+    // proxy, a deep link or an extension can put an address or a token into.
+    resetReporter();
+    initReporter({ app: 'valet', release: 'abc123', endpoint: ENDPOINT,
+      context: () => ({ route: `/events/${sensitive('route')}/rsvp`, eventId: sensitive('eventId'),
+        ua: sensitive('ua'), online: true }) });
+    addBreadcrumb({ type: 'note', detail: sensitive('crumbNote2') });
     report('render', {
       message: sensitive('message'),
+      name: sensitive('name'),
+      label: sensitive('label'),
+      // A URL carries no literal `Bearer …` (the space would be %20-encoded), so
+      // its sentinels are the two shapes a path can hold: an address, a JWT.
+      url: `https://valet.test.boracaya.com/guests/${email('url')}/${jwt('url')}/edit`,
+      requestId: sensitive('requestId'),
       stack: [sensitive('stack0'), `at f (${sensitive('stack1')}:1:1)`, `at g (${sensitive('stack2')}:2:2)`].join('\n'),
       componentStack: sensitive('componentStack'),
     });
@@ -155,11 +168,19 @@ describe('report', () => {
     const r = JSON.parse(body).reports[0];
     // Every field is still on the wire (redacted, not dropped) ...
     expect(r.message).toContain('[email]');
+    expect(r.name).toContain('[token]');
+    expect(r.label).toContain('[email]');
+    expect(r.routeTemplate).toContain('[email]');
+    expect(r.requestId).toContain('[token]');
     expect(r.stack).toHaveLength(3);
     expect(r.componentStack).toContain('[token]');
-    expect(r.breadcrumbs).toHaveLength(5);
-    // ... and none of the 30 sentinels (10 fields x email/JWT/bearer) survives in the raw request body.
-    expect(sentinels).toHaveLength(30);
+    expect(r.route).toContain('[email]');
+    expect(r.eventId).toContain('[token]');
+    expect(r.ua).toContain('[email]');
+    expect(r.breadcrumbs).toHaveLength(1);
+    // ... and none of the sentinels (17 fields x email/JWT/bearer, + the URL's two) survives in the raw request body.
+    sentinels.push(email('url'), jwt('url'));
+    expect(sentinels).toHaveLength(53);
     for (const s of sentinels) expect(body).not.toContain(s);
   });
 

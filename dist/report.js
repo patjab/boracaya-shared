@@ -231,21 +231,26 @@ const report = (kind, fields) => {
             fingerprint,
             t: new Date().toISOString(),
             message,
-            ...(fields.name ? { name: fields.name } : {}),
-            ...(fields.label ? { label: fields.label } : {}),
+            // Every free-text field goes through `scrub`, not only the ones a
+            // human writes: a thrown value's name, a label, a request id echoed by
+            // a proxy, a path segment, the UA string — any of them can carry an
+            // address or a token (Codex r2 on #162 found name/label/requestId/
+            // route/ua/eventId/routeTemplate went out verbatim).
+            ...(fields.name ? { name: (0, exports.scrub)(fields.name) } : {}),
+            ...(fields.label ? { label: (0, exports.scrub)(fields.label) } : {}),
             ...(fields.method ? { method: fields.method } : {}),
-            ...(template ? { routeTemplate: template } : {}),
+            ...(template ? { routeTemplate: (0, exports.scrub)(template) } : {}),
             ...(fields.status !== undefined ? { status: fields.status } : {}),
-            ...(fields.requestId ? { requestId: fields.requestId } : {}),
+            ...(fields.requestId ? { requestId: (0, exports.scrub)(fields.requestId) } : {}),
             ...(fields.durationMs !== undefined ? { durationMs: fields.durationMs } : {}),
             ...(stack ? { stack } : {}),
             ...(fields.componentStack ? { componentStack: (0, exports.scrub)(fields.componentStack) } : {}),
             breadcrumbs: [...state.breadcrumbs],
-            ...(ctx.route ? { route: (0, exports.routeTemplate)(ctx.route) } : {}),
-            ...(ctx.eventId ? { eventId: ctx.eventId } : {}),
+            ...(ctx.route ? { route: (0, exports.scrub)((0, exports.routeTemplate)(ctx.route)) } : {}),
+            ...(ctx.eventId ? { eventId: (0, exports.scrub)(ctx.eventId) } : {}),
             ...(ctx.auth ? { auth: ctx.auth } : {}),
             ...(ctx.online !== undefined ? { online: ctx.online } : {}),
-            ...(ctx.ua ? { ua: ctx.ua.slice(0, 200) } : {}),
+            ...(ctx.ua ? { ua: (0, exports.scrub)(ctx.ua).slice(0, 200) } : {}),
         });
         state.queue.push(r);
         state.accepted += 1;
