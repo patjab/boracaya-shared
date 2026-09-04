@@ -185,13 +185,13 @@ describe('browser.ts telemetry adapters', () => {
     expect(h.onPageHide).toHaveBeenCalledTimes(1);
   });
 
-  it('onDocumentClick reports the accessible name only', () => {
+  it('onDocumentClick reports a stable identifier, never the accessible name', () => {
     document.body.innerHTML = `
-      <button aria-label="Save changes"><span id="inner">Save</span></button>
-      <a data-testid="event-card"><b id="link">Alex &amp; Alexa</b></a>
-      <input type="email" id="email" value="alex@example.com" />
+      <button aria-label="Open Alex &amp; Sam"><span id="inner">Alex &amp; Sam</span></button>
+      <a data-testid="event-card" aria-label="Alex &amp; Alexa"><b id="link">Alex &amp; Alexa</b></a>
+      <input type="email" id="email" value="alex@example.com" aria-label="Alex's email" />
       <div id="plain">nothing</div>
-      <div role="tab" id="tab">Attend</div>`;
+      <div role="tab" id="tab" aria-label="Attend as Alex">Attend</div>`;
     const names: string[] = [];
     const off = onDocumentClick((n) => names.push(n));
     document.getElementById('inner')!.click();
@@ -201,8 +201,9 @@ describe('browser.ts telemetry adapters', () => {
     document.getElementById('tab')!.click();
     off();
     document.getElementById('inner')!.click();
-    expect(names).toEqual(['Save changes', 'event-card', 'input:email', 'div']);
-    expect(names.join(' ')).not.toContain('example.com');
+    expect(names).toEqual(['button', 'event-card', 'input:email', 'div[role=tab]']);
+    // Neither the label, the text, nor the value of any control reaches the crumb.
+    expect(names.join(' ')).not.toMatch(/Alex|Sam|example\.com|Attend/);
   });
 
   it('pageTelemetryContext reads route, connectivity and UA', () => {

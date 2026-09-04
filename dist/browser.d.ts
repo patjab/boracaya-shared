@@ -57,9 +57,11 @@ export declare const onUncaughtErrors: (handlers: {
 }) => (() => void);
 /**
  * Capture-phase click subscription for the reporter's click breadcrumbs
- * (cdk#1495). The handler receives the pressed control's ACCESSIBLE NAME only
- * — aria-label, then data-testid, then the tag — never input values or text
- * a guest typed. Returns the unsubscribe.
+ * (cdk#1495). The handler receives a STABLE IDENTIFIER of the pressed control
+ * — its data-testid, else `input:<type>`, else the tag with its role — never
+ * its accessible name: an aria-label or a link's text is user-authored in
+ * these apps (an event title, a guest's name), so no text reaches a report
+ * (Codex r3 on boracaya-valet#704). Returns the unsubscribe.
  */
 export declare const onDocumentClick: (handler: (name: string) => void) => (() => void);
 /** The page facts a client error report carries (cdk#1495): connectivity + UA + path. */

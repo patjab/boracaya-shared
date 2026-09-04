@@ -80,7 +80,7 @@ onUncaughtErrors({
   onRejection: (reason) => report('rejection', { message: String(reason) }),
   onPageHide: flushReports,
 });
-onDocumentClick((name) => addBreadcrumb({ type: 'click', detail: name }));
+onDocumentClick((id) => addBreadcrumb({ type: 'click', detail: id })); // data-testid / input:<type> / tag[role] — never a label or text
 ```
 
 Reports are batched (`keepalive` POSTs to `POST /telemetry/errors`), capped at

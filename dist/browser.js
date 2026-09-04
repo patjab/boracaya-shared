@@ -93,9 +93,11 @@ const onUncaughtErrors = (handlers) => {
 exports.onUncaughtErrors = onUncaughtErrors;
 /**
  * Capture-phase click subscription for the reporter's click breadcrumbs
- * (cdk#1495). The handler receives the pressed control's ACCESSIBLE NAME only
- * — aria-label, then data-testid, then the tag — never input values or text
- * a guest typed. Returns the unsubscribe.
+ * (cdk#1495). The handler receives a STABLE IDENTIFIER of the pressed control
+ * — its data-testid, else `input:<type>`, else the tag with its role — never
+ * its accessible name: an aria-label or a link's text is user-authored in
+ * these apps (an event title, a guest's name), so no text reaches a report
+ * (Codex r3 on boracaya-valet#704). Returns the unsubscribe.
  */
 const onDocumentClick = (handler) => {
     const listener = (e) => {
@@ -103,8 +105,10 @@ const onDocumentClick = (handler) => {
         const el = (_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.closest) === null || _b === void 0 ? void 0 : _b.call(_a, 'button, a, [role="button"], [role="tab"], [role="menuitem"], input, [data-testid]');
         if (!el)
             return;
-        const name = el.getAttribute('aria-label') || el.getAttribute('data-testid')
-            || (el.tagName === 'INPUT' ? `input:${(_c = el.getAttribute('type')) !== null && _c !== void 0 ? _c : 'text'}` : el.tagName.toLowerCase());
+        const role = el.getAttribute('role');
+        const name = el.getAttribute('data-testid')
+            || (el.tagName === 'INPUT' ? `input:${(_c = el.getAttribute('type')) !== null && _c !== void 0 ? _c : 'text'}` : el.tagName.toLowerCase())
+                + (role ? `[role=${role}]` : '');
         handler(name);
     };
     window.document.addEventListener('click', listener, true);
