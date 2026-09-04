@@ -5,6 +5,12 @@
  * either id is missing or the exchange fails.
  */
 export declare function ensureGuestToken(eventId: string | null | undefined, userId: string | null | undefined): Promise<string | null>;
+/**
+ * Seconds until the cached guest token expires, or undefined when none is
+ * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client
+ * error report. Exposes the expiry ONLY — never the token, userId or event.
+ */
+export declare function guestTokenExpiresInSeconds(): number | undefined;
 /** Authorization header for a reservations call, or {} when no token is available. */
 export declare function guestAuthHeaders(eventId: string | null | undefined, userId: string | null | undefined): Promise<Record<string, string>>;
 /**

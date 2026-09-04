@@ -5,6 +5,7 @@
 // this module is plain TypeScript so Node consumers (e2e, contract tests) can
 // import it safely.
 import { authHeaders } from './authToken';
+import { apiCaught, apiFailed, apiSucceeded } from './apiObserver';
 import { retryAfterSeconds as parseRetryAfterSeconds } from './security';
 
 // authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
@@ -54,6 +55,28 @@ const readBody = async (res: Response, label: string): Promise<string> => {
   }
 };
 
+// cdk#1495: every failure the call primitives raise is observed ONCE, here,
+// with the join key to the backend (`x-amzn-RequestId`, exposed through CORS
+// by cdk#1496) and the call's duration; a success leaves only a breadcrumb.
+// Through the apiObserver seam, not the reporter itself, so this module stays
+// out of the reporter's graph (the bootstrap size gate).
+const requestIdOf = (res: Response): string | undefined => {
+  const id = res.headers && typeof res.headers.get === 'function'
+    ? res.headers.get('x-amzn-RequestId')
+    : null;
+  return id ?? undefined;
+};
+
+const failed = (
+  err: ApiError, method: string, url: string, startedAt: number, res?: Response,
+): ApiError => {
+  apiFailed({
+    label: err.label, message: err.message, status: err.status, method, url,
+    requestId: res ? requestIdOf(res) : undefined, durationMs: Date.now() - startedAt,
+  });
+  return err;
+};
+
 export interface CallOptions {
   /** Short human name for the call, used in errors/logs. Defaults to the URL. */
   label?: string;
@@ -75,20 +98,34 @@ export interface CallOptions {
  */
 export async function getJson<T>(url: string, opts: CallOptions = {}): Promise<T | undefined> {
   const label = opts.label ?? url;
+  const startedAt = Date.now();
   let res: Response;
   try {
     res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers }, signal: opts.signal });
   } catch (e) {
-    throw new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
+    // An intentional abort (a key switch, dispose) is not a failure worth a report.
+    const err = new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
+    throw opts.signal?.aborted ? err : failed(err, 'GET', url, startedAt);
   }
-  if (!res.ok) throw new ApiError(label, `${label}: HTTP ${res.status}`, res.status);
-  const text = await readBody(res, label);
-  if (!text.trim()) return undefined;
+  if (!res.ok) throw failed(new ApiError(label, `${label}: HTTP ${res.status}`, res.status), 'GET', url, startedAt, res);
+  let text: string;
   try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new ApiError(label, `${label}: response was not valid JSON`, res.status);
+    text = await readBody(res, label);
+  } catch (e) {
+    throw failed(e as ApiError, 'GET', url, startedAt, res);
   }
+  if (!text.trim()) {
+    apiSucceeded('GET', url, res.status);
+    return undefined;
+  }
+  let parsed: T;
+  try {
+    parsed = JSON.parse(text) as T;
+  } catch {
+    throw failed(new ApiError(label, `${label}: response was not valid JSON`, res.status), 'GET', url, startedAt, res);
+  }
+  apiSucceeded('GET', url, res.status);
+  return parsed;
 }
 
 /**
@@ -102,6 +139,9 @@ export async function jsonOr<T>(url: string, label: string, fallback: T, opts: C
     return (await getJson<T>(url, { ...opts, label })) ?? fallback;
   } catch (e) {
     console.error(`data: ${label} failed to load:`, e);
+    // An ApiError already reported itself at the throw site; anything else
+    // (a parse of the parsed body throwing) is a swallowed failure worth one.
+    if (!(e instanceof ApiError)) apiCaught(label, e);
     return fallback;
   }
 }
@@ -121,6 +161,7 @@ export interface SendOptions extends CallOptions {
  */
 export async function sendJson<T = void>(url: string, opts: SendOptions): Promise<T | undefined> {
   const label = opts.label ?? url;
+  const startedAt = Date.now();
   let res: Response;
   try {
     res = await fetch(url, {
@@ -134,9 +175,15 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
       ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
     });
   } catch (e) {
-    throw new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
+    const err = new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
+    throw opts.signal?.aborted ? err : failed(err, opts.method, url, startedAt);
   }
-  const text = await readBody(res, label);
+  let text: string;
+  try {
+    text = await readBody(res, label);
+  } catch (e) {
+    throw failed(e as ApiError, opts.method, url, startedAt, res);
+  }
   if (!res.ok) {
     let serverMessage: string | undefined;
     let bodyRetryAfter: number | undefined;
@@ -157,19 +204,25 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
     const retryHeader = res.headers && typeof res.headers.get === 'function'
       ? res.headers.get('Retry-After')
       : null;
-    throw new ApiError(
+    throw failed(new ApiError(
       label,
       serverMessage ?? `${label}: HTTP ${res.status}`,
       res.status,
       parseRetryAfterSeconds(retryHeader) ?? bodyRetryAfter,
-    );
+    ), opts.method, url, startedAt, res);
   }
-  if (!text.trim()) return undefined;
+  if (!text.trim()) {
+    apiSucceeded(opts.method, url, res.status);
+    return undefined;
+  }
+  let parsed: T;
   try {
-    return JSON.parse(text) as T;
+    parsed = JSON.parse(text) as T;
   } catch {
-    throw new ApiError(label, `${label}: response was not valid JSON`, res.status);
+    throw failed(new ApiError(label, `${label}: response was not valid JSON`, res.status), opts.method, url, startedAt, res);
   }
+  apiSucceeded(opts.method, url, res.status);
+  return parsed;
 }
 
 /**
@@ -218,6 +271,7 @@ export async function runGuarded<T>(
     data = await load();
   } catch (e) {
     console.error(`data: guarded load failed (${errorMessage}):`, e);
+    if (!(e instanceof ApiError)) apiCaught(errorMessage, e);
     error = errorMessage;
   } finally {
     set({ data, isLoading: false, error });

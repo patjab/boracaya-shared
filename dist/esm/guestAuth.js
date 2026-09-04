@@ -92,6 +92,17 @@ export async function ensureGuestToken(eventId, userId) {
     }
     return p;
 }
+/**
+ * Seconds until the cached guest token expires, or undefined when none is
+ * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client
+ * error report. Exposes the expiry ONLY — never the token, userId or event.
+ */
+export function guestTokenExpiresInSeconds() {
+    const s = readStored();
+    if (!s || typeof s.exp !== 'number')
+        return undefined;
+    return Math.max(0, Math.round(s.exp - Date.now() / 1000));
+}
 /** Authorization header for a reservations call, or {} when no token is available. */
 export async function guestAuthHeaders(eventId, userId) {
     const token = await ensureGuestToken(eventId, userId);

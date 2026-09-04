@@ -54,6 +54,57 @@ export const onAuthChange = (handler) => {
     window.addEventListener('pdab-auth-change', handler);
     return () => window.removeEventListener('pdab-auth-change', handler);
 };
+/**
+ * Client error telemetry wiring (cdk#1495): the window-touching half of the
+ * reporter. `report.ts` is DOM-free; this installs the global handlers and
+ * supplies the page context it cannot read itself. Returns the unsubscribe.
+ *
+ *  - `error` / `unhandledrejection` -> one report each (kind uncaught / rejection)
+ *  - `pagehide` -> flush the queue with keepalive, so a report from the last
+ *    click before a tab closes still lands
+ */
+export const onUncaughtErrors = (handlers) => {
+    const onError = (e) => handlers.onError(e.message, e.error);
+    const onRejection = (e) => handlers.onRejection(e.reason);
+    const onPageHide = () => handlers.onPageHide();
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+        window.removeEventListener('error', onError);
+        window.removeEventListener('unhandledrejection', onRejection);
+        window.removeEventListener('pagehide', onPageHide);
+    };
+};
+/**
+ * Capture-phase click subscription for the reporter's click breadcrumbs
+ * (cdk#1495). The handler receives a STABLE IDENTIFIER of the pressed control
+ * — its data-testid, else `input:<type>`, else the tag with its role — never
+ * its accessible name: an aria-label or a link's text is user-authored in
+ * these apps (an event title, a guest's name), so no text reaches a report
+ * (Codex r3 on boracaya-valet#704). Returns the unsubscribe.
+ */
+export const onDocumentClick = (handler) => {
+    const listener = (e) => {
+        var _a, _b, _c;
+        const el = (_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.closest) === null || _b === void 0 ? void 0 : _b.call(_a, 'button, a, [role="button"], [role="tab"], [role="menuitem"], input, [data-testid]');
+        if (!el)
+            return;
+        const role = el.getAttribute('role');
+        const name = el.getAttribute('data-testid')
+            || (el.tagName === 'INPUT' ? `input:${(_c = el.getAttribute('type')) !== null && _c !== void 0 ? _c : 'text'}` : el.tagName.toLowerCase())
+                + (role ? `[role=${role}]` : '');
+        handler(name);
+    };
+    window.document.addEventListener('click', listener, true);
+    return () => window.document.removeEventListener('click', listener, true);
+};
+/** The page facts a client error report carries (cdk#1495): connectivity + UA + path. */
+export const pageTelemetryContext = () => ({
+    route: window.location.pathname,
+    online: window.navigator.onLine,
+    ua: window.navigator.userAgent,
+});
 /** Subscribe to global keydown (dialog/lightbox keyboard nav); returns the unsubscribe. */
 export const onGlobalKeydown = (handler) => {
     window.addEventListener('keydown', handler);

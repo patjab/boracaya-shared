@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureGuestToken = ensureGuestToken;
+exports.guestTokenExpiresInSeconds = guestTokenExpiresInSeconds;
 exports.guestAuthHeaders = guestAuthHeaders;
 exports.guestLinkedEmail = guestLinkedEmail;
 exports.claimIdentity = claimIdentity;
@@ -100,6 +101,17 @@ async function ensureGuestToken(eventId, userId) {
         inFlight.set(flightKey, p);
     }
     return p;
+}
+/**
+ * Seconds until the cached guest token expires, or undefined when none is
+ * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client
+ * error report. Exposes the expiry ONLY — never the token, userId or event.
+ */
+function guestTokenExpiresInSeconds() {
+    const s = readStored();
+    if (!s || typeof s.exp !== 'number')
+        return undefined;
+    return Math.max(0, Math.round(s.exp - Date.now() / 1000));
 }
 /** Authorization header for a reservations call, or {} when no token is available. */
 async function guestAuthHeaders(eventId, userId) {
