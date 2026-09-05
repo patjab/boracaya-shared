@@ -101,6 +101,14 @@ export interface ErrorReport {
   auth?: { hasToken: boolean; expiresInS?: number };
   online?: boolean;
   ua?: string;
+  /**
+   * True when the page is driven by automation (`navigator.webdriver`, which
+   * Playwright sets in every engine). The triage job files a report from a
+   * person on first sight and holds automated ones to its recurrence
+   * thresholds — the e2e suite runs the real apps every few hours and must
+   * never look like a user (cdk#1494).
+   */
+  automated: boolean;
 }
 
 export const MAX_REPORTS_PER_SESSION = 20;
@@ -122,6 +130,16 @@ interface ReporterState {
   seen: Set<string>;
   timer: ReturnType<typeof setTimeout> | null;
 }
+
+/** `navigator.webdriver` is the automation flag every engine exposes; absent (a worker, a test) reads as a person. */
+const isAutomated = (): boolean => {
+  try {
+    const nav = (globalThis as { navigator?: { webdriver?: unknown } }).navigator;
+    return nav?.webdriver === true;
+  } catch {
+    return false;
+  }
+};
 
 const newSessionId = (): string => {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -338,6 +356,7 @@ export const report = (kind: ReportKind, fields: ReportFields): void => {
       ...(stack ? { stack } : {}),
       ...(fields.componentStack ? { componentStack: scrub(fields.componentStack) } : {}),
       breadcrumbs: [...state.breadcrumbs],
+      automated: isAutomated(),
       ...(ctx.route ? { route: scrub(routeTemplate(ctx.route)) } : {}),
       ...(ctx.eventId ? { eventId: scrub(ctx.eventId) } : {}),
       ...(ctx.auth ? { auth: ctx.auth } : {}),
