@@ -94,7 +94,7 @@ describe('report', () => {
       v: 1, kind: 'api', app: 'valet', release: 'abc123', name: 'ApiError', label: 'invites', method: 'GET',
       routeTemplate: '/events/{id}/invites', status: 401, requestId: 'req-1', durationMs: 42,
       message: 'invites: HTTP 401 for [email]', route: '/events/{id}/rsvp', eventId: 'evt-1',
-      auth: { hasToken: true, expiresInS: 120 }, online: true, ua: 'UA',
+      auth: { hasToken: true, expiresInS: 120 }, online: true, ua: 'UA', automated: false,
     });
     expect(r.sessionId).toBe(reporterSnapshot().sessionId);
     expect(r.fingerprint).toMatch(/^[0-9a-f]{8}$/);
@@ -113,7 +113,21 @@ describe('report', () => {
     report('uncaught', { message: 'boom' });
     flushReports();
     const r = sentBatches()[0][0];
-    expect(Object.keys(r).sort()).toEqual(['app', 'breadcrumbs', 'fingerprint', 'kind', 'message', 'release', 'sessionId', 't', 'v']);
+    expect(Object.keys(r).sort()).toEqual(['app', 'automated', 'breadcrumbs', 'fingerprint', 'kind', 'message', 'release', 'sessionId', 't', 'v']);
+  });
+
+  it('stamps automated from navigator.webdriver: true under Playwright, false for a person, false with no navigator', () => {
+    // distinct labels: api fingerprints key on the call, and a repeat is deduped per session
+    vi.stubGlobal('navigator', { webdriver: true });
+    report('api', { message: 'driven', label: 'a' });
+    vi.stubGlobal('navigator', { webdriver: false });
+    report('api', { message: 'a person', label: 'b' });
+    vi.stubGlobal('navigator', undefined);
+    report('api', { message: 'no navigator at all', label: 'c' });
+    flushReports();
+    expect(sentBatches()[0].map((r) => [r.message, r.automated])).toEqual([
+      ['driven', true], ['a person', false], ['no navigator at all', false],
+    ]);
   });
 
   it('drops unknown keys from the fields and from the context: neither key nor value reaches the wire', () => {
