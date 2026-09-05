@@ -33,6 +33,16 @@ exports.FLUSH_DELAY_MS = 5000;
 exports.MAX_REPORT_BYTES = 8 * 1024;
 const MAX_STACK_FRAMES = 10;
 const MAX_TEXT = 500;
+/** `navigator.webdriver` is the automation flag every engine exposes; absent (a worker, a test) reads as a person. */
+const isAutomated = () => {
+    try {
+        const nav = globalThis.navigator;
+        return (nav === null || nav === void 0 ? void 0 : nav.webdriver) === true;
+    }
+    catch (_a) {
+        return false;
+    }
+};
 const newSessionId = () => {
     const c = globalThis.crypto;
     if (c && typeof c.randomUUID === 'function')
@@ -246,6 +256,7 @@ const report = (kind, fields) => {
             ...(stack ? { stack } : {}),
             ...(fields.componentStack ? { componentStack: (0, exports.scrub)(fields.componentStack) } : {}),
             breadcrumbs: [...state.breadcrumbs],
+            automated: isAutomated(),
             ...(ctx.route ? { route: (0, exports.scrub)((0, exports.routeTemplate)(ctx.route)) } : {}),
             ...(ctx.eventId ? { eventId: (0, exports.scrub)(ctx.eventId) } : {}),
             ...(ctx.auth ? { auth: ctx.auth } : {}),

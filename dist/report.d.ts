@@ -76,6 +76,14 @@ export interface ErrorReport {
     };
     online?: boolean;
     ua?: string;
+    /**
+     * True when the page is driven by automation (`navigator.webdriver`, which
+     * Playwright sets in every engine). The triage job files a report from a
+     * person on first sight and holds automated ones to its recurrence
+     * thresholds — the e2e suite runs the real apps every few hours and must
+     * never look like a user (cdk#1494).
+     */
+    automated: boolean;
 }
 export declare const MAX_REPORTS_PER_SESSION = 20;
 export declare const MAX_BREADCRUMBS = 20;
