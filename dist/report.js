@@ -23,12 +23,21 @@
 // failing telemetry POST is dropped — not retried, not logged as another
 // report — so the reporter can never become the outage it exists to record.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reportCaught = exports.noteApiCall = exports.reportApiFailure = exports.report = exports.flushReports = exports.addBreadcrumb = exports.reporterSnapshot = exports.resetReporter = exports.initReporter = exports.fingerprintOf = exports.routeTemplate = exports.scrub = exports.MAX_REPORT_BYTES = exports.FLUSH_DELAY_MS = exports.MAX_BATCH = exports.MAX_BREADCRUMBS = exports.MAX_REPORTS_PER_SESSION = void 0;
+exports.reportCaught = exports.noteApiCall = exports.reportApiFailure = exports.report = exports.leavePage = exports.flushReports = exports.addBreadcrumb = exports.reporterSnapshot = exports.resetReporter = exports.initReporter = exports.fingerprintOf = exports.routeTemplate = exports.scrub = exports.MAX_REPORT_BYTES = exports.LEAVE_GRACE_MS = exports.FLUSH_DELAY_MS = exports.MAX_BATCH = exports.MAX_BREADCRUMBS = exports.MAX_REPORTS_PER_SESSION = void 0;
 const apiObserver_1 = require("./apiObserver");
 exports.MAX_REPORTS_PER_SESSION = 20;
 exports.MAX_BREADCRUMBS = 20;
 exports.MAX_BATCH = 10;
 exports.FLUSH_DELAY_MS = 5000;
+/**
+ * A transport failure (an `api` report with no status: the fetch itself
+ * rejected) is HELD this long before it may be sent. Leaving the page cancels
+ * every request in flight, and every engine reports that as a network error
+ * ("Load failed", "Failed to fetch") indistinguishable from a real one — so a
+ * transport failure followed within the grace by `leavePage()` was the leaving,
+ * and is dropped. The cdk#1494 inbox's first week was mostly these.
+ */
+exports.LEAVE_GRACE_MS = 1500;
 /** Server-side cap is 32 KiB per batch; keep one report well under it. */
 exports.MAX_REPORT_BYTES = 8 * 1024;
 const MAX_STACK_FRAMES = 10;
@@ -54,6 +63,7 @@ const freshState = () => ({
     sessionId: newSessionId(),
     breadcrumbs: [],
     queue: [],
+    held: [],
     accepted: 0,
     seen: new Set(),
     timer: null,
@@ -162,6 +172,7 @@ exports.resetReporter = resetReporter;
 const reporterSnapshot = () => ({
     sessionId: state.sessionId,
     queued: state.queue.length,
+    held: state.held.length,
     accepted: state.accepted,
     breadcrumbs: [...state.breadcrumbs],
 });
@@ -193,23 +204,60 @@ const send = (batch) => {
         /* a synchronous fetch throw (bad URL) is dropped like any other transport failure */
     }
 };
-/** Send everything queued now (the app calls this on pagehide). */
+const isTransportFailure = (r) => r.kind === 'api' && r.status === undefined;
+/** Held transport failures that have waited out the grace join the queue. */
+const releaseHeld = (now) => {
+    const still = [];
+    for (const h of state.held) {
+        if (now - h.at >= exports.LEAVE_GRACE_MS)
+            state.queue.push(h.r);
+        else
+            still.push(h);
+    }
+    state.held = still;
+};
+const arm = (delayMs) => {
+    if (!state.timer)
+        state.timer = setTimeout(exports.flushReports, delayMs);
+};
+/**
+ * Send everything queued now. A transport failure still inside its grace stays
+ * held (the timer comes back for it); everything else goes.
+ */
 const flushReports = () => {
     if (state.timer) {
         clearTimeout(state.timer);
         state.timer = null;
     }
+    releaseHeld(Date.now());
     while (state.queue.length)
         send(state.queue.splice(0, exports.MAX_BATCH));
+    if (state.held.length)
+        arm(exports.LEAVE_GRACE_MS);
 };
 exports.flushReports = flushReports;
+/**
+ * The page is being left (the app calls this on pagehide): a transport
+ * failure still inside its grace was the leaving — dropped, and its
+ * fingerprint un-seen so a real one later in this session still reports.
+ * Everything else is sent now, with keepalive.
+ */
+const leavePage = () => {
+    releaseHeld(Date.now());
+    for (const h of state.held) {
+        state.seen.delete(h.r.fingerprint);
+        state.accepted -= 1;
+    }
+    state.held = [];
+    (0, exports.flushReports)();
+};
+exports.leavePage = leavePage;
 const schedule = () => {
     if (state.queue.length >= exports.MAX_BATCH) {
         (0, exports.flushReports)();
         return;
     }
-    if (!state.timer)
-        state.timer = setTimeout(exports.flushReports, exports.FLUSH_DELAY_MS);
+    arm(exports.FLUSH_DELAY_MS);
 };
 /**
  * Record one failure. Safe to call from anywhere, any time: before init it is
@@ -263,7 +311,10 @@ const report = (kind, fields) => {
             ...(ctx.online !== undefined ? { online: ctx.online } : {}),
             ...(ctx.ua ? { ua: (0, exports.scrub)(ctx.ua).slice(0, 200) } : {}),
         });
-        state.queue.push(r);
+        if (isTransportFailure(r))
+            state.held.push({ r, at: Date.now() });
+        else
+            state.queue.push(r);
         state.accepted += 1;
         schedule();
     }

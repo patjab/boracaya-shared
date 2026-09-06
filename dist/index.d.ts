@@ -35,7 +35,7 @@ export type { UnsavedGuard } from './unsavedGuard';
 export { useRaceGuard, createRaceGuard, useSetupPolling, useCloseGuard, useStoredToggle, useSaveGroup, useUnsavedGuardHost, } from './hooks';
 export type { RaceGuard, RaceToken, SaveGroupResult, SaveGroupMessages } from './hooks';
 export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data';
-export { addBreadcrumb, flushReports, initReporter, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from './report';
+export { addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from './report';
 export type { Breadcrumb, BreadcrumbType, ErrorReport, ReportContext, ReportFields, ReportKind, ReporterConfig, } from './report';
 export type { GuardedState } from './data';
 export { ArrayUtils, ColorUtils, DateUtils, NumberUtils, StringUtils } from './utils';

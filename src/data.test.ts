@@ -61,6 +61,20 @@ describe('getJson', () => {
     expect(err.message).toContain('connection reset');
   });
 
+  it('a declared status (expect) still throws the typed ApiError — the call site classifies it', async () => {
+    fetchMock().mockResolvedValue(jsonResponse(null, 404));
+    const err = await getJson('https://x/y', { label: 'rsvp-view', expect: [404] }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(404);
+  });
+
+  it('an AbortError without a signal is still a thrown ApiError', async () => {
+    fetchMock().mockRejectedValue(new DOMException('Fetch is aborted', 'AbortError'));
+    const err = await getJson('https://x/y', { label: 'rsvps' }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBeUndefined();
+  });
+
   it('passes an AbortSignal through to fetch (the #159 abort seam)', async () => {
     fetchMock().mockResolvedValue(jsonResponse({}));
     const controller = new AbortController();

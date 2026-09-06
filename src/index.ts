@@ -80,7 +80,7 @@ export {
 export type { RaceGuard, RaceToken, SaveGroupResult, SaveGroupMessages } from './hooks';
 export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data';
 export {
-  addBreadcrumb, flushReports, initReporter, report, reportCaught, reporterSnapshot,
+  addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot,
   resetReporter, routeTemplate, scrub,
 } from './report';
 export type {

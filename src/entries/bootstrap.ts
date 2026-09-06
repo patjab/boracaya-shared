@@ -6,7 +6,7 @@
 export { PublicApi, GuestEventApi } from '../publicApi';
 export { ApiError, getJson, jsonOr, sendJson } from '../data';
 export type { CallOptions, SendOptions } from '../data';
-export { addBreadcrumb, flushReports, initReporter, report } from '../report';
+export { addBreadcrumb, flushReports, initReporter, leavePage, report } from '../report';
 export type { ReportContext, ReporterConfig } from '../report';
 export { getEnv, isTest, envSubdomain } from '../env';
 export type { EnvName } from '../env';

@@ -41,19 +41,17 @@ export class ApiError extends Error {
   }
 }
 
-// A body-stream read failure (connection reset mid-body, etc.) is a failed
-// call, not a successful empty response — surface it instead of masking it.
-const readBody = async (res: Response, label: string): Promise<string> => {
-  try {
-    return await res.text();
-  } catch (e) {
-    throw new ApiError(
-      label,
-      `${label}: failed to read the response body (${e instanceof Error ? e.message : String(e)})`,
-      res.status,
-    );
-  }
-};
+const reasonOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+// A cancelled call is not a failure worth a report (cdk#1494 inbox: every
+// navigation-cancelled fetch was filing as a network error): the caller's own
+// abort (a key switch, dispose, the last joined reader leaving), or the
+// engine's — WebKit cancels a body read with an AbortError ("The user aborted
+// a request.") when the document moves on, signal or no signal.
+// By name, not `instanceof Error`: a DOMException from another realm (an
+// iframe, jsdom) fails the instanceof and would file as a network error.
+const isCancelled = (e: unknown, signal?: AbortSignal): boolean =>
+  signal?.aborted === true || (e as { name?: unknown } | null)?.name === 'AbortError';
 
 // cdk#1495: every failure the call primitives raise is observed ONCE, here,
 // with the join key to the backend (`x-amzn-RequestId`, exposed through CORS
@@ -77,6 +75,34 @@ const failed = (
   return err;
 };
 
+// A non-2xx the caller declared it handles (`expect`) still throws — the call
+// site's contract is unchanged — but from the reporter's point of view the
+// call RESOLVED: a breadcrumb with the status, no report. The inbox was
+// filing "rsvp-view → 404" (no RSVP yet) and "event config → 404" (a fresh
+// event) as bugs, because the reporter saw the throw before the call site
+// classified it.
+const expected = (err: ApiError, method: string, url: string, status: number): ApiError => {
+  apiSucceeded(method, url, status);
+  return err;
+};
+
+const rejected = (
+  e: unknown, err: ApiError, method: string, url: string, startedAt: number, opts: CallOptions, res?: Response,
+): ApiError => (isCancelled(e, opts.signal) ? err : failed(err, method, url, startedAt, res));
+
+// A body-stream read failure (connection reset mid-body, etc.) is a failed
+// call, not a successful empty response — surface it instead of masking it.
+const readBody = async (
+  res: Response, label: string, method: string, url: string, startedAt: number, opts: CallOptions,
+): Promise<string> => {
+  try {
+    return await res.text();
+  } catch (e) {
+    const err = new ApiError(label, `${label}: failed to read the response body (${reasonOf(e)})`, res.status);
+    throw rejected(e, err, method, url, startedAt, opts, res);
+  }
+};
+
 export interface CallOptions {
   /** Short human name for the call, used in errors/logs. Defaults to the URL. */
   label?: string;
@@ -87,6 +113,12 @@ export interface CallOptions {
    * so a key switch stops the old key's request on the wire, admin#159).
    */
   signal?: AbortSignal;
+  /**
+   * Statuses the call site handles as a STATE rather than a failure (a 404
+   * that means "nothing here yet", a 401 that means "not this identity").
+   * They still throw an ApiError with that status; they are not reported.
+   */
+  expect?: readonly number[];
 }
 
 /**
@@ -103,17 +135,16 @@ export async function getJson<T>(url: string, opts: CallOptions = {}): Promise<T
   try {
     res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers }, signal: opts.signal });
   } catch (e) {
-    // An intentional abort (a key switch, dispose) is not a failure worth a report.
-    const err = new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
-    throw opts.signal?.aborted ? err : failed(err, 'GET', url, startedAt);
+    const err = new ApiError(label, `${label}: network error (${reasonOf(e)})`);
+    throw rejected(e, err, 'GET', url, startedAt, opts);
   }
-  if (!res.ok) throw failed(new ApiError(label, `${label}: HTTP ${res.status}`, res.status), 'GET', url, startedAt, res);
-  let text: string;
-  try {
-    text = await readBody(res, label);
-  } catch (e) {
-    throw failed(e as ApiError, 'GET', url, startedAt, res);
+  if (!res.ok) {
+    const err = new ApiError(label, `${label}: HTTP ${res.status}`, res.status);
+    throw opts.expect?.includes(res.status)
+      ? expected(err, 'GET', url, res.status)
+      : failed(err, 'GET', url, startedAt, res);
   }
+  const text = await readBody(res, label, 'GET', url, startedAt, opts);
   if (!text.trim()) {
     apiSucceeded('GET', url, res.status);
     return undefined;
@@ -175,15 +206,10 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
       ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
     });
   } catch (e) {
-    const err = new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
-    throw opts.signal?.aborted ? err : failed(err, opts.method, url, startedAt);
+    const err = new ApiError(label, `${label}: network error (${reasonOf(e)})`);
+    throw rejected(e, err, opts.method, url, startedAt, opts);
   }
-  let text: string;
-  try {
-    text = await readBody(res, label);
-  } catch (e) {
-    throw failed(e as ApiError, opts.method, url, startedAt, res);
-  }
+  const text = await readBody(res, label, opts.method, url, startedAt, opts);
   if (!res.ok) {
     let serverMessage: string | undefined;
     let bodyRetryAfter: number | undefined;
@@ -204,12 +230,15 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
     const retryHeader = res.headers && typeof res.headers.get === 'function'
       ? res.headers.get('Retry-After')
       : null;
-    throw failed(new ApiError(
+    const err = new ApiError(
       label,
       serverMessage ?? `${label}: HTTP ${res.status}`,
       res.status,
       parseRetryAfterSeconds(retryHeader) ?? bodyRetryAfter,
-    ), opts.method, url, startedAt, res);
+    );
+    throw opts.expect?.includes(res.status)
+      ? expected(err, opts.method, url, res.status)
+      : failed(err, opts.method, url, startedAt, res);
   }
   if (!text.trim()) {
     apiSucceeded(opts.method, url, res.status);

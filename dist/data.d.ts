@@ -20,6 +20,12 @@ export interface CallOptions {
      * so a key switch stops the old key's request on the wire, admin#159).
      */
     signal?: AbortSignal;
+    /**
+     * Statuses the call site handles as a STATE rather than a failure (a 404
+     * that means "nothing here yet", a 401 that means "not this identity").
+     * They still throw an ApiError with that status; they are not reported.
+     */
+    expect?: readonly number[];
 }
 /**
  * Read primitive: GET the URL, guard `res.ok`, parse JSON. The signed-in Google

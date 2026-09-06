@@ -115,6 +115,15 @@ export const MAX_REPORTS_PER_SESSION = 20;
 export const MAX_BREADCRUMBS = 20;
 export const MAX_BATCH = 10;
 export const FLUSH_DELAY_MS = 5_000;
+/**
+ * A transport failure (an `api` report with no status: the fetch itself
+ * rejected) is HELD this long before it may be sent. Leaving the page cancels
+ * every request in flight, and every engine reports that as a network error
+ * ("Load failed", "Failed to fetch") indistinguishable from a real one — so a
+ * transport failure followed within the grace by `leavePage()` was the leaving,
+ * and is dropped. The cdk#1494 inbox's first week was mostly these.
+ */
+export const LEAVE_GRACE_MS = 1_500;
 /** Server-side cap is 32 KiB per batch; keep one report well under it. */
 export const MAX_REPORT_BYTES = 8 * 1024;
 const MAX_STACK_FRAMES = 10;
@@ -125,6 +134,8 @@ interface ReporterState {
   sessionId: string;
   breadcrumbs: Breadcrumb[];
   queue: ErrorReport[];
+  /** Transport failures waiting out LEAVE_GRACE_MS before they join the queue. */
+  held: Array<{ r: ErrorReport; at: number }>;
   /** Reports accepted this session (queued or already sent) — the cap counts both. */
   accepted: number;
   seen: Set<string>;
@@ -152,6 +163,7 @@ const freshState = (): ReporterState => ({
   sessionId: newSessionId(),
   breadcrumbs: [],
   queue: [],
+  held: [],
   accepted: 0,
   seen: new Set(),
   timer: null,
@@ -269,6 +281,7 @@ export const resetReporter = (): void => {
 export const reporterSnapshot = () => ({
   sessionId: state.sessionId,
   queued: state.queue.length,
+  held: state.held.length,
   accepted: state.accepted,
   breadcrumbs: [...state.breadcrumbs],
 });
@@ -296,13 +309,50 @@ const send = (batch: ErrorReport[]): void => {
   }
 };
 
-/** Send everything queued now (the app calls this on pagehide). */
+const isTransportFailure = (r: ErrorReport): boolean => r.kind === 'api' && r.status === undefined;
+
+/** Held transport failures that have waited out the grace join the queue. */
+const releaseHeld = (now: number): void => {
+  const still: ReporterState['held'] = [];
+  for (const h of state.held) {
+    if (now - h.at >= LEAVE_GRACE_MS) state.queue.push(h.r);
+    else still.push(h);
+  }
+  state.held = still;
+};
+
+const arm = (delayMs: number): void => {
+  if (!state.timer) state.timer = setTimeout(flushReports, delayMs);
+};
+
+/**
+ * Send everything queued now. A transport failure still inside its grace stays
+ * held (the timer comes back for it); everything else goes.
+ */
 export const flushReports = (): void => {
   if (state.timer) {
     clearTimeout(state.timer);
     state.timer = null;
   }
+  releaseHeld(Date.now());
   while (state.queue.length) send(state.queue.splice(0, MAX_BATCH));
+  if (state.held.length) arm(LEAVE_GRACE_MS);
+};
+
+/**
+ * The page is being left (the app calls this on pagehide): a transport
+ * failure still inside its grace was the leaving — dropped, and its
+ * fingerprint un-seen so a real one later in this session still reports.
+ * Everything else is sent now, with keepalive.
+ */
+export const leavePage = (): void => {
+  releaseHeld(Date.now());
+  for (const h of state.held) {
+    state.seen.delete(h.r.fingerprint);
+    state.accepted -= 1;
+  }
+  state.held = [];
+  flushReports();
 };
 
 const schedule = (): void => {
@@ -310,7 +360,7 @@ const schedule = (): void => {
     flushReports();
     return;
   }
-  if (!state.timer) state.timer = setTimeout(flushReports, FLUSH_DELAY_MS);
+  arm(FLUSH_DELAY_MS);
 };
 
 /**
@@ -363,7 +413,8 @@ export const report = (kind: ReportKind, fields: ReportFields): void => {
       ...(ctx.online !== undefined ? { online: ctx.online } : {}),
       ...(ctx.ua ? { ua: scrub(ctx.ua).slice(0, 200) } : {}),
     });
-    state.queue.push(r);
+    if (isTransportFailure(r)) state.held.push({ r, at: Date.now() });
+    else state.queue.push(r);
     state.accepted += 1;
     schedule();
   } catch {
