@@ -10,6 +10,7 @@ export * from '../pulse';
 export * from '../saveLane';
 export * from '../security';
 export * from '../shells';
+export * from '../stageFit';
 export * from '../stages';
 export * from '../types';
 export * from '../untrusted';
