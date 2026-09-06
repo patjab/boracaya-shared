@@ -6,7 +6,7 @@ import { ApiError, getJson, jsonOr, runGuarded, sendJson } from './data';
 import { createCachedLoad, resetCache } from './cache';
 import { ErrorBoundary } from './ErrorBoundary';
 import { onDocumentClick, onUncaughtErrors, pageTelemetryContext } from './browser';
-import { flushReports, initReporter, report, reporterSnapshot, resetReporter } from './report';
+import { LEAVE_GRACE_MS, flushReports, initReporter, report, reporterSnapshot, resetReporter } from './report';
 import { idTokenExpiresInSeconds, setIdToken, clearIdToken } from './authToken';
 import { guestTokenExpiresInSeconds } from './guestAuth';
 
@@ -14,8 +14,10 @@ const ENDPOINT = 'https://public-api.test.boracaya.com/telemetry/errors';
 const API = 'https://valet-api.test.boracaya.com/events/2f853dbf-82b2-4780-8a5a-8bc4029dd1f5/invites';
 
 const fetchMock = () => fetch as unknown as ReturnType<typeof vi.fn>;
-/** The reports on the wire: every fetch to the telemetry endpoint, flattened. */
+/** The reports on the wire: every fetch to the telemetry endpoint, flattened
+ *  (a transport failure waits out the leave grace first). */
 const wire = () => {
+  vi.advanceTimersByTime(LEAVE_GRACE_MS);
   flushReports();
   return fetchMock().mock.calls
     .filter((c) => c[0] === ENDPOINT)
@@ -25,6 +27,7 @@ const jsonResponse = (body: unknown, status = 200, headers: Record<string, strin
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
   resetReporter();
@@ -36,6 +39,7 @@ afterEach(() => {
   resetReporter();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('data.ts reports its failures once, with the backend request id', () => {
@@ -59,6 +63,35 @@ describe('data.ts reports its failures once, with the backend request id', () =>
     const reports = wire();
     expect(reports).toHaveLength(1);
     expect(reports[0].status).toBeUndefined();
+  });
+
+  it('getJson: a cancelled call is no report, signal or no signal (the engine cancels a fetch or a body read with an AbortError when the document moves on)', async () => {
+    fetchMock().mockRejectedValueOnce(new DOMException('Fetch is aborted', 'AbortError'));
+    await expect(getJson(API, { label: 'a' })).rejects.toBeInstanceOf(ApiError);
+    const res = new Response('x', { status: 200 });
+    vi.spyOn(res, 'text').mockRejectedValue(new DOMException('The user aborted a request.', 'AbortError'));
+    fetchMock().mockResolvedValueOnce(res);
+    await expect(getJson(API, { label: 'b' })).rejects.toMatchObject({ status: 200, message: expect.stringContaining('aborted') });
+    const ctl = new AbortController();
+    const slow = new Response('x', { status: 200 });
+    vi.spyOn(slow, 'text').mockImplementation(async () => { ctl.abort(); throw new TypeError('Load failed'); });
+    fetchMock().mockResolvedValueOnce(slow);
+    await expect(getJson(API, { label: 'c', signal: ctl.signal })).rejects.toBeInstanceOf(ApiError);
+    expect(wire()).toEqual([]);
+    expect(reporterSnapshot().breadcrumbs).toEqual([]);
+  });
+
+  it('getJson/sendJson: a status the call site declared it handles throws, leaves a crumb, and is no report', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(null, 404));
+    await expect(getJson(API, { label: 'rsvp-view', expect: [401, 404] })).rejects.toMatchObject({ status: 404 });
+    fetchMock().mockResolvedValueOnce(jsonResponse({}, 401));
+    await expect(getJson(API, { label: 'rsvp-view', expect: [401, 404] })).rejects.toMatchObject({ status: 401 });
+    fetchMock().mockResolvedValueOnce(jsonResponse({ error: 'dup' }, 409));
+    await expect(sendJson(API, { method: 'PUT', body: {}, label: 'save', expect: [409] })).rejects.toMatchObject({ status: 409, message: 'dup' });
+    fetchMock().mockResolvedValueOnce(jsonResponse({}, 403));
+    await expect(getJson(API, { label: 'rsvp-view', expect: [401, 404] })).rejects.toMatchObject({ status: 403 });
+    expect(wire().map((r) => r.status)).toEqual([403]); // only the undeclared one
+    expect(reporterSnapshot().breadcrumbs.map((c) => c.status)).toEqual([404, 401, 409, 403]);
   });
 
   it('getJson: body-read and JSON-parse failures report; a success leaves only a crumb', async () => {
@@ -94,7 +127,8 @@ describe('data.ts reports its failures once, with the backend request id', () =>
     fetchMock().mockResolvedValueOnce(jsonResponse({ ok: 1 }, 201));
     await expect(sendJson(API, { method: 'POST', label: 'ok' })).resolves.toEqual({ ok: 1 });
     const reports = wire();
-    expect(reports.map((r) => r.label)).toEqual(['save', 'net', 'body', 'json']);
+    // the transport failure ('net') waited out the leave grace, so it crosses the wire last
+    expect(reports.map((r) => r.label)).toEqual(['save', 'body', 'json', 'net']);
     expect(reports[0]).toMatchObject({ method: 'PUT', status: 409, requestId: 'req-409' });
     expect(reporterSnapshot().breadcrumbs.at(-1)).toMatchObject({ type: 'api', status: 201 });
   });

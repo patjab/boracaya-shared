@@ -22,7 +22,7 @@ export { laneOf } from './saveLane.js';
 export { UnsavedGuardContext, useUnsavedGuard } from './unsavedGuard.js';
 export { useRaceGuard, createRaceGuard, useSetupPolling, useCloseGuard, useStoredToggle, useSaveGroup, useUnsavedGuardHost, } from './hooks/index.js';
 export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data.js';
-export { addBreadcrumb, flushReports, initReporter, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from './report.js';
+export { addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from './report.js';
 export { ArrayUtils, ColorUtils, DateUtils, NumberUtils, StringUtils } from './utils.js';
 export { DEFAULT_CACHE_TTL_MS, MAX_CACHE_ENTRIES, createCachedLoad, invalidateCache, readCache, resetCache, seedFromCache, writeCache, } from './cache.js';
 export { initAuth, signOut, getIdToken, authHeaders, getEmail, } from './auth.js';

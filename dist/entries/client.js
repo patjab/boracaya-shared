@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.scrub = exports.routeTemplate = exports.resetReporter = exports.reporterSnapshot = exports.reportCaught = exports.report = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = void 0;
+exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.scrub = exports.routeTemplate = exports.resetReporter = exports.reporterSnapshot = exports.reportCaught = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.getJson = exports.clean = exports.asArray = exports.ApiError = void 0;
 /** Runtime-agnostic fetch helpers. Browser identity headers are attached when available. */
 var data_1 = require("../data");
 Object.defineProperty(exports, "ApiError", { enumerable: true, get: function () { return data_1.ApiError; } });
@@ -14,6 +14,7 @@ var report_1 = require("../report");
 Object.defineProperty(exports, "addBreadcrumb", { enumerable: true, get: function () { return report_1.addBreadcrumb; } });
 Object.defineProperty(exports, "flushReports", { enumerable: true, get: function () { return report_1.flushReports; } });
 Object.defineProperty(exports, "initReporter", { enumerable: true, get: function () { return report_1.initReporter; } });
+Object.defineProperty(exports, "leavePage", { enumerable: true, get: function () { return report_1.leavePage; } });
 Object.defineProperty(exports, "report", { enumerable: true, get: function () { return report_1.report; } });
 Object.defineProperty(exports, "reportCaught", { enumerable: true, get: function () { return report_1.reportCaught; } });
 Object.defineProperty(exports, "reporterSnapshot", { enumerable: true, get: function () { return report_1.reporterSnapshot; } });

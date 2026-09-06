@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  MAX_BREADCRUMBS, MAX_REPORT_BYTES,
-  addBreadcrumb, fingerprintOf, flushReports, initReporter, report, reportCaught,
+  LEAVE_GRACE_MS, MAX_BREADCRUMBS, MAX_REPORT_BYTES,
+  addBreadcrumb, fingerprintOf, flushReports, initReporter, leavePage, report, reportCaught,
   reporterSnapshot, resetReporter, routeTemplate, scrub,
 } from './report';
 import type { ReportContext, ReportFields } from './report';
@@ -124,6 +124,7 @@ describe('report', () => {
     report('api', { message: 'a person', label: 'b' });
     vi.stubGlobal('navigator', undefined);
     report('api', { message: 'no navigator at all', label: 'c' });
+    vi.advanceTimersByTime(LEAVE_GRACE_MS); // status-less api reports wait out the leave grace
     flushReports();
     expect(sentBatches()[0].map((r) => [r.message, r.automated])).toEqual([
       ['driven', true], ['a person', false], ['no navigator at all', false],
@@ -196,6 +197,49 @@ describe('report', () => {
     sentinels.push(email('url'), jwt('url'));
     expect(sentinels).toHaveLength(53);
     for (const s of sentinels) expect(body).not.toContain(s);
+  });
+
+  describe('a transport failure waits out the leave grace (cdk#1494 inbox: navigation-cancelled fetches)', () => {
+    const transport = (label: string) => report('api', { message: `${label}: network error (Load failed)`,
+      name: 'ApiError', label, method: 'GET', url: '/discover' });
+
+    it('is held, not queued, and the timer sends it once the grace has passed', () => {
+      transport('discover');
+      expect(reporterSnapshot()).toMatchObject({ queued: 0, held: 1, accepted: 1 });
+      flushReports(); // inside the grace: still held, nothing on the wire
+      expect(fetchMock()).not.toHaveBeenCalled();
+      expect(reporterSnapshot().held).toBe(1);
+      vi.advanceTimersByTime(1_500); // the literal grace (LEAVE_GRACE_MS), pinned
+      expect(sentBatches().flat().map((r) => r.label)).toEqual(['discover']);
+      expect(reporterSnapshot()).toMatchObject({ queued: 0, held: 0 });
+    });
+
+    it('leaving the page inside the grace drops it, un-sees it, and sends everything else', () => {
+      report('api', { message: 'invites: HTTP 500', label: 'invites', method: 'GET', url: '/invites', status: 500 });
+      transport('discover');
+      vi.advanceTimersByTime(LEAVE_GRACE_MS - 1);
+      leavePage();
+      expect(sentBatches().flat().map((r) => r.label)).toEqual(['invites']);
+      expect(reporterSnapshot()).toMatchObject({ queued: 0, held: 0, accepted: 1 });
+      // the same fingerprint later in this session is a real failure again (sent by the regular flush timer)
+      transport('discover');
+      vi.advanceTimersByTime(5_000);
+      expect(sentBatches().flat().map((r) => r.label)).toEqual(['invites', 'discover']);
+    });
+
+    it('a transport failure that outlived the grace before the page is left is sent by leavePage', () => {
+      transport('discover');
+      vi.advanceTimersByTime(LEAVE_GRACE_MS);
+      leavePage();
+      expect(sentBatches().flat().map((r) => r.label)).toEqual(['discover']);
+    });
+
+    it('a failure with a status is never held', () => {
+      report('api', { message: 'rsvp: HTTP 503', label: 'rsvp', method: 'GET', url: '/rsvp', status: 503 });
+      expect(reporterSnapshot()).toMatchObject({ queued: 1, held: 0 });
+      leavePage();
+      expect(sentBatches().flat().map((r) => r.label)).toEqual(['rsvp']);
+    });
   });
 
   it('dedupes a fingerprint within the session', () => {

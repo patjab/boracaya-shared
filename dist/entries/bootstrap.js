@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isShellKey = exports.TYPE_VOICES = exports.SHELL_KEYS = exports.OCCASION_DEFAULTS = exports.FALLBACK_DEFAULTS = exports.CURATED_DESIGNS = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.report = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.jsonOr = exports.getJson = exports.ApiError = exports.GuestEventApi = exports.PublicApi = void 0;
+exports.isShellKey = exports.TYPE_VOICES = exports.SHELL_KEYS = exports.OCCASION_DEFAULTS = exports.FALLBACK_DEFAULTS = exports.CURATED_DESIGNS = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.jsonOr = exports.getJson = exports.ApiError = exports.GuestEventApi = exports.PublicApi = void 0;
 /**
  * Shore's initial application seam: environment-aware public endpoints, reads,
  * event/shell contracts, and site links. It intentionally excludes admin
@@ -18,6 +18,7 @@ var report_1 = require("../report");
 Object.defineProperty(exports, "addBreadcrumb", { enumerable: true, get: function () { return report_1.addBreadcrumb; } });
 Object.defineProperty(exports, "flushReports", { enumerable: true, get: function () { return report_1.flushReports; } });
 Object.defineProperty(exports, "initReporter", { enumerable: true, get: function () { return report_1.initReporter; } });
+Object.defineProperty(exports, "leavePage", { enumerable: true, get: function () { return report_1.leavePage; } });
 Object.defineProperty(exports, "report", { enumerable: true, get: function () { return report_1.report; } });
 var env_1 = require("../env");
 Object.defineProperty(exports, "getEnv", { enumerable: true, get: function () { return env_1.getEnv; } });

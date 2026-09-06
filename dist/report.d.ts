@@ -89,6 +89,15 @@ export declare const MAX_REPORTS_PER_SESSION = 20;
 export declare const MAX_BREADCRUMBS = 20;
 export declare const MAX_BATCH = 10;
 export declare const FLUSH_DELAY_MS = 5000;
+/**
+ * A transport failure (an `api` report with no status: the fetch itself
+ * rejected) is HELD this long before it may be sent. Leaving the page cancels
+ * every request in flight, and every engine reports that as a network error
+ * ("Load failed", "Failed to fetch") indistinguishable from a real one — so a
+ * transport failure followed within the grace by `leavePage()` was the leaving,
+ * and is dropped. The cdk#1494 inbox's first week was mostly these.
+ */
+export declare const LEAVE_GRACE_MS = 1500;
 /** Server-side cap is 32 KiB per batch; keep one report well under it. */
 export declare const MAX_REPORT_BYTES: number;
 /**
@@ -126,14 +135,25 @@ export declare const resetReporter: () => void;
 export declare const reporterSnapshot: () => {
     sessionId: string;
     queued: number;
+    held: number;
     accepted: number;
     breadcrumbs: Breadcrumb[];
 };
 export declare const addBreadcrumb: (crumb: Omit<Breadcrumb, "t"> & {
     t?: number;
 }) => void;
-/** Send everything queued now (the app calls this on pagehide). */
+/**
+ * Send everything queued now. A transport failure still inside its grace stays
+ * held (the timer comes back for it); everything else goes.
+ */
 export declare const flushReports: () => void;
+/**
+ * The page is being left (the app calls this on pagehide): a transport
+ * failure still inside its grace was the leaving — dropped, and its
+ * fingerprint un-seen so a real one later in this session still reports.
+ * Everything else is sent now, with keepalive.
+ */
+export declare const leavePage: () => void;
 /**
  * Record one failure. Safe to call from anywhere, any time: before init it is
  * a no-op, past the per-session cap it is a no-op, a repeat of a fingerprint

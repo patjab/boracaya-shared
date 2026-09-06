@@ -41,16 +41,15 @@ class ApiError extends Error {
     }
 }
 exports.ApiError = ApiError;
-// A body-stream read failure (connection reset mid-body, etc.) is a failed
-// call, not a successful empty response — surface it instead of masking it.
-const readBody = async (res, label) => {
-    try {
-        return await res.text();
-    }
-    catch (e) {
-        throw new ApiError(label, `${label}: failed to read the response body (${e instanceof Error ? e.message : String(e)})`, res.status);
-    }
-};
+const reasonOf = (e) => (e instanceof Error ? e.message : String(e));
+// A cancelled call is not a failure worth a report (cdk#1494 inbox: every
+// navigation-cancelled fetch was filing as a network error): the caller's own
+// abort (a key switch, dispose, the last joined reader leaving), or the
+// engine's — WebKit cancels a body read with an AbortError ("The user aborted
+// a request.") when the document moves on, signal or no signal.
+// By name, not `instanceof Error`: a DOMException from another realm (an
+// iframe, jsdom) fails the instanceof and would file as a network error.
+const isCancelled = (e, signal) => (signal === null || signal === void 0 ? void 0 : signal.aborted) === true || (e === null || e === void 0 ? void 0 : e.name) === 'AbortError';
 // cdk#1495: every failure the call primitives raise is observed ONCE, here,
 // with the join key to the backend (`x-amzn-RequestId`, exposed through CORS
 // by cdk#1496) and the call's duration; a success leaves only a breadcrumb.
@@ -69,6 +68,28 @@ const failed = (err, method, url, startedAt, res) => {
     });
     return err;
 };
+// A non-2xx the caller declared it handles (`expect`) still throws — the call
+// site's contract is unchanged — but from the reporter's point of view the
+// call RESOLVED: a breadcrumb with the status, no report. The inbox was
+// filing "rsvp-view → 404" (no RSVP yet) and "event config → 404" (a fresh
+// event) as bugs, because the reporter saw the throw before the call site
+// classified it.
+const expected = (err, method, url, status) => {
+    (0, apiObserver_1.apiSucceeded)(method, url, status);
+    return err;
+};
+const rejected = (e, err, method, url, startedAt, opts, res) => (isCancelled(e, opts.signal) ? err : failed(err, method, url, startedAt, res));
+// A body-stream read failure (connection reset mid-body, etc.) is a failed
+// call, not a successful empty response — surface it instead of masking it.
+const readBody = async (res, label, method, url, startedAt, opts) => {
+    try {
+        return await res.text();
+    }
+    catch (e) {
+        const err = new ApiError(label, `${label}: failed to read the response body (${reasonOf(e)})`, res.status);
+        throw rejected(e, err, method, url, startedAt, opts, res);
+    }
+};
 /**
  * Read primitive: GET the URL, guard `res.ok`, parse JSON. The signed-in Google
  * token (when present) is attached automatically — same behavior consumers get
@@ -85,19 +106,16 @@ async function getJson(url, opts = {}) {
         res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers }, signal: opts.signal });
     }
     catch (e) {
-        // An intentional abort (a key switch, dispose) is not a failure worth a report.
-        const err = new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
-        throw ((_b = opts.signal) === null || _b === void 0 ? void 0 : _b.aborted) ? err : failed(err, 'GET', url, startedAt);
+        const err = new ApiError(label, `${label}: network error (${reasonOf(e)})`);
+        throw rejected(e, err, 'GET', url, startedAt, opts);
     }
-    if (!res.ok)
-        throw failed(new ApiError(label, `${label}: HTTP ${res.status}`, res.status), 'GET', url, startedAt, res);
-    let text;
-    try {
-        text = await readBody(res, label);
+    if (!res.ok) {
+        const err = new ApiError(label, `${label}: HTTP ${res.status}`, res.status);
+        throw ((_b = opts.expect) === null || _b === void 0 ? void 0 : _b.includes(res.status))
+            ? expected(err, 'GET', url, res.status)
+            : failed(err, 'GET', url, startedAt, res);
     }
-    catch (e) {
-        throw failed(e, 'GET', url, startedAt, res);
-    }
+    const text = await readBody(res, label, 'GET', url, startedAt, opts);
     if (!text.trim()) {
         (0, apiObserver_1.apiSucceeded)('GET', url, res.status);
         return undefined;
@@ -157,22 +175,16 @@ async function sendJson(url, opts) {
         });
     }
     catch (e) {
-        const err = new ApiError(label, `${label}: network error (${e instanceof Error ? e.message : String(e)})`);
-        throw ((_b = opts.signal) === null || _b === void 0 ? void 0 : _b.aborted) ? err : failed(err, opts.method, url, startedAt);
+        const err = new ApiError(label, `${label}: network error (${reasonOf(e)})`);
+        throw rejected(e, err, opts.method, url, startedAt, opts);
     }
-    let text;
-    try {
-        text = await readBody(res, label);
-    }
-    catch (e) {
-        throw failed(e, opts.method, url, startedAt, res);
-    }
+    const text = await readBody(res, label, opts.method, url, startedAt, opts);
     if (!res.ok) {
         let serverMessage;
         let bodyRetryAfter;
         try {
             const parsed = JSON.parse(text);
-            const m = (_c = parsed === null || parsed === void 0 ? void 0 : parsed.error) !== null && _c !== void 0 ? _c : parsed === null || parsed === void 0 ? void 0 : parsed.message;
+            const m = (_b = parsed === null || parsed === void 0 ? void 0 : parsed.error) !== null && _b !== void 0 ? _b : parsed === null || parsed === void 0 ? void 0 : parsed.message;
             if (typeof m === 'string' && m.trim())
                 serverMessage = m;
             if (typeof parsed.retryAfterSeconds === 'number'
@@ -187,7 +199,10 @@ async function sendJson(url, opts) {
         const retryHeader = res.headers && typeof res.headers.get === 'function'
             ? res.headers.get('Retry-After')
             : null;
-        throw failed(new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_d = (0, security_1.retryAfterSeconds)(retryHeader)) !== null && _d !== void 0 ? _d : bodyRetryAfter), opts.method, url, startedAt, res);
+        const err = new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_c = (0, security_1.retryAfterSeconds)(retryHeader)) !== null && _c !== void 0 ? _c : bodyRetryAfter);
+        throw ((_d = opts.expect) === null || _d === void 0 ? void 0 : _d.includes(res.status))
+            ? expected(err, opts.method, url, res.status)
+            : failed(err, opts.method, url, startedAt, res);
     }
     if (!text.trim()) {
         (0, apiObserver_1.apiSucceeded)(opts.method, url, res.status);
