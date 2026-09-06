@@ -26,6 +26,7 @@ __exportStar(require("../pulse"), exports);
 __exportStar(require("../saveLane"), exports);
 __exportStar(require("../security"), exports);
 __exportStar(require("../shells"), exports);
+__exportStar(require("../stageFit"), exports);
 __exportStar(require("../stages"), exports);
 __exportStar(require("../types"), exports);
 __exportStar(require("../untrusted"), exports);

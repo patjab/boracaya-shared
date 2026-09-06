@@ -10,6 +10,7 @@ export * from '../pulse.js';
 export * from '../saveLane.js';
 export * from '../security.js';
 export * from '../shells.js';
+export * from '../stageFit.js';
 export * from '../stages.js';
 export * from '../types.js';
 export * from '../untrusted.js';
