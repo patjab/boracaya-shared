@@ -85,6 +85,16 @@ describe('getJson', () => {
     expect(err.name).toBe('AbortError');
     expect(err.message).not.toContain('network error');
     expect(err.message).not.toContain('aborted');
+
+    // The flag is a promised part of the contract, not decoration, and it
+    // needs its own assertion: `isCancelled` answers through the NAME, so
+    // deleting `cancelled = true` left every other test here passing
+    // (Codex r2 on #169).
+    expect(err.cancelled).toBe(true);
+    // And the flag is what the contract rests on when the name is not: a
+    // consumer that renames the error must still be recognizable.
+    err.name = 'ApiError';
+    expect(isCancelled(err)).toBe(true);
   });
 
   it("a call whose own signal aborted is cancelled whatever the engine rejected with", async () => {
