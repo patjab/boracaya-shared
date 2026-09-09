@@ -203,6 +203,91 @@ describe('createCachedLoad', () => {
     expect(readCache('k')).toBeUndefined();
   });
 
+  it('an ENGINE cancellation with no abort of ours is silent too (#167)', async () => {
+    // The path `signal.aborted` cannot see: WebKit cancels a read when the
+    // document moves on, so the request's own signal is clean and the old
+    // code logged it and filed a report. Nothing here was disposed.
+    const { seen, set } = states<string>();
+    const d = deferredLoad<string>();
+    const handle = createCachedLoad({ key: 'k', load: d.load, set, errorMessage: 'failed' });
+    handle.run();
+    expect(d.calls[0].signal.aborted).toBe(false);
+
+    d.calls[0].reject(new DOMException('The user aborted a request.', 'AbortError'));
+    await flush();
+    // Silent — no log, no error state...
+    expect(console.error).not.toHaveBeenCalled();
+    expect(seen.at(-1)!.error).toBeNull();
+    // ...but this reader is still mounted and nothing is coming to replace the
+    // request it lost, so loading MUST clear or the spinner never stops
+    // (Codex r1 on #169).
+    expect(seen.at(-1)).toEqual({ data: null, isLoading: false, error: null });
+  });
+
+  it('OUR abort still writes nothing at all — dispose has no reader left to unspin', async () => {
+    // The counterpart to the test above: a disposed handle has no reader, and
+    // a superseded run has a replacement that owns the transition, so neither
+    // needs the terminal write the engine-cancellation branch performs.
+    //
+    // The two branches cannot be collapsed into one, but the reason is intent
+    // rather than outcome, and it is worth being exact: `guardedSet` would
+    // drop a write on this path anyway (`disposed`, or `seq !== runSeq`), so
+    // making the our-abort branch write would be harmless, not wrong. The
+    // early return says so at the call site instead of leaning on the guard.
+    const { seen, set } = states<string>();
+    const d = deferredLoad<string>();
+    const handle = createCachedLoad({ key: 'k', load: d.load, set, errorMessage: 'failed' });
+    handle.run();
+    handle.dispose();
+    d.calls[0].reject(new DOMException('The operation was aborted', 'AbortError'));
+    await flush();
+    expect(seen).toEqual([{ data: null, isLoading: true, error: null }]);
+  });
+
+  it('a REVALIDATION the engine cancelled is silent too, and keeps the stale value (#167)', async () => {
+    // The revalidate twin of the test above, and it needs its own: the cold
+    // path and the stale-while-revalidate path each carry their own abort
+    // check, so a fix to one proves nothing about the other.
+    writeCache('k', 'stale');
+    advance(DEFAULT_CACHE_TTL_MS + 1);
+    const { seen, set } = states<string>();
+    const d = deferredLoad<string>();
+    createCachedLoad({ key: 'k', load: d.load, set, errorMessage: 'failed' }).run();
+    expect(seen.at(-1)).toEqual({ data: 'stale', isLoading: false, error: null });
+    expect(d.calls[0].signal.aborted).toBe(false);
+
+    d.calls[0].reject(new DOMException('The user aborted a request.', 'AbortError'));
+    await flush();
+    expect(console.error).not.toHaveBeenCalled();
+    expect(seen.at(-1)).toEqual({ data: 'stale', isLoading: false, error: null });
+    expect(readCache('k', Infinity)?.value).toBe('stale');
+  });
+
+  it('a real revalidation failure still logs, and still keeps the stale value', async () => {
+    writeCache('k', 'stale');
+    advance(DEFAULT_CACHE_TTL_MS + 1);
+    const { seen, set } = states<string>();
+    const d = deferredLoad<string>();
+    createCachedLoad({ key: 'k', load: d.load, set, errorMessage: 'failed' }).run();
+    d.calls[0].reject(new TypeError('Load failed'));
+    await flush();
+    expect(console.error).toHaveBeenCalled();
+    expect(seen.at(-1)).toEqual({ data: 'stale', isLoading: false, error: null });
+  });
+
+  it('a real cold-load failure still logs and shows the error state', async () => {
+    // The counterweight to the test above: the silence is a classification,
+    // not a hole.
+    const { seen, set } = states<string>();
+    const d = deferredLoad<string>();
+    const handle = createCachedLoad({ key: 'k', load: d.load, set, errorMessage: 'failed' });
+    handle.run();
+    d.calls[0].reject(new TypeError('Load failed'));
+    await flush();
+    expect(console.error).toHaveBeenCalled();
+    expect(seen.at(-1)).toEqual({ data: null, isLoading: false, error: 'failed' });
+  });
+
   it('reload() forces a real fetch even on a fresh hit (invalidate + run)', async () => {
     writeCache('e1/guests', ['cached']);
     const { seen, set } = states<string[]>();

@@ -6,6 +6,7 @@
 // import it safely.
 import { authHeaders } from './authToken';
 import { apiCaught, apiFailed, apiSucceeded } from './apiObserver';
+import { isCancelled, isCancelledCall } from './cancelled';
 import { retryAfterSeconds as parseRetryAfterSeconds } from './security';
 
 // authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
@@ -41,17 +42,30 @@ export class ApiError extends Error {
   }
 }
 
-const reasonOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+/**
+ * A call the app itself cancelled (#167). Extends ApiError so every existing
+ * `instanceof ApiError` catch keeps working, but carries `name = 'AbortError'`
+ * and `cancelled = true` so a caller can tell it from a failure — which is the
+ * whole point: the old code rethrew the browser's abort as
+ * `ApiError: <label>: network error (The user aborted a request.)`, and the
+ * cancellation's identity was lost inside a message.
+ *
+ * No `status`. A cancelled read has no outcome, and the 200 the old
+ * "failed to read the response body" path attached said otherwise.
+ */
+export class CancelledError extends ApiError {
+  readonly cancelled = true;
 
-// A cancelled call is not a failure worth a report (cdk#1494 inbox: every
-// navigation-cancelled fetch was filing as a network error): the caller's own
-// abort (a key switch, dispose, the last joined reader leaving), or the
-// engine's — WebKit cancels a body read with an AbortError ("The user aborted
-// a request.") when the document moves on, signal or no signal.
-// By name, not `instanceof Error`: a DOMException from another realm (an
-// iframe, jsdom) fails the instanceof and would file as a network error.
-const isCancelled = (e: unknown, signal?: AbortSignal): boolean =>
-  signal?.aborted === true || (e as { name?: unknown } | null)?.name === 'AbortError';
+  constructor(label: string) {
+    super(label, `${label}: cancelled`);
+    // After super(), which sets 'ApiError'.
+    this.name = 'AbortError';
+  }
+}
+
+export { isCancelled };
+
+const reasonOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 // cdk#1495: every failure the call primitives raise is observed ONCE, here,
 // with the join key to the backend (`x-amzn-RequestId`, exposed through CORS
@@ -86,9 +100,16 @@ const expected = (err: ApiError, method: string, url: string, status: number): A
   return err;
 };
 
+// The one place a rejection is classified. A cancellation (the caller's own
+// abort — a key switch, dispose, the last joined reader leaving — or the
+// engine's: WebKit cancels a body read with an AbortError when the document
+// moves on, signal or no signal) becomes a CancelledError, unreported. Anything
+// else is the failure it looks like, mapped and observed once.
 const rejected = (
   e: unknown, err: ApiError, method: string, url: string, startedAt: number, opts: CallOptions, res?: Response,
-): ApiError => (isCancelled(e, opts.signal) ? err : failed(err, method, url, startedAt, res));
+): ApiError => (isCancelledCall(e, opts.signal)
+  ? new CancelledError(err.label)
+  : failed(err, method, url, startedAt, res));
 
 // A body-stream read failure (connection reset mid-body, etc.) is a failed
 // call, not a successful empty response — surface it instead of masking it.
@@ -169,6 +190,10 @@ export async function jsonOr<T>(url: string, label: string, fallback: T, opts: C
   try {
     return (await getJson<T>(url, { ...opts, label })) ?? fallback;
   } catch (e) {
+    // Cancelled: nobody is waiting for this read any more, so there is nothing
+    // to log and nothing to report. The fallback still returns because jsonOr's
+    // contract is that it never throws.
+    if (isCancelled(e)) return fallback;
     console.error(`data: ${label} failed to load:`, e);
     // An ApiError already reported itself at the throw site; anything else
     // (a parse of the parsed body throwing) is a swallowed failure worth one.
@@ -299,9 +324,16 @@ export async function runGuarded<T>(
   try {
     data = await load();
   } catch (e) {
-    console.error(`data: guarded load failed (${errorMessage}):`, e);
-    if (!(e instanceof ApiError)) apiCaught(errorMessage, e);
-    error = errorMessage;
+    // A cancelled load is not a failed one: leave `error` null so the screen
+    // the reader is walking away from does not flash a message on the way out.
+    // isLoading still clears in the finally — the contract this function exists
+    // for — and callers with a generation guard (useGuardedLoad, cache.ts)
+    // discard the write anyway.
+    if (!isCancelled(e)) {
+      console.error(`data: guarded load failed (${errorMessage}):`, e);
+      if (!(e instanceof ApiError)) apiCaught(errorMessage, e);
+      error = errorMessage;
+    }
   } finally {
     set({ data, isLoading: false, error });
   }

@@ -78,7 +78,9 @@ export {
   useSaveGroup, useUnsavedGuardHost,
 } from './hooks';
 export type { RaceGuard, RaceToken, SaveGroupResult, SaveGroupMessages } from './hooks';
-export { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson } from './data';
+export {
+  ApiError, CancelledError, asArray, clean, getJson, isCancelled, jsonOr, runGuarded, sendJson,
+} from './data';
 export {
   addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot,
   resetReporter, routeTemplate, scrub,

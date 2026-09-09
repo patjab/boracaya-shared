@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isShellKey = exports.TYPE_VOICES = exports.SHELL_KEYS = exports.OCCASION_DEFAULTS = exports.FALLBACK_DEFAULTS = exports.CURATED_DESIGNS = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.jsonOr = exports.getJson = exports.ApiError = exports.GuestEventApi = exports.PublicApi = void 0;
+exports.isShellKey = exports.TYPE_VOICES = exports.SHELL_KEYS = exports.OCCASION_DEFAULTS = exports.FALLBACK_DEFAULTS = exports.CURATED_DESIGNS = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.jsonOr = exports.isCancelled = exports.getJson = exports.CancelledError = exports.ApiError = exports.GuestEventApi = exports.PublicApi = void 0;
 /**
  * Shore's initial application seam: environment-aware public endpoints, reads,
  * event/shell contracts, and site links. It intentionally excludes admin
@@ -11,7 +11,9 @@ Object.defineProperty(exports, "PublicApi", { enumerable: true, get: function ()
 Object.defineProperty(exports, "GuestEventApi", { enumerable: true, get: function () { return publicApi_1.GuestEventApi; } });
 var data_1 = require("../data");
 Object.defineProperty(exports, "ApiError", { enumerable: true, get: function () { return data_1.ApiError; } });
+Object.defineProperty(exports, "CancelledError", { enumerable: true, get: function () { return data_1.CancelledError; } });
 Object.defineProperty(exports, "getJson", { enumerable: true, get: function () { return data_1.getJson; } });
+Object.defineProperty(exports, "isCancelled", { enumerable: true, get: function () { return data_1.isCancelled; } });
 Object.defineProperty(exports, "jsonOr", { enumerable: true, get: function () { return data_1.jsonOr; } });
 Object.defineProperty(exports, "sendJson", { enumerable: true, get: function () { return data_1.sendJson; } });
 var report_1 = require("../report");

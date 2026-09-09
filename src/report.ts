@@ -23,6 +23,7 @@
 // report — so the reporter can never become the outage it exists to record.
 
 import { ApiFailure, observeApiCalls } from './apiObserver';
+import { isCancelled } from './cancelled';
 
 export type ReportKind = 'api' | 'render' | 'uncaught' | 'rejection' | 'caught';
 
@@ -370,6 +371,13 @@ const schedule = (): void => {
  */
 export const report = (kind: ReportKind, fields: ReportFields): void => {
   try {
+    // A cancellation is not an outcome (#167). Dropped HERE rather than at each
+    // funnel so it holds for all of them: `caught` (a swallow site), and
+    // `rejection` / `uncaught` (the window handlers, where a cancelled promise
+    // surfaces with no call site left to guard it). `isCancelled` reads `.name`,
+    // which is what ReportFields already carries. This is what filed the same
+    // cancelled read twice in the nightly triage (cdk#1510, cdk#1539).
+    if (isCancelled(fields)) return;
     const cfg = state.config;
     if (!cfg || state.accepted >= MAX_REPORTS_PER_SESSION) return;
     const ctx = cfg.context ? cfg.context() : {};
@@ -438,6 +446,7 @@ export const noteApiCall = (method: string, url: string, status: number): void =
 
 /** A caught, non-ApiError failure at a swallow site (a view-model transform throwing). */
 export const reportCaught = (label: string, e: unknown): void => {
+  if (isCancelled(e)) return;
   const err = e instanceof Error ? e : undefined;
   report('caught', {
     message: err?.message ?? String(e),

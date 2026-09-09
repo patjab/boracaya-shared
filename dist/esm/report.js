@@ -22,6 +22,7 @@
 // failing telemetry POST is dropped — not retried, not logged as another
 // report — so the reporter can never become the outage it exists to record.
 import { observeApiCalls } from './apiObserver.js';
+import { isCancelled } from './cancelled.js';
 export const MAX_REPORTS_PER_SESSION = 20;
 export const MAX_BREADCRUMBS = 20;
 export const MAX_BATCH = 10;
@@ -254,6 +255,14 @@ const schedule = () => {
  */
 export const report = (kind, fields) => {
     try {
+        // A cancellation is not an outcome (#167). Dropped HERE rather than at each
+        // funnel so it holds for all of them: `caught` (a swallow site), and
+        // `rejection` / `uncaught` (the window handlers, where a cancelled promise
+        // surfaces with no call site left to guard it). `isCancelled` reads `.name`,
+        // which is what ReportFields already carries. This is what filed the same
+        // cancelled read twice in the nightly triage (cdk#1510, cdk#1539).
+        if (isCancelled(fields))
+            return;
         const cfg = state.config;
         if (!cfg || state.accepted >= MAX_REPORTS_PER_SESSION)
             return;
@@ -325,6 +334,8 @@ export const noteApiCall = (method, url, status) => {
 /** A caught, non-ApiError failure at a swallow site (a view-model transform throwing). */
 export const reportCaught = (label, e) => {
     var _a;
+    if (isCancelled(e))
+        return;
     const err = e instanceof Error ? e : undefined;
     report('caught', {
         message: (_a = err === null || err === void 0 ? void 0 : err.message) !== null && _a !== void 0 ? _a : String(e),

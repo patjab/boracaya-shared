@@ -1,9 +1,11 @@
 /** Runtime-agnostic fetch helpers. Browser identity headers are attached when available. */
 export {
   ApiError,
+  CancelledError,
   asArray,
   clean,
   getJson,
+  isCancelled,
   jsonOr,
   runGuarded,
   sendJson,
