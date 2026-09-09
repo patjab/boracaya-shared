@@ -278,10 +278,21 @@ function createCachedLoad(opts) {
             }
             guardedSet({ data: null, isLoading: false, error: errorMessage });
         }, (e) => {
-            // Same pair as the revalidation path: this request's own abort, and a
-            // cancellation the engine raised without it (#167).
-            if (signal.aborted || (0, cancelled_1.isCancelled)(e))
+            // OUR abort — dispose, a key switch, a superseding run — is silent and
+            // needs no terminal write: whoever caused it either left or has a
+            // replacement request that will finish the transition.
+            if (signal.aborted)
                 return;
+            // A cancellation the engine raised on a request we still own (#167,
+            // Codex r1 on #169) is different, and the difference matters: this
+            // reader is still here, nothing is coming to replace the request, and
+            // returning early would leave the spinner up forever. Clear loading
+            // with NO error, exactly as runGuarded does. `guardedSet` still drops
+            // the write if this run has since been superseded.
+            if ((0, cancelled_1.isCancelled)(e)) {
+                guardedSet({ data: null, isLoading: false, error: null });
+                return;
+            }
             console.error(`cache: guarded load failed (${errorMessage}):`, e);
             if (!(e instanceof data_1.ApiError))
                 (0, apiObserver_1.apiCaught)(errorMessage, e);

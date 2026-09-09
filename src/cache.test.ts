@@ -215,7 +215,32 @@ describe('createCachedLoad', () => {
 
     d.calls[0].reject(new DOMException('The user aborted a request.', 'AbortError'));
     await flush();
+    // Silent — no log, no error state...
     expect(console.error).not.toHaveBeenCalled();
+    expect(seen.at(-1)!.error).toBeNull();
+    // ...but this reader is still mounted and nothing is coming to replace the
+    // request it lost, so loading MUST clear or the spinner never stops
+    // (Codex r1 on #169).
+    expect(seen.at(-1)).toEqual({ data: null, isLoading: false, error: null });
+  });
+
+  it('OUR abort still writes nothing at all — dispose has no reader left to unspin', async () => {
+    // The counterpart to the test above: a disposed handle has no reader, and
+    // a superseded run has a replacement that owns the transition, so neither
+    // needs the terminal write the engine-cancellation branch performs.
+    //
+    // The two branches cannot be collapsed into one, but the reason is intent
+    // rather than outcome, and it is worth being exact: `guardedSet` would
+    // drop a write on this path anyway (`disposed`, or `seq !== runSeq`), so
+    // making the our-abort branch write would be harmless, not wrong. The
+    // early return says so at the call site instead of leaning on the guard.
+    const { seen, set } = states<string>();
+    const d = deferredLoad<string>();
+    const handle = createCachedLoad({ key: 'k', load: d.load, set, errorMessage: 'failed' });
+    handle.run();
+    handle.dispose();
+    d.calls[0].reject(new DOMException('The operation was aborted', 'AbortError'));
+    await flush();
     expect(seen).toEqual([{ data: null, isLoading: true, error: null }]);
   });
 
