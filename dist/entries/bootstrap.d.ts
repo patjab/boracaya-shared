@@ -5,6 +5,8 @@
  */
 export { PublicApi, GuestEventApi } from '../publicApi';
 export { ApiError, CancelledError, getJson, isCancelled, jsonOr, sendJson } from '../data';
+export { ownedContinuation } from '../ownedContinuation';
+export type { ContinuationOwner, OwnedContinuation } from '../ownedContinuation';
 export type { CallOptions, SendOptions } from '../data';
 export { addBreadcrumb, flushReports, initReporter, leavePage, report } from '../report';
 export type { ReportContext, ReporterConfig } from '../report';

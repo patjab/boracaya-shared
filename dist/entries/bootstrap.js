@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isShellKey = exports.TYPE_VOICES = exports.SHELL_KEYS = exports.OCCASION_DEFAULTS = exports.FALLBACK_DEFAULTS = exports.CURATED_DESIGNS = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.jsonOr = exports.isCancelled = exports.getJson = exports.CancelledError = exports.ApiError = exports.GuestEventApi = exports.PublicApi = void 0;
+exports.isShellKey = exports.TYPE_VOICES = exports.SHELL_KEYS = exports.OCCASION_DEFAULTS = exports.FALLBACK_DEFAULTS = exports.CURATED_DESIGNS = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.ownedContinuation = exports.sendJson = exports.jsonOr = exports.isCancelled = exports.getJson = exports.CancelledError = exports.ApiError = exports.GuestEventApi = exports.PublicApi = void 0;
 /**
  * Shore's initial application seam: environment-aware public endpoints, reads,
  * event/shell contracts, and site links. It intentionally excludes admin
@@ -16,6 +16,13 @@ Object.defineProperty(exports, "getJson", { enumerable: true, get: function () {
 Object.defineProperty(exports, "isCancelled", { enumerable: true, get: function () { return data_1.isCancelled; } });
 Object.defineProperty(exports, "jsonOr", { enumerable: true, get: function () { return data_1.jsonOr; } });
 Object.defineProperty(exports, "sendJson", { enumerable: true, get: function () { return data_1.sendJson; } });
+// #166: the ownership helper belongs on the same seam as the calls it guards —
+// Shore's src reaches the data lane through this entry and nowhere else, so
+// leaving it off would have meant every guarded site there importing around
+// the seam. Zero-import module, so it costs no bundle to a consumer that
+// never names it.
+var ownedContinuation_1 = require("../ownedContinuation");
+Object.defineProperty(exports, "ownedContinuation", { enumerable: true, get: function () { return ownedContinuation_1.ownedContinuation; } });
 var report_1 = require("../report");
 Object.defineProperty(exports, "addBreadcrumb", { enumerable: true, get: function () { return report_1.addBreadcrumb; } });
 Object.defineProperty(exports, "flushReports", { enumerable: true, get: function () { return report_1.flushReports; } });
