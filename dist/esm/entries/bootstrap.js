@@ -4,7 +4,7 @@
  * clients, shared form UI, and React hooks.
  */
 export { PublicApi, GuestEventApi } from '../publicApi.js';
-export { ApiError, getJson, jsonOr, sendJson } from '../data.js';
+export { ApiError, CancelledError, getJson, isCancelled, jsonOr, sendJson } from '../data.js';
 export { addBreadcrumb, flushReports, initReporter, leavePage, report } from '../report.js';
 export { getEnv, isTest, envSubdomain } from '../env.js';
 export { SiteUrls, guestSiteUrlFor, inviteUrlFor } from '../siteUrls.js';

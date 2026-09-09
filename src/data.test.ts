@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, asArray, clean, getJson, jsonOr, runGuarded, sendJson, GuardedState } from './data';
+import {
+  ApiError, CancelledError, asArray, clean, getJson, isCancelled, jsonOr, runGuarded, sendJson,
+  GuardedState,
+} from './data';
+import { observeApiCalls } from './apiObserver';
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -68,11 +72,70 @@ describe('getJson', () => {
     expect(err.status).toBe(404);
   });
 
-  it('an AbortError without a signal is still a thrown ApiError', async () => {
+  it('an AbortError without a signal is a CancelledError, not a network error (#167)', async () => {
     fetchMock().mockRejectedValue(new DOMException('Fetch is aborted', 'AbortError'));
     const err = await getJson('https://x/y', { label: 'rsvps' }).catch((e) => e);
+    // Still an ApiError, so every existing catch keeps working.
     expect(err).toBeInstanceOf(ApiError);
+    expect(err).toBeInstanceOf(CancelledError);
     expect(err.status).toBeUndefined();
+    expect(isCancelled(err)).toBe(true);
+    // The identity used to be lost inside the message. It no longer is, and
+    // the browser's own wording no longer reaches a host's screen.
+    expect(err.name).toBe('AbortError');
+    expect(err.message).not.toContain('network error');
+    expect(err.message).not.toContain('aborted');
+  });
+
+  it("a call whose own signal aborted is cancelled whatever the engine rejected with", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    // Some engines reject an aborted fetch with a plain TypeError rather than
+    // an AbortError; the caller's own signal settles it either way.
+    fetchMock().mockRejectedValue(new TypeError('Load failed'));
+    const err = await getJson('https://x/y', { label: 'rsvps', signal: controller.signal }).catch((e) => e);
+    expect(isCancelled(err)).toBe(true);
+  });
+
+  it('a rejected fetch WITHOUT an abort is not cancelled', async () => {
+    fetchMock().mockRejectedValue(new TypeError('offline'));
+    const err = await getJson('https://x/y', { label: 'rsvps' }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).not.toBeInstanceOf(CancelledError);
+    expect(isCancelled(err)).toBe(false);
+    expect(err.message).toContain('offline');
+  });
+
+  it('an abort mid-BODY is cancelled, and carries no status (#167)', async () => {
+    // The shape behind cdk#1510/#1539: the response arrived 200, the read was
+    // cancelled, and the old code threw "failed to read the response body"
+    // with that 200 attached — a success status on a failure the triage filed.
+    const res = new Response('x', { status: 200 });
+    vi.spyOn(res, 'text').mockRejectedValue(new DOMException('The user aborted a request.', 'AbortError'));
+    fetchMock().mockResolvedValue(res);
+    const err = await getJson('https://x/y', { label: 'event config' }).catch((e) => e);
+    expect(isCancelled(err)).toBe(true);
+    expect(err.status).toBeUndefined();
+  });
+
+  it('a cancelled call is not observed as a failure; a real one is', async () => {
+    const failures: string[] = [];
+    observeApiCalls({
+      failure: (f) => { failures.push(f.label); },
+      success: () => undefined,
+      caught: () => undefined,
+    });
+    try {
+      fetchMock().mockRejectedValue(new DOMException('Fetch is aborted', 'AbortError'));
+      await getJson('https://x/y', { label: 'cancelled-read' }).catch(() => undefined);
+      expect(failures).toEqual([]);
+
+      fetchMock().mockRejectedValue(new TypeError('offline'));
+      await getJson('https://x/y', { label: 'real-read' }).catch(() => undefined);
+      expect(failures).toEqual(['real-read']);
+    } finally {
+      observeApiCalls(null);
+    }
   });
 
   it('passes an AbortSignal through to fetch (the #159 abort seam)', async () => {
@@ -99,6 +162,16 @@ describe('jsonOr', () => {
     fetchMock().mockResolvedValue(jsonResponse({}, 500));
     await expect(jsonOr('https://x/y', 'nums', [9])).resolves.toEqual([9]);
   });
+
+  it('a cancelled read returns the fallback WITHOUT logging (#167)', async () => {
+    fetchMock().mockRejectedValue(new DOMException('Fetch is aborted', 'AbortError'));
+    await expect(jsonOr('https://x/y', 'nums', [9])).resolves.toEqual([9]);
+    // Leaving a screen mid-read leaves no console error. A real failure still does.
+    expect(console.error).not.toHaveBeenCalled();
+    fetchMock().mockRejectedValue(new TypeError('offline'));
+    await expect(jsonOr('https://x/y', 'nums', [9])).resolves.toEqual([9]);
+    expect(console.error).toHaveBeenCalled();
+  });
 });
 
 describe('sendJson', () => {
@@ -123,6 +196,15 @@ describe('sendJson', () => {
     await sendJson('https://x/y', { method: 'POST', body: {}, signal: controller.signal });
     const [, init] = fetchMock().mock.calls[0];
     expect(init.signal).toBe(controller.signal);
+  });
+
+  it('an aborted write rejects as cancelled, not as a network error (#167)', async () => {
+    fetchMock().mockRejectedValue(new DOMException('Fetch is aborted', 'AbortError'));
+    const err = await sendJson('https://x/y', { method: 'POST', body: {}, label: 'save template' })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(CancelledError);
+    expect(isCancelled(err)).toBe(true);
+    expect(err.message).not.toContain('network error');
   });
 
   it("prefers the server's own error message on non-2xx", async () => {
@@ -220,5 +302,19 @@ describe('runGuarded (the loading/error contract)', () => {
     await runGuarded(() => Promise.reject(new Error('down')), set, 'failed');
     expect(seen.at(-1)!.isLoading).toBe(false);
     expect(seen.at(-1)!.error).toBe('failed');
+  });
+
+  it('a CANCELLED load clears loading but sets no error state (#167)', async () => {
+    // Walking away from a screen is not a failure of it. Loading still clears —
+    // that is the guarantee this function exists for — but the reader is not
+    // shown a message on the way out, and nothing is logged.
+    const { seen, set } = states();
+    await runGuarded(
+      () => Promise.reject(new DOMException('The user aborted a request.', 'AbortError')),
+      set,
+      'We could not load the guest list.',
+    );
+    expect(seen.at(-1)).toEqual({ data: null, isLoading: false, error: null });
+    expect(console.error).not.toHaveBeenCalled();
   });
 });

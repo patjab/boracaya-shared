@@ -328,6 +328,30 @@ describe('report', () => {
     expect(batch[1].name).toBeUndefined();
   });
 
+  it('drops a cancelled outcome and keeps the real one (#167)', () => {
+    // cdk#1510 / cdk#1539: the nightly triage auto-filed the same cancelled
+    // read twice. A cancellation is not an outcome, so it never becomes a
+    // report — through the swallow funnel...
+    reportCaught('event config', new DOMException('The user aborted a request.', 'AbortError'));
+    // ...nor through the window handlers, where a cancelled promise arrives
+    // with no call site left to guard it.
+    report('rejection', { message: 'The user aborted a request.', name: 'AbortError' });
+    report('uncaught', { message: 'signal is aborted without reason', name: 'AbortError' });
+    // ...nor when it carries the `cancelled` flag rather than the AbortError
+    // name, which is the shape a CancelledError keeps if a consumer renames it.
+    reportCaught('event config', Object.assign(new Error('cancelled'), { cancelled: true }));
+    flushReports();
+    expect(sentBatches()).toEqual([]);
+
+    // A real network error still reports, so the drop is a classification and
+    // not a hole.
+    reportCaught('event config', new TypeError('Load failed'));
+    flushReports();
+    const [batch] = sentBatches();
+    expect(batch).toHaveLength(1);
+    expect(batch[0]).toMatchObject({ kind: 'caught', name: 'TypeError', message: 'Load failed' });
+  });
+
   it('mints a fallback session id when crypto.randomUUID is unavailable', () => {
     vi.stubGlobal('crypto', {});
     resetReporter();

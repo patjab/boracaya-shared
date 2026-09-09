@@ -16,6 +16,7 @@
 // TypeScript so the semantics are testable without React and Node consumers
 // stay safe (no window, no storage).
 import { apiCaught } from './apiObserver';
+import { isCancelled } from './cancelled';
 import { ApiError, GuardedState } from './data';
 
 /**
@@ -270,8 +271,11 @@ export function createCachedLoad<T>(opts: CachedLoadOptions<T>): CachedLoadHandl
         (e) => {
           // A failed revalidation keeps serving the stale value rather than
           // blanking a screen that already has data; an ABORTED one (a newer
-          // run or dispose cancelled this specific request) is silent.
-          if (!signal.aborted) {
+          // run or dispose cancelled this specific request) is silent — and so
+          // is one the ENGINE cancelled without this signal (#167): WebKit
+          // aborts a read when the document moves on, which no `signal.aborted`
+          // check here can see.
+          if (!signal.aborted && !isCancelled(e)) {
             console.error(`cache: revalidate failed (${key}):`, e);
             if (!(e instanceof ApiError)) apiCaught(key, e);
           }
@@ -324,7 +328,9 @@ export function createCachedLoad<T>(opts: CachedLoadOptions<T>): CachedLoadHandl
         guardedSet({ data: null, isLoading: false, error: errorMessage });
       },
       (e) => {
-        if (signal.aborted) return;
+        // Same pair as the revalidation path: this request's own abort, and a
+        // cancellation the engine raised without it (#167).
+        if (signal.aborted || isCancelled(e)) return;
         console.error(`cache: guarded load failed (${errorMessage}):`, e);
         if (!(e instanceof ApiError)) apiCaught(errorMessage, e);
         guardedSet({ data: null, isLoading: false, error: errorMessage });

@@ -2,7 +2,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, getJson, jsonOr, runGuarded, sendJson } from './data';
+import { ApiError, getJson, isCancelled, jsonOr, runGuarded, sendJson } from './data';
 import { createCachedLoad, resetCache } from './cache';
 import { ErrorBoundary } from './ErrorBoundary';
 import { onDocumentClick, onUncaughtErrors, pageTelemetryContext } from './browser';
@@ -71,7 +71,14 @@ describe('data.ts reports its failures once, with the backend request id', () =>
     const res = new Response('x', { status: 200 });
     vi.spyOn(res, 'text').mockRejectedValue(new DOMException('The user aborted a request.', 'AbortError'));
     fetchMock().mockResolvedValueOnce(res);
-    await expect(getJson(API, { label: 'b' })).rejects.toMatchObject({ status: 200, message: expect.stringContaining('aborted') });
+    // #167: this used to reject as `failed to read the response body (…)`
+    // carrying the real 200 — a success status on what the triage then filed
+    // as a failure (cdk#1510, cdk#1539). A cancelled read has no outcome, so
+    // it now carries no status and does not echo the browser's wording.
+    const bodyAbort = await getJson(API, { label: 'b' }).catch((e) => e);
+    expect(isCancelled(bodyAbort)).toBe(true);
+    expect(bodyAbort.status).toBeUndefined();
+    expect(bodyAbort.message).not.toContain('aborted');
     const ctl = new AbortController();
     const slow = new Response('x', { status: 200 });
     vi.spyOn(slow, 'text').mockImplementation(async () => { ctl.abort(); throw new TypeError('Load failed'); });

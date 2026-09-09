@@ -1,3 +1,4 @@
+import { isCancelled } from './cancelled';
 /**
  * Typed failure from the call primitives. `status` is set for HTTP-level
  * failures (non-2xx); network/parse failures leave it undefined. `label` is the
@@ -10,6 +11,22 @@ export declare class ApiError extends Error {
     readonly retryAfterSeconds?: number;
     constructor(label: string, message: string, status?: number, retryAfter?: number);
 }
+/**
+ * A call the app itself cancelled (#167). Extends ApiError so every existing
+ * `instanceof ApiError` catch keeps working, but carries `name = 'AbortError'`
+ * and `cancelled = true` so a caller can tell it from a failure — which is the
+ * whole point: the old code rethrew the browser's abort as
+ * `ApiError: <label>: network error (The user aborted a request.)`, and the
+ * cancellation's identity was lost inside a message.
+ *
+ * No `status`. A cancelled read has no outcome, and the 200 the old
+ * "failed to read the response body" path attached said otherwise.
+ */
+export declare class CancelledError extends ApiError {
+    readonly cancelled = true;
+    constructor(label: string);
+}
+export { isCancelled };
 export interface CallOptions {
     /** Short human name for the call, used in errors/logs. Defaults to the URL. */
     label?: string;
