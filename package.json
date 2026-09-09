@@ -158,7 +158,7 @@
     "build:cjs": "tsc -p tsconfig.json",
     "build:esm": "node scripts/clean-esm.mjs && tsc -p tsconfig.esm.json && node scripts/finalize-esm.mjs",
     "report:exports": "node scripts/check-consumer-exports.mjs --write",
-    "test:exports": "tsc -p tsconfig.consumers.json && node scripts/check-legacy-node-consumer.mjs && node scripts/check-consumer-exports.mjs",
+    "test:exports": "tsc -p tsconfig.consumers.json && node scripts/check-legacy-node-consumer.mjs && node scripts/check-consumer-exports.mjs && node scripts/check-packed-consumer-build.mjs",
     "test": "vitest run --exclude src/api.smoke.test.ts && npm run test:exports",
     "test:smoke": "vitest run src/api.smoke.test.ts"
   },

@@ -367,7 +367,8 @@ const report = `# Tree-shaking evidence\n\n` +
   `- Shore and Valet \`forms\` fixtures include StageFormRenderer/WizardShell and MUI, but no API or identity client.\n` +
   `- Valet's \`api\` + \`domain\` fixture includes admin client code but excludes forms, generic UI, browser adapters, React, and MUI.\n` +
   `- \`boracaya-shared/node\` imports in Node without DOM, identity, React, or MUI modules.\n` +
-  `- Every supported subpath and compatibility alias resolves at runtime through ESM and CommonJS, has an exact legacy-Node \`typesVersions\` mapping where type-bearing, and is present in the npm pack manifest.\n`;
+  `- Every supported subpath and compatibility alias resolves at runtime through ESM and CommonJS, has an exact legacy-Node \`typesVersions\` mapping where type-bearing, and is present in the npm pack manifest.\n` +
+  `- \`check-packed-consumer-build.mjs\` goes one step further (cdk#1583 step 3): it packs a real tarball, extracts it under a throwaway \`node_modules\`, and rebuilds every fixture with esbuild's own resolver walking the installed \`exports\` map. That catches a module reachable in the working tree but absent from the package — a transitive file dropped from \`files\` passes the manifest audit above and fails there.\n`;
 
 if (process.argv.includes('--write')) {
   await writeFile(reportPath, report);
