@@ -90,6 +90,8 @@ export type {
   ReporterConfig,
 } from './report';
 export type { GuardedState } from './data';
+export { ownedContinuation } from './ownedContinuation';
+export type { ContinuationOwner, OwnedContinuation } from './ownedContinuation';
 export { ArrayUtils, ColorUtils, DateUtils, NumberUtils, StringUtils } from './utils';
 export {
   DEFAULT_CACHE_TTL_MS,

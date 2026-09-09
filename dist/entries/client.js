@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.scrub = exports.routeTemplate = exports.resetReporter = exports.reporterSnapshot = exports.reportCaught = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.isCancelled = exports.getJson = exports.clean = exports.asArray = exports.CancelledError = exports.ApiError = void 0;
+exports.writeCache = exports.seedFromCache = exports.resetCache = exports.readCache = exports.invalidateCache = exports.createCachedLoad = exports.MAX_CACHE_ENTRIES = exports.DEFAULT_CACHE_TTL_MS = exports.ownedContinuation = exports.scrub = exports.routeTemplate = exports.resetReporter = exports.reporterSnapshot = exports.reportCaught = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.sendJson = exports.runGuarded = exports.jsonOr = exports.isCancelled = exports.getJson = exports.clean = exports.asArray = exports.CancelledError = exports.ApiError = void 0;
 /** Runtime-agnostic fetch helpers. Browser identity headers are attached when available. */
 var data_1 = require("../data");
 Object.defineProperty(exports, "ApiError", { enumerable: true, get: function () { return data_1.ApiError; } });
@@ -23,6 +23,10 @@ Object.defineProperty(exports, "reporterSnapshot", { enumerable: true, get: func
 Object.defineProperty(exports, "resetReporter", { enumerable: true, get: function () { return report_1.resetReporter; } });
 Object.defineProperty(exports, "routeTemplate", { enumerable: true, get: function () { return report_1.routeTemplate; } });
 Object.defineProperty(exports, "scrub", { enumerable: true, get: function () { return report_1.scrub; } });
+// The async-ownership invariant (#166). Beside the cache because the cache is
+// where this repo already implements it, one generation counter at a time.
+var ownedContinuation_1 = require("../ownedContinuation");
+Object.defineProperty(exports, "ownedContinuation", { enumerable: true, get: function () { return ownedContinuation_1.ownedContinuation; } });
 var cache_1 = require("../cache");
 Object.defineProperty(exports, "DEFAULT_CACHE_TTL_MS", { enumerable: true, get: function () { return cache_1.DEFAULT_CACHE_TTL_MS; } });
 Object.defineProperty(exports, "MAX_CACHE_ENTRIES", { enumerable: true, get: function () { return cache_1.MAX_CACHE_ENTRIES; } });
