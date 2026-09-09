@@ -91,47 +91,106 @@ try {
 
   const fixtures = (await readdir(consumer)).filter((f) => f.endsWith('.ts') && !SKIP.has(f));
   assert(fixtures.length > 0, 'no consumer fixtures found');
+  const subpaths = Object.keys(packageJson.exports).filter((s) => s !== './package.json');
+
+  // Which dist tree a build resolved into is the only proof the condition was
+  // honoured, so every build asserts it. This is not belt-and-braces: the
+  // first version of this script ran both passes over the SAME fixtures and
+  // both resolved entirely into dist/esm/ — identical byte counts — because
+  // esbuild keeps its automatic `import` condition for ESM `import`
+  // statements whatever else you add to `conditions`, and `import` is ordered
+  // before `require` in the map (Codex r1 on #170).
+  const treesUsed = (metafile) => {
+    const inputs = Object.keys(metafile.inputs).filter((i) => i.includes(packageJson.name));
+    return {
+      esm: inputs.filter((i) => i.includes('/dist/esm/')).length,
+      cjs: inputs.filter((i) => i.includes('/dist/') && !i.includes('/dist/esm/')).length,
+    };
+  };
 
   const results = [];
+
+  // The ESM pass: each fixture as a bundler consumer actually writes it.
   for (const fixture of fixtures) {
-    for (const [label, conditions, platform] of [
-      ['ESM', ['import', 'module', 'browser'], 'browser'],
-      ['CJS', ['require', 'node'], 'node'],
-    ]) {
-      let output;
-      try {
-        output = await build({
-          absWorkingDir: consumer,
-          entryPoints: [join(consumer, fixture)],
-          bundle: true,
-          write: false,
-          minify: true,
-          treeShaking: true,
-          format: 'esm',
-          platform,
-          target: 'es2018',
-          external,
-          conditions,
-          nodePaths: [join(workspace, 'node_modules')],
-          logLevel: 'silent',
-        });
-      } catch (error) {
-        // The failure a consumer would hit, named where it happened.
-        assert.fail(`${fixture} (${label}) failed to build against the packed package:\n${error.message}`);
-      }
-      const bytes = output.outputFiles[0].contents.byteLength;
-      // A resolver that silently produced nothing would pass a "did it throw"
-      // check; the fixtures all import real values, so an empty bundle is a
-      // failure whatever esbuild said.
-      assert(bytes > 0, `${fixture} (${label}) bundled to nothing against the packed package`);
-      results.push({ fixture, label, bytes });
+    let output;
+    try {
+      output = await build({
+        absWorkingDir: consumer,
+        entryPoints: [join(consumer, fixture)],
+        bundle: true,
+        write: false,
+        metafile: true,
+        minify: true,
+        treeShaking: true,
+        format: 'esm',
+        platform: 'browser',
+        target: 'es2018',
+        external,
+        // No `conditions` here on purpose. esbuild applies `import`
+        // automatically for an ESM entry and that wins regardless of what this
+        // array says — verified: setting it to ['require','node'] changes
+        // nothing, the build still resolves entirely into dist/esm. A line
+        // that looks load-bearing and is not is worse than no line, so the
+        // assertion below is what proves which tree was used.
+        nodePaths: [join(workspace, 'node_modules')],
+        logLevel: 'silent',
+      });
+    } catch (error) {
+      assert.fail(`${fixture} (ESM) failed to build against the packed package:\n${error.message}`);
     }
+    const bytes = output.outputFiles[0].contents.byteLength;
+    assert(bytes > 0, `${fixture} (ESM) bundled to nothing against the packed package`);
+    const trees = treesUsed(output.metafile);
+    assert(trees.esm > 0, `${fixture} (ESM) pulled no dist/esm module — the import condition was not honoured`);
+    assert.equal(trees.cjs, 0, `${fixture} (ESM) fell back to the CommonJS tree`);
+    results.push({ fixture, label: 'ESM', bytes });
   }
+
+  // The CJS pass: one generated entry that `require`s every subpath. Written
+  // with require() calls rather than reusing the fixtures, because that is the
+  // only thing that makes the resolver take the `require` branch — and it
+  // covers a superset of what the fixtures reach for.
+  const cjsEntry = join(consumer, '__packed-require-probe.cjs');
+  await writeFile(cjsEntry, [
+    '"use strict";',
+    'let sink = 0;',
+    ...subpaths.map((subpath) => {
+      const specifier = subpath === '.' ? packageJson.name : `${packageJson.name}/${subpath.slice(2)}`;
+      return `sink += Object.keys(require(${JSON.stringify(specifier)})).length;`;
+    }),
+    'module.exports = sink;',
+  ].join('\n'));
+
+  let cjsOutput;
+  try {
+    cjsOutput = await build({
+      absWorkingDir: consumer,
+      entryPoints: [cjsEntry],
+      bundle: true,
+      write: false,
+      metafile: true,
+      minify: true,
+      treeShaking: false,
+      format: 'cjs',
+      platform: 'node',
+      target: 'es2018',
+      external,
+      conditions: ['require', 'node'],
+      nodePaths: [join(workspace, 'node_modules')],
+      logLevel: 'silent',
+    });
+  } catch (error) {
+    assert.fail(`the require() probe failed to build against the packed package:\n${error.message}`);
+  }
+  assert(cjsOutput.outputFiles[0].contents.byteLength > 0, 'the require() probe bundled to nothing');
+  const cjsTrees = treesUsed(cjsOutput.metafile);
+  assert(cjsTrees.cjs > 0, 'the require() probe pulled no CommonJS module — the require condition was not honoured');
+  assert.equal(cjsTrees.esm, 0, 'the require() probe reached into dist/esm — the require branch was not selected');
+  results.push({ fixture: '__packed-require-probe.cjs', label: 'CJS', bytes: cjsOutput.outputFiles[0].contents.byteLength });
 
   // 4. And the runtime, from the installed copy: every subpath the map
   //    promises must actually load, through both conditions.
   const probe = join(workspace, 'probe.mjs');
-  const subpaths = Object.keys(packageJson.exports).filter((s) => s !== './package.json');
   await writeFile(probe, [
     `import { createRequire } from 'node:module';`,
     `const require = createRequire(${JSON.stringify(join(consumer, 'x.js'))});`,
@@ -154,8 +213,8 @@ try {
   assert.equal(Number(loaded), subpaths.length, 'not every subpath loaded from the packed package');
 
   console.log(
-    `packed consumers: ${results.length} builds across ${fixtures.length} fixtures, `
-    + `${subpaths.length} subpaths loaded from ${packed.filename}`,
+    `packed consumers: ${fixtures.length} ESM fixture builds (dist/esm) + a require() probe over `
+    + `${subpaths.length} subpaths (dist), all ${subpaths.length} loaded at runtime from ${packed.filename}`,
   );
 } finally {
   await rm(workspace, { recursive: true, force: true });
