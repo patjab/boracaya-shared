@@ -38,6 +38,8 @@ export { ApiError, CancelledError, asArray, clean, getJson, isCancelled, jsonOr,
 export { addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from './report';
 export type { Breadcrumb, BreadcrumbType, ErrorReport, ReportContext, ReportFields, ReportKind, ReporterConfig, } from './report';
 export type { GuardedState } from './data';
+export { ownedContinuation } from './ownedContinuation';
+export type { ContinuationOwner, OwnedContinuation } from './ownedContinuation';
 export { ArrayUtils, ColorUtils, DateUtils, NumberUtils, StringUtils } from './utils';
 export { DEFAULT_CACHE_TTL_MS, MAX_CACHE_ENTRIES, createCachedLoad, invalidateCache, readCache, resetCache, seedFromCache, writeCache, } from './cache';
 export type { CacheHit, CachedLoadHandle, CachedLoadOptions } from './cache';
