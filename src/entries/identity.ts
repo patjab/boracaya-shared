@@ -20,6 +20,7 @@ export {
 export type {
   ClaimCandidate,
   ClaimResult,
+  NoEventLoginChoice,
   NoEventLoginResult,
   UnlinkResult,
 } from '../guestAuth';
