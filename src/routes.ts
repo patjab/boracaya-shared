@@ -136,6 +136,13 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // directly. The flat guest forms above retire at the cdk#427 contract step.
   { label: 'public', method: 'POST', path: '/events/{eventId}/auth/exchange' },
   { label: 'public', method: 'POST', path: '/events/{eventId}/auth/claim' },
+  // Invitation-token exchange (cdk#1566, register U01). The personal link now
+  // carries a random, revocable, EVENT-SCOPED invitation token instead of the
+  // guest's internal userId — a public identifier could otherwise be replayed
+  // into a session. Takes {token}, returns an event-scoped guest JWT. The
+  // /auth/exchange lane above stays alive for the grace period (B1/Q2: four
+  // weeks) and swaps an old link for a new token on first use.
+  { label: 'public', method: 'POST', path: '/events/{eventId}/guest-token' },
   // No-event Google login (cdk#623, Option D): the ONE UNSCOPED auth route — a
   // verified Google credential with no event in the URL resolves to the event(s)
   // the email is a member of (exactly one → mint + return it; zero/many → guided
