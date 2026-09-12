@@ -1,5 +1,5 @@
 export { ApiConstants, PublicApi, AdminEventApi, GuestEventApi, AccountApi, OrganizerInviteApi, FacesApi, } from './api';
-export { SiteUrls, guestSiteUrlFor, inviteUrlFor } from './siteUrls';
+export { SiteUrls, guestSiteUrlFor, inviteUrlFor, invitationUrlFor } from './siteUrls';
 export { getEnv, isTest, envSubdomain } from './env';
 export type { StageDefinition, StageField } from './stages';
 export type { PulseConfig, PulsePrompt, PulseAsk, PulseChallenge, PulsePin } from './pulse';
@@ -46,8 +46,8 @@ export type { CacheHit, CachedLoadHandle, CachedLoadOptions } from './cache';
 export { initAuth, signOut, getIdToken, authHeaders, getEmail, } from './auth';
 export { idTokenExpiresInSeconds } from './authToken';
 export { GoogleSignInButton } from './GoogleSignInButton';
-export { ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds, } from './guestAuth';
-export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult } from './guestAuth';
+export { ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds, exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken, } from './guestAuth';
+export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult, InvitationExchange } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation, stageQuestions, } from './stages';

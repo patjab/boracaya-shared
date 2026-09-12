@@ -114,6 +114,138 @@ export async function ensureGuestToken(
   return p;
 }
 
+// ── invitation tokens (cdk#1566, U01) ────────────────────────────────────────
+
+/** The outcome of presenting a link's credential, for the screens to branch on. */
+export type InvitationExchange =
+  /** A session. `userId` is the canonical id, read from the JWT's own `sub`. */
+  | { kind: 'ok'; token: string; userId: string }
+  /** The legacy grace period ended: this `?invited=` link is dead (cdk#1566 Q2). */
+  | { kind: 'replaced' }
+  /** Unknown, revoked, or wrong-event — deliberately indistinguishable. */
+  | { kind: 'unknown' }
+  /** Network or server fault; the caller may retry. */
+  | { kind: 'error' };
+
+/**
+ * The canonical userId a guest JWT was minted for, read from its own `sub`.
+ *
+ * The cdk#1566 lane deliberately does NOT echo `userId` in the response body —
+ * the whole point is to stop handing the internal identifier back as a field a
+ * client might store, log or build a link from. The claim is still there (the
+ * authorizer reads it), so a client that legitimately needs to know who it is
+ * reads it here rather than being told.
+ *
+ * Returns null for anything that is not a parseable JWT payload with a `sub`.
+ */
+export function guestSubjectFromToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const sub = (JSON.parse(json) as { sub?: unknown }).sub;
+    return typeof sub === 'string' && sub ? sub : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheSession(eventId: string, userId: string, token: string, exp: number,
+                      linkedEmail: string | null, generation: number): void {
+  if (generation !== cacheGeneration) return;
+  sessionStorage.setItem(
+    TOKEN_KEY,
+    JSON.stringify({ token, exp, userId, eventId, linkedEmail } as StoredToken),
+  );
+}
+
+/**
+ * Exchange an invitation TOKEN (the `?invite=` link's credential) for an
+ * event-scoped guest session (cdk#1566).
+ *
+ * Unlike `ensureGuestToken`, the caller does not know its own userId yet — the
+ * token is the only thing the link carries — so the cache is written after the
+ * response, keyed on the `sub` the JWT itself names.
+ */
+export async function exchangeInvitationToken(
+  eventId: string | null | undefined,
+  invitationToken: string | null | undefined,
+): Promise<InvitationExchange> {
+  if (!eventId || !invitationToken) return { kind: 'unknown' };
+  const generation = cacheGeneration;
+  try {
+    const res = await fetch(GuestEventApi.guestToken(eventId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: invitationToken }),
+    });
+    if (res.status === 403) return { kind: 'unknown' };
+    if (!res.ok) return { kind: 'error' };
+    const { token, exp, linkedEmail } = (await res.json()) as {
+      token: string; exp: number; linkedEmail?: string | null;
+    };
+    const userId = guestSubjectFromToken(token);
+    if (!userId) return { kind: 'error' };
+    try {
+      cacheSession(eventId, userId, token, exp, linkedEmail ?? null, generation);
+    } catch {
+      // storage unavailable — the session just won't survive a reload
+    }
+    return { kind: 'ok', token, userId };
+  } catch {
+    return { kind: 'error' };
+  }
+}
+
+/**
+ * Exchange a LEGACY `?invited={userId}` link during the grace period
+ * (cdk#1566 B1/Q2).
+ *
+ * Distinguishes the two 403s the old lane can now produce, which
+ * `ensureGuestToken` cannot: `replaced` means the four weeks are up and this
+ * link is permanently dead (the screens show "Find my invitation"), while
+ * `unknown` is the pre-existing "no such invitation".
+ *
+ * On success the server also hands back a freshly minted `invitationToken` —
+ * the silent swap — which the caller puts in the URL in place of the userId.
+ */
+export async function exchangeLegacyInvite(
+  eventId: string | null | undefined,
+  userId: string | null | undefined,
+): Promise<InvitationExchange & { invitationToken?: string }> {
+  if (!eventId || !userId) return { kind: 'unknown' };
+  const generation = cacheGeneration;
+  try {
+    const res = await fetch(GuestEventApi.exchange(eventId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    if (res.status === 403) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      return body.error === 'invitation link replaced'
+        ? { kind: 'replaced' }
+        : { kind: 'unknown' };
+    }
+    if (!res.ok) return { kind: 'error' };
+    const { token, exp, linkedEmail, invitationToken } = (await res.json()) as {
+      token: string; exp: number; linkedEmail?: string | null; invitationToken?: string;
+    };
+    // The mint's own `sub` is authoritative: a tombstoned link resolves to a
+    // DIFFERENT canonical id than the one in the URL (#373 D3a).
+    const canonical = guestSubjectFromToken(token) ?? userId;
+    try {
+      cacheSession(eventId, canonical, token, exp, linkedEmail ?? null, generation);
+    } catch {
+      // storage unavailable
+    }
+    return { kind: 'ok', token, userId: canonical, invitationToken };
+  } catch {
+    return { kind: 'error' };
+  }
+}
+
 /**
  * Seconds until the cached guest token expires, or undefined when none is
  * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client

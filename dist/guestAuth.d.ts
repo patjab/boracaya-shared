@@ -5,6 +5,62 @@
  * either id is missing or the exchange fails.
  */
 export declare function ensureGuestToken(eventId: string | null | undefined, userId: string | null | undefined): Promise<string | null>;
+/** The outcome of presenting a link's credential, for the screens to branch on. */
+export type InvitationExchange = 
+/** A session. `userId` is the canonical id, read from the JWT's own `sub`. */
+{
+    kind: 'ok';
+    token: string;
+    userId: string;
+}
+/** The legacy grace period ended: this `?invited=` link is dead (cdk#1566 Q2). */
+ | {
+    kind: 'replaced';
+}
+/** Unknown, revoked, or wrong-event — deliberately indistinguishable. */
+ | {
+    kind: 'unknown';
+}
+/** Network or server fault; the caller may retry. */
+ | {
+    kind: 'error';
+};
+/**
+ * The canonical userId a guest JWT was minted for, read from its own `sub`.
+ *
+ * The cdk#1566 lane deliberately does NOT echo `userId` in the response body —
+ * the whole point is to stop handing the internal identifier back as a field a
+ * client might store, log or build a link from. The claim is still there (the
+ * authorizer reads it), so a client that legitimately needs to know who it is
+ * reads it here rather than being told.
+ *
+ * Returns null for anything that is not a parseable JWT payload with a `sub`.
+ */
+export declare function guestSubjectFromToken(token: string | null | undefined): string | null;
+/**
+ * Exchange an invitation TOKEN (the `?invite=` link's credential) for an
+ * event-scoped guest session (cdk#1566).
+ *
+ * Unlike `ensureGuestToken`, the caller does not know its own userId yet — the
+ * token is the only thing the link carries — so the cache is written after the
+ * response, keyed on the `sub` the JWT itself names.
+ */
+export declare function exchangeInvitationToken(eventId: string | null | undefined, invitationToken: string | null | undefined): Promise<InvitationExchange>;
+/**
+ * Exchange a LEGACY `?invited={userId}` link during the grace period
+ * (cdk#1566 B1/Q2).
+ *
+ * Distinguishes the two 403s the old lane can now produce, which
+ * `ensureGuestToken` cannot: `replaced` means the four weeks are up and this
+ * link is permanently dead (the screens show "Find my invitation"), while
+ * `unknown` is the pre-existing "no such invitation".
+ *
+ * On success the server also hands back a freshly minted `invitationToken` —
+ * the silent swap — which the caller puts in the URL in place of the userId.
+ */
+export declare function exchangeLegacyInvite(eventId: string | null | undefined, userId: string | null | undefined): Promise<InvitationExchange & {
+    invitationToken?: string;
+}>;
 /**
  * Seconds until the cached guest token expires, or undefined when none is
  * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client

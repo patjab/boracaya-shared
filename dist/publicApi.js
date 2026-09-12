@@ -27,6 +27,8 @@ exports.PublicApi = {
 exports.GuestEventApi = {
     openRsvp: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/rsvp/open`,
     exchange: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/exchange`,
+    /** cdk#1566: exchange an invitation TOKEN for an event-scoped guest session. */
+    guestToken: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/guest-token`,
     claim: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/claim`,
     unlink: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/unlink`,
     invite: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/invite`,
