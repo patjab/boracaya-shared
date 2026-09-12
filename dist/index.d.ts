@@ -47,7 +47,7 @@ export { initAuth, signOut, getIdToken, authHeaders, getEmail, } from './auth';
 export { idTokenExpiresInSeconds } from './authToken';
 export { GoogleSignInButton } from './GoogleSignInButton';
 export { ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds, } from './guestAuth';
-export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult } from './guestAuth';
+export type { ClaimCandidate, ClaimResult, NoEventLoginChoice, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation, stageQuestions, } from './stages';

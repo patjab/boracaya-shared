@@ -155,6 +155,14 @@ export async function claimIdentity(params) {
         return { kind: 'error' };
     }
 }
+const isChoice = (row) => {
+    if (!row || typeof row !== 'object')
+        return false;
+    const r = row;
+    return typeof r.eventId === 'string' && r.eventId.length > 0
+        && (r.name === undefined || typeof r.name === 'string')
+        && (r.date === undefined || typeof r.date === 'string');
+};
 export async function loginNoEvent(credential) {
     try {
         const res = await fetch(PublicApi.GUEST_LOGIN, {
@@ -168,8 +176,17 @@ export async function loginNoEvent(credential) {
             sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null }));
             return { kind: 'ok', userId, eventId };
         }
-        // Zero AND many both surface as 404 here (the backend never returns a cross-event
-        // chooser on this lane) — one guided outcome for the SPA.
+        // 300 Multiple Choices (cdk#1617 step 1): the caller's own memberships, nothing minted.
+        // A 300 whose body does not carry a usable list is an error, not a chooser with no
+        // rows — the backend only answers 300 for two or more events.
+        if (res.status === 300) {
+            const body = (await res.json().catch(() => null));
+            const events = Array.isArray(body === null || body === void 0 ? void 0 : body.events)
+                ? body.events.filter(isChoice).map(({ eventId, name, date }) => ({ eventId, ...(name === undefined ? {} : { name }), ...(date === undefined ? {} : { date }) }))
+                : [];
+            return events.length >= 2 ? { kind: 'choose', events } : { kind: 'error' };
+        }
+        // Zero events is the D5 404: the guided "open your invite link".
         if (res.status === 404)
             return { kind: 'none' };
         if (res.status === 401)
