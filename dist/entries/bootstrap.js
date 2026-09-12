@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isShellKey = exports.TYPE_VOICES = exports.SHELL_KEYS = exports.OCCASION_DEFAULTS = exports.FALLBACK_DEFAULTS = exports.CURATED_DESIGNS = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.ownedContinuation = exports.sendJson = exports.jsonOr = exports.isCancelled = exports.getJson = exports.CancelledError = exports.ApiError = exports.GuestEventApi = exports.PublicApi = void 0;
+exports.isShellKey = exports.TYPE_VOICES = exports.SHELL_KEYS = exports.OCCASION_DEFAULTS = exports.FALLBACK_DEFAULTS = exports.CURATED_DESIGNS = exports.invitationUrlFor = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.report = exports.leavePage = exports.initReporter = exports.flushReports = exports.addBreadcrumb = exports.ownedContinuation = exports.sendJson = exports.jsonOr = exports.isCancelled = exports.getJson = exports.CancelledError = exports.ApiError = exports.GuestEventApi = exports.PublicApi = void 0;
 /**
  * Shore's initial application seam: environment-aware public endpoints, reads,
  * event/shell contracts, and site links. It intentionally excludes admin
@@ -37,6 +37,7 @@ var siteUrls_1 = require("../siteUrls");
 Object.defineProperty(exports, "SiteUrls", { enumerable: true, get: function () { return siteUrls_1.SiteUrls; } });
 Object.defineProperty(exports, "guestSiteUrlFor", { enumerable: true, get: function () { return siteUrls_1.guestSiteUrlFor; } });
 Object.defineProperty(exports, "inviteUrlFor", { enumerable: true, get: function () { return siteUrls_1.inviteUrlFor; } });
+Object.defineProperty(exports, "invitationUrlFor", { enumerable: true, get: function () { return siteUrls_1.invitationUrlFor; } });
 var shells_1 = require("../shells");
 Object.defineProperty(exports, "CURATED_DESIGNS", { enumerable: true, get: function () { return shells_1.CURATED_DESIGNS; } });
 Object.defineProperty(exports, "FALLBACK_DEFAULTS", { enumerable: true, get: function () { return shells_1.FALLBACK_DEFAULTS; } });

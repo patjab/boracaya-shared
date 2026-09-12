@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureGuestToken = ensureGuestToken;
+exports.guestSubjectFromToken = guestSubjectFromToken;
+exports.exchangeInvitationToken = exchangeInvitationToken;
+exports.exchangeLegacyInvite = exchangeLegacyInvite;
 exports.guestTokenExpiresInSeconds = guestTokenExpiresInSeconds;
 exports.guestAuthHeaders = guestAuthHeaders;
 exports.guestLinkedEmail = guestLinkedEmail;
@@ -101,6 +104,122 @@ async function ensureGuestToken(eventId, userId) {
         inFlight.set(flightKey, p);
     }
     return p;
+}
+/**
+ * The canonical userId a guest JWT was minted for, read from its own `sub`.
+ *
+ * The cdk#1566 lane deliberately does NOT echo `userId` in the response body —
+ * the whole point is to stop handing the internal identifier back as a field a
+ * client might store, log or build a link from. The claim is still there (the
+ * authorizer reads it), so a client that legitimately needs to know who it is
+ * reads it here rather than being told.
+ *
+ * Returns null for anything that is not a parseable JWT payload with a `sub`.
+ */
+function guestSubjectFromToken(token) {
+    if (!token)
+        return null;
+    try {
+        const payload = token.split('.')[1];
+        if (!payload)
+            return null;
+        const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+        const sub = JSON.parse(json).sub;
+        return typeof sub === 'string' && sub ? sub : null;
+    }
+    catch (_a) {
+        return null;
+    }
+}
+function cacheSession(eventId, userId, token, exp, linkedEmail, generation) {
+    if (generation !== cacheGeneration)
+        return;
+    sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail }));
+}
+/**
+ * Exchange an invitation TOKEN (the `?invite=` link's credential) for an
+ * event-scoped guest session (cdk#1566).
+ *
+ * Unlike `ensureGuestToken`, the caller does not know its own userId yet — the
+ * token is the only thing the link carries — so the cache is written after the
+ * response, keyed on the `sub` the JWT itself names.
+ */
+async function exchangeInvitationToken(eventId, invitationToken) {
+    if (!eventId || !invitationToken)
+        return { kind: 'unknown' };
+    const generation = cacheGeneration;
+    try {
+        const res = await fetch(publicApi_1.GuestEventApi.guestToken(eventId), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: invitationToken }),
+        });
+        if (res.status === 403)
+            return { kind: 'unknown' };
+        if (!res.ok)
+            return { kind: 'error' };
+        const { token, exp, linkedEmail } = (await res.json());
+        const userId = guestSubjectFromToken(token);
+        if (!userId)
+            return { kind: 'error' };
+        try {
+            cacheSession(eventId, userId, token, exp, linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null, generation);
+        }
+        catch (_a) {
+            // storage unavailable — the session just won't survive a reload
+        }
+        return { kind: 'ok', token, userId };
+    }
+    catch (_b) {
+        return { kind: 'error' };
+    }
+}
+/**
+ * Exchange a LEGACY `?invited={userId}` link during the grace period
+ * (cdk#1566 B1/Q2).
+ *
+ * Distinguishes the two 403s the old lane can now produce, which
+ * `ensureGuestToken` cannot: `replaced` means the four weeks are up and this
+ * link is permanently dead (the screens show "Find my invitation"), while
+ * `unknown` is the pre-existing "no such invitation".
+ *
+ * On success the server also hands back a freshly minted `invitationToken` —
+ * the silent swap — which the caller puts in the URL in place of the userId.
+ */
+async function exchangeLegacyInvite(eventId, userId) {
+    var _a;
+    if (!eventId || !userId)
+        return { kind: 'unknown' };
+    const generation = cacheGeneration;
+    try {
+        const res = await fetch(publicApi_1.GuestEventApi.exchange(eventId), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+        });
+        if (res.status === 403) {
+            const body = (await res.json().catch(() => ({})));
+            return body.error === 'invitation link replaced'
+                ? { kind: 'replaced' }
+                : { kind: 'unknown' };
+        }
+        if (!res.ok)
+            return { kind: 'error' };
+        const { token, exp, linkedEmail, invitationToken } = (await res.json());
+        // The mint's own `sub` is authoritative: a tombstoned link resolves to a
+        // DIFFERENT canonical id than the one in the URL (#373 D3a).
+        const canonical = (_a = guestSubjectFromToken(token)) !== null && _a !== void 0 ? _a : userId;
+        try {
+            cacheSession(eventId, canonical, token, exp, linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null, generation);
+        }
+        catch (_b) {
+            // storage unavailable
+        }
+        return { kind: 'ok', token, userId: canonical, invitationToken };
+    }
+    catch (_c) {
+        return { kind: 'error' };
+    }
 }
 /**
  * Seconds until the cached guest token expires, or undefined when none is

@@ -170,6 +170,8 @@ describe('GuestEventApi contract', () => {
     // builder -> [resource path for eventId 'e-1', expected host prefix]
     const EXPECTED: Record<keyof typeof GuestEventApi, [string, RegExp]> = {
         exchange: ['/events/e-1/auth/exchange', /^public-api\./],
+        // cdk#1566: the invitation-token lane that replaces userId-as-invitation.
+        guestToken: ['/events/e-1/guest-token', /^public-api\./],
         openRsvp: ['/events/e-1/rsvp/open', /^public-api\./],
         claim: ['/events/e-1/auth/claim', /^public-api\./],
         unlink: ['/events/e-1/auth/unlink', /^public-api\./],

@@ -11,6 +11,8 @@ export declare const PublicApi: {
 export declare const GuestEventApi: {
     readonly openRsvp: (eventId: string) => string;
     readonly exchange: (eventId: string) => string;
+    /** cdk#1566: exchange an invitation TOKEN for an event-scoped guest session. */
+    readonly guestToken: (eventId: string) => string;
     readonly claim: (eventId: string) => string;
     readonly unlink: (eventId: string) => string;
     readonly invite: (eventId: string) => string;

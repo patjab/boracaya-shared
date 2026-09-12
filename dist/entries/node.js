@@ -14,7 +14,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.ApiRoutes = exports.PublicApi = exports.OrganizerInviteApi = exports.GuestEventApi = exports.FacesApi = exports.ApiConstants = exports.AdminEventApi = exports.AccountApi = void 0;
+exports.invitationUrlFor = exports.inviteUrlFor = exports.guestSiteUrlFor = exports.SiteUrls = exports.envSubdomain = exports.isTest = exports.getEnv = exports.ApiRoutes = exports.PublicApi = exports.OrganizerInviteApi = exports.GuestEventApi = exports.FacesApi = exports.ApiConstants = exports.AdminEventApi = exports.AccountApi = void 0;
 /**
  * Node-safe aggregate for contract tests, scripts, and backend tooling. Browser
  * identity, DOM adapters, React hooks, and MUI components are deliberately absent.
@@ -38,3 +38,4 @@ var siteUrls_1 = require("../siteUrls");
 Object.defineProperty(exports, "SiteUrls", { enumerable: true, get: function () { return siteUrls_1.SiteUrls; } });
 Object.defineProperty(exports, "guestSiteUrlFor", { enumerable: true, get: function () { return siteUrls_1.guestSiteUrlFor; } });
 Object.defineProperty(exports, "inviteUrlFor", { enumerable: true, get: function () { return siteUrls_1.inviteUrlFor; } });
+Object.defineProperty(exports, "invitationUrlFor", { enumerable: true, get: function () { return siteUrls_1.invitationUrlFor; } });

@@ -39,3 +39,17 @@ export const guestSiteUrlFor = (eventId: string): string =>
  */
 export const inviteUrlFor = (eventId: string, userId: string): string =>
     `${guestSiteUrlFor(eventId)}?invited=${encodeURIComponent(userId)}`;
+
+/**
+ * A guest's personal invite link, cdk#1566 form:
+ * `<guest site>/e/{eventId}/?invite={invitationToken}`.
+ *
+ * Replaces `inviteUrlFor` above, whose `?invited={userId}` handed out the
+ * guest's INTERNAL identifier as a permanent, unrevocable credential. The token
+ * is event-scoped and revocable, and only its hash is ever stored — which is
+ * why ONLY the server can mint one of these links, at the moment it issues the
+ * token. Nothing can rebuild a guest's link later, including this function:
+ * pass the raw token you were just handed, or re-issue.
+ */
+export const invitationUrlFor = (eventId: string, invitationToken: string): string =>
+    `${guestSiteUrlFor(eventId)}?invite=${encodeURIComponent(invitationToken)}`;
