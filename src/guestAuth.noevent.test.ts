@@ -39,10 +39,35 @@ describe('loginNoEvent (cdk#623)', () => {
     expect(cached).toMatchObject({ token: 'jwt.abc', userId: 'u1', eventId: 'evt-9' });
   });
 
-  it('zero or many events (404) → none, no token cached', async () => {
+  it('zero events (404) → none, no token cached', async () => {
     stubFetch(404, { error: 'no invitation found' });
     const res = await loginNoEvent('cred');
     expect(res).toEqual({ kind: 'none' });
+    expect(store.has('pdab_guest_token')).toBe(false);
+  });
+
+  it('several events (300) → choose, with exactly the rows the backend named, and no token cached (U68)', async () => {
+    stubFetch(300, { events: [
+      { eventId: 'evt-1', name: 'Ana & Bo', date: '2027-03-14' },
+      { eventId: 'evt-2', date: '2027-06-01' }, // context is best-effort per row
+      { eventId: 'evt-3', name: 'Cy', extra: 'not part of the contract' },
+    ] });
+    const res = await loginNoEvent('cred');
+    expect(res).toEqual({ kind: 'choose', events: [
+      { eventId: 'evt-1', name: 'Ana & Bo', date: '2027-03-14' },
+      { eventId: 'evt-2', date: '2027-06-01' },
+      { eventId: 'evt-3', name: 'Cy' },
+    ] });
+    expect(store.has('pdab_guest_token')).toBe(false);
+  });
+
+  it('a 300 that does not carry two usable rows is an error, never an empty chooser', async () => {
+    stubFetch(300, { events: [{ eventId: 'only-one' }] });
+    expect(await loginNoEvent('cred')).toEqual({ kind: 'error' });
+    stubFetch(300, { events: [{ name: 'no id' }, { eventId: 42 }] });
+    expect(await loginNoEvent('cred')).toEqual({ kind: 'error' });
+    stubFetch(300, {});
+    expect(await loginNoEvent('cred')).toEqual({ kind: 'error' });
     expect(store.has('pdab_guest_token')).toBe(false);
   });
 
