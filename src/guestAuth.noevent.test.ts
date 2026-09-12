@@ -61,6 +61,13 @@ describe('loginNoEvent (cdk#623)', () => {
     expect(store.has('pdab_guest_token')).toBe(false);
   });
 
+  it('exactly two memberships is a chooser -- the boundary the backend answers 300 from (Codex r2 on #173)', async () => {
+    stubFetch(300, { events: [{ eventId: 'evt-a', name: 'A' }, { eventId: 'evt-b', name: 'B' }] });
+    expect(await loginNoEvent('cred')).toEqual({ kind: 'choose', events: [
+      { eventId: 'evt-a', name: 'A' }, { eventId: 'evt-b', name: 'B' },
+    ] });
+  });
+
   it('a 300 that does not carry two usable rows is an error, never an empty chooser', async () => {
     stubFetch(300, { events: [{ eventId: 'only-one' }] });
     expect(await loginNoEvent('cred')).toEqual({ kind: 'error' });
