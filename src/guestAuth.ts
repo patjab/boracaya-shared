@@ -364,22 +364,46 @@ export async function claimIdentity(params: {
 // POST /auth/login (UNSCOPED — no eventId): a verified Google credential arriving with no
 // event in the URL. The backend recovers the event(s) the email is a member of and, when
 // there is EXACTLY ONE, mints a guest token for it and returns the resolved eventId; zero
-// or many events → 404 (the "open your invite link" guidance, #373 D5). Read-only: like
-// the login lane of /auth/claim it never binds or writes an identity — it only RECOVERS the
-// single event the caller is already on. On success the minted token is cached here (same
-// shape the reservations calls read) keyed to the resolved event, and the caller is handed
-// the eventId to redirect into (`/e/<eventId>/`).
+// events → 404 (the "open your invite link" guidance, #373 D5); SEVERAL events → 300 with
+// the caller's own membership list, no token (owner decision G5, register U68, cdk#1617 —
+// the cross-event chooser Option D had deferred). Read-only: like the login lane of
+// /auth/claim it never binds or writes an identity — it only RECOVERS the event(s) the
+// caller is already on. On a 200 the minted token is cached here (same shape the
+// reservations calls read) keyed to the resolved event, and the caller is handed the
+// eventId to redirect into (`/e/<eventId>/`). On a 300 nothing is cached: the guest picks
+// an event and goes through that event's ordinary lane.
+
+/** One row of the cross-event chooser (U68): the id the guest picks with, plus whatever
+ *  context the event row can describe it by. `name` and `date` are best-effort per row —
+ *  an event whose display data could not be read is still offered, by id. There is no
+ *  `place`: the event row carries no venue attribute (cdk#1617 decision, 2026-09-12); if
+ *  one is ever added it arrives here as another optional field, not a new arm. */
+export interface NoEventLoginChoice {
+  eventId: string;
+  name?: string;
+  date?: string;
+}
 
 export type NoEventLoginResult =
   /** Exactly one member event: token minted + cached; redirect the guest into `eventId`. */
   | { kind: 'ok'; userId: string; eventId: string }
-  /** Zero OR many member events (#373 D5): guide to the personal invite link. No list is
-   *  returned to the browser — the no-event lane defers the cross-event chooser. */
+  /** Zero member events (#373 D5): guide to the personal invite link. */
   | { kind: 'none' }
+  /** Several member events (G5 / U68): the caller's own memberships, to choose from. No
+   *  token is minted; the guest picks and enters that event's lane. Never fewer than two. */
+  | { kind: 'choose'; events: NoEventLoginChoice[] }
   /** The Google credential was rejected (401). */
   | { kind: 'invalid' }
   /** Anything else (network failure, 4xx/5xx) — safe to offer a retry. */
   | { kind: 'error' };
+
+const isChoice = (row: unknown): row is NoEventLoginChoice => {
+  if (!row || typeof row !== 'object') return false;
+  const r = row as Record<string, unknown>;
+  return typeof r.eventId === 'string' && r.eventId.length > 0
+    && (r.name === undefined || typeof r.name === 'string')
+    && (r.date === undefined || typeof r.date === 'string');
+};
 
 export async function loginNoEvent(credential: string): Promise<NoEventLoginResult> {
   try {
@@ -403,8 +427,17 @@ export async function loginNoEvent(credential: string): Promise<NoEventLoginResu
       );
       return { kind: 'ok', userId, eventId };
     }
-    // Zero AND many both surface as 404 here (the backend never returns a cross-event
-    // chooser on this lane) — one guided outcome for the SPA.
+    // 300 Multiple Choices (cdk#1617 step 1): the caller's own memberships, nothing minted.
+    // A 300 whose body does not carry a usable list is an error, not a chooser with no
+    // rows — the backend only answers 300 for two or more events.
+    if (res.status === 300) {
+      const body = (await res.json().catch(() => null)) as { events?: unknown } | null;
+      const events = Array.isArray(body?.events)
+        ? body.events.filter(isChoice).map(({ eventId, name, date }) => ({ eventId, ...(name === undefined ? {} : { name }), ...(date === undefined ? {} : { date }) }))
+        : [];
+      return events.length >= 2 ? { kind: 'choose', events } : { kind: 'error' };
+    }
+    // Zero events is the D5 404: the guided "open your invite link".
     if (res.status === 404) return { kind: 'none' };
     if (res.status === 401) return { kind: 'invalid' };
     return { kind: 'error' };

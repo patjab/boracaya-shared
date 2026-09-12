@@ -2,4 +2,4 @@
 export { authHeaders, getEmail, getIdToken, initAuth, signOut, } from '../auth';
 export { idTokenExpiresInSeconds } from '../authToken';
 export { claimIdentity, clearGuestToken, ensureGuestToken, exchangeInvitationToken, exchangeLegacyInvite, guestAuthHeaders, guestLinkedEmail, guestSubjectFromToken, guestTokenExpiresInSeconds, loginNoEvent, unlinkIdentity, } from '../guestAuth';
-export type { ClaimCandidate, ClaimResult, InvitationExchange, NoEventLoginResult, UnlinkResult, } from '../guestAuth';
+export type { ClaimCandidate, ClaimResult, InvitationExchange, NoEventLoginChoice, NoEventLoginResult, UnlinkResult, } from '../guestAuth';

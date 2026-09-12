@@ -113,6 +113,16 @@ export declare function claimIdentity(params: {
     userId?: string;
     chooseUserId?: string;
 }): Promise<ClaimResult>;
+/** One row of the cross-event chooser (U68): the id the guest picks with, plus whatever
+ *  context the event row can describe it by. `name` and `date` are best-effort per row —
+ *  an event whose display data could not be read is still offered, by id. There is no
+ *  `place`: the event row carries no venue attribute (cdk#1617 decision, 2026-09-12); if
+ *  one is ever added it arrives here as another optional field, not a new arm. */
+export interface NoEventLoginChoice {
+    eventId: string;
+    name?: string;
+    date?: string;
+}
 export type NoEventLoginResult = 
 /** Exactly one member event: token minted + cached; redirect the guest into `eventId`. */
 {
@@ -120,10 +130,15 @@ export type NoEventLoginResult =
     userId: string;
     eventId: string;
 }
-/** Zero OR many member events (#373 D5): guide to the personal invite link. No list is
- *  returned to the browser — the no-event lane defers the cross-event chooser. */
+/** Zero member events (#373 D5): guide to the personal invite link. */
  | {
     kind: 'none';
+}
+/** Several member events (G5 / U68): the caller's own memberships, to choose from. No
+ *  token is minted; the guest picks and enters that event's lane. Never fewer than two. */
+ | {
+    kind: 'choose';
+    events: NoEventLoginChoice[];
 }
 /** The Google credential was rejected (401). */
  | {

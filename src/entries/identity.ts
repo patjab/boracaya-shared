@@ -24,6 +24,7 @@ export type {
   ClaimCandidate,
   ClaimResult,
   InvitationExchange,
+  NoEventLoginChoice,
   NoEventLoginResult,
   UnlinkResult,
 } from '../guestAuth';

@@ -118,7 +118,7 @@ export {
   claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds,
   exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken,
 } from './guestAuth';
-export type { ClaimCandidate, ClaimResult, NoEventLoginResult, UnlinkResult, InvitationExchange } from './guestAuth';
+export type { ClaimCandidate, ClaimResult, InvitationExchange, NoEventLoginChoice, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export {
