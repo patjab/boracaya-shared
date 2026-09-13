@@ -108,7 +108,7 @@ describe('the audit step', () => {
 
 // ---- the script step, as actions/github-script runs it, against fakes ----
 
-type Case = { audit?: unknown; auditExit?: string; dispositions?: unknown; existing?: boolean };
+type Case = { audit?: unknown; auditExit?: string; dispositions?: unknown; existing?: boolean; decoy?: 'user' | 'pasted' | 'bot' };
 type Calls = { create: any[]; update: any[]; createComment: any[]; setFailed: string[] };
 
 async function runScript(c: Case): Promise<Calls> {
@@ -120,7 +120,15 @@ async function runScript(c: Case): Promise<Calls> {
   };
   const fakeFs = { readFileSync: (name: string) => { if (!(name in files)) { const e: any = new Error(`ENOENT ${name}`); e.code = 'ENOENT'; throw e; } return files[name]; } };
   const calls: Calls = { create: [], update: [], createComment: [], setFailed: [] };
-  const openIssues = c.existing ? [{ number: 91, title: 'Dependency advisories — sweep' }] : [];
+  const TITLE = 'Dependency advisories — sweep';
+  const BOT = { login: 'github-actions[bot]' };
+  const openIssues: any[] = [];
+  // The sweep's own issue: the title, the marker in its body, opened by the workflow token.
+  if (c.existing) openIssues.push({ number: 91, title: TITLE, body: '<!-- advisory-sweep -->' + String.fromCharCode(10) + 'sweep', user: BOT });
+  // Same-title issues that are NOT the sweep's (this repo is public; anyone can open one):
+  if (c.decoy === 'user') openIssues.push({ number: 95, title: TITLE, body: 'I think we have advisories?', user: { login: 'someone' } });
+  if (c.decoy === 'pasted') openIssues.push({ number: 96, title: TITLE, body: '<!-- advisory-sweep -->' + String.fromCharCode(10) + 'pasted', user: { login: 'someone' } });
+  if (c.decoy === 'bot') openIssues.push({ number: 97, title: TITLE, body: 'opened by some other workflow', user: BOT });
   const github = {
     paginate: async (fn: any, args: any) => fn(args),
     rest: { issues: {
@@ -172,6 +180,17 @@ describe('the script step', () => {
       const c = await runScript({ audit: CLEAN, auditExit, existing: true });
       expect(c.setFailed, auditExit).toHaveLength(1);
       expect([c.create, c.update, c.createComment]).toEqual([[], [], []]);
+    }
+  });
+  it('never mutates a same-title issue that is not its own (public repo: anyone can open one)', async () => {
+    // One decoy per rejected clause: a human author; a human author who pasted the marker; the bot author without the marker.
+    for (const decoy of ['user', 'pasted', 'bot'] as const) {
+      const clean = await runScript({ audit: auditWith(LODASH), auditExit: '1', decoy,
+        dispositions: { [LODASH]: { state: 'not-affected', since: '2026-09-09', reason: 'no path' } } });
+      expect([clean.update, clean.createComment], decoy).toEqual([[], []]);
+      const found = await runScript({ audit: auditWith(LODASH), auditExit: '1', decoy, dispositions: {} });
+      expect(found.create, decoy).toHaveLength(1);
+      expect(found.update, decoy).toEqual([]);
     }
   });
   it('fails on a report it cannot read rather than closing the issue', async () => {

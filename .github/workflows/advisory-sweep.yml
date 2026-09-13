@@ -4,7 +4,7 @@ name: advisory-sweep
 #
 # THIS IS AN INLINE COPY of the `sweep` job in
 # `patjab/boracaya-ops/.github/workflows/advisory-sweep.yml`, taken at ops
-# 3c227c161aec679b11468f2831b41e6de560b101 (main, 2026-09-13, ops#66).
+# 51beb596fd6d2878179e29fdaced744e5de1f84f (main, 2026-09-13, ops#67).
 #
 # Why a copy here and a one-line `uses:` in the other seven repos: **this
 # repository is public, and a public repository cannot call a private reusable
@@ -143,6 +143,7 @@ jobs:
 
             const dispositionsPath = process.env.DISPOSITIONS_PATH;
             const issueTitle = process.env.ISSUE_TITLE;
+            const MARKER = '<!-- advisory-sweep -->';
             const lockfile = process.env.LOCKFILE;
             const { owner, repo } = context.repo;
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
@@ -292,7 +293,15 @@ jobs:
             const open = await github.paginate(github.rest.issues.listForRepo, {
               owner, repo, state: 'open', per_page: 100,
             });
-            const existing = open.find((i) => i.title === issueTitle && !i.pull_request);
+            // The sweep mutates only an issue it OWNS: the exact title, the
+            // marker its own body carries, and the workflow token's author. A
+            // person can open an issue with this title (in a public repo,
+            // anyone can); matching on the title alone would overwrite or close
+            // theirs and leave the sweep's own stale (Codex r6 on shared#175).
+            const isSweeps = (i) => i.title === issueTitle && !i.pull_request
+              && typeof i.body === 'string' && i.body.includes(MARKER)
+              && i.user && i.user.login === 'github-actions[bot]';
+            const existing = open.find(isSweeps);
             const swept = now.toISOString().replace(/\.\d+Z$/, 'Z');
             const counts = listing.reduce((acc, r) => ({ ...acc, [r.kind]: (acc[r.kind] || 0) + 1 }), {});
             const countLine = ['new', 'reverted', 'stale', 'unknown-state']
@@ -323,7 +332,7 @@ jobs:
             ].join('\n');
 
             const body = [
-              '<!-- advisory-sweep -->',
+              MARKER,
               '## Motivation',
               `\`npm audit --omit=dev\` on \`${lockfile}\` reports ${listing.length} advisor${listing.length === 1 ? 'y' : 'ies'} (${countLine}) that nobody has dispositioned, that were dispositioned \`fixed\` and are back, or that have been \`investigating\` past two refreshes. An advisory is not a defect until someone says whether the vulnerable path is reachable; this issue is the list waiting for that judgement.`,
               '',
