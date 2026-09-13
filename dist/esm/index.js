@@ -1,5 +1,5 @@
 export { ApiConstants, PublicApi, AdminEventApi, GuestEventApi, AccountApi, OrganizerInviteApi, FacesApi, } from './api.js';
-export { SiteUrls, guestSiteUrlFor, inviteUrlFor, invitationUrlFor } from './siteUrls.js';
+export { SiteUrls, guestSiteUrlFor, invitationUrlFor } from './siteUrls.js';
 export { getEnv, isTest, envSubdomain } from './env.js';
 export { isShellKey } from './shells.js';
 export { isEmojiIcon } from './emoji.js';

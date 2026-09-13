@@ -132,7 +132,7 @@ describe('AdminEventApi contract', () => {
 
     it('covers every single-argument builder', () => {
         const singleArg = Object.keys(AdminEventApi).filter(
-            (k) => !['template', 'stage', 'stageResponses', 'stageResponse', 'organizerInvite', 'member'].includes(k));
+            (k) => !['template', 'stage', 'stageResponses', 'stageResponse', 'organizerInvite', 'member', 'inviteLink'].includes(k));
         expect(singleArg.sort()).toEqual(Object.keys(EXPECTED_EVENT_PATHS).sort());
     });
 
@@ -154,6 +154,10 @@ describe('AdminEventApi contract', () => {
             .toBe('/events/e-1/invites/t%2F1');
         expect(resourcePath(AdminEventApi.member('e-1', 'a@b.co')))
             .toBe('/events/e-1/members/a%40b.co');
+        // cdk#1644: the userId is a path segment, so a hostile one must not
+        // restructure the route into a different resource.
+        expect(resourcePath(AdminEventApi.inviteLink('e-1', 'u/1?x')))
+            .toBe('/events/e-1/invite/u%2F1%3Fx/link');
     });
 
     it('URI-encodes hostile eventIds instead of restructuring the path', () => {
@@ -161,7 +165,35 @@ describe('AdminEventApi contract', () => {
     });
 });
 
-// ── Event-scoped guest/public lanes (cdk#427 / #386 SI-5) ─────────────────────
+// ── The host's personal-link lane (cdk#1644) ──────────────────────────────────
+// The builder test above pins only the URL string. This pins the ROUTE
+// REGISTRATIONS themselves — both methods, on the admin lane, and nothing else
+// on that path — so deleting one, changing its method or moving it off the
+// admin label fails here rather than in cdk's topology drift check alone
+// (Codex r2 on shared#177).
+import { ApiRoutes } from './routes';
+
+describe('ApiRoutes — /events/{eventId}/invite/{userId}/link (cdk#1644)', () => {
+    const LINK_PATH = '/events/{eventId}/invite/{userId}/link';
+
+    it('registers exactly POST (mint) and DELETE (revoke), both on the admin lane', () => {
+        const registrations = ApiRoutes
+            .filter((r) => r.path === LINK_PATH)
+            .map((r) => `${r.label} ${r.method}`)
+            .sort();
+        expect(registrations).toEqual(['admin DELETE', 'admin POST']);
+    });
+
+    it('is the only route under the singular guest-invite path besides the legacy GET/PATCH /invite', () => {
+        const underInvite = ApiRoutes
+            .filter((r) => r.path.startsWith('/events/{eventId}/invite/'))
+            .map((r) => `${r.label} ${r.method} ${r.path}`)
+            .sort();
+        expect(underInvite).toEqual([`admin DELETE ${LINK_PATH}`, `admin POST ${LINK_PATH}`]);
+    });
+});
+
+
 // Same contract style: lock each builder's resource path and its target API host,
 // and the URI-encoding of the caller-supplied eventId.
 import { GuestEventApi } from './api';

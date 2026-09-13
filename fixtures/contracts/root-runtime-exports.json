@@ -77,7 +77,6 @@
   "initReporter",
   "interpolate",
   "invalidateCache",
-  "inviteUrlFor",
   "isDisplayBlock",
   "isEmojiIcon",
   "isEventDate",

@@ -41,17 +41,31 @@ describe('env hostmap (cdk#563)', () => {
 describe('site URL builders ride the env + the boracaya identity (cdk#563)', () => {
     it('TEST pages mint test.boracaya.com links', async () => {
         await loadFor('valet.test.boracaya.com');
-        const { SiteUrls, guestSiteUrlFor, inviteUrlFor } = await import('./siteUrls');
+        const { SiteUrls, guestSiteUrlFor, invitationUrlFor } = await import('./siteUrls');
         expect(SiteUrls.PUBLIC).toBe('https://test.boracaya.com');
         expect(SiteUrls.VALET).toBe('https://valet.test.boracaya.com');
         expect(guestSiteUrlFor('ev-1')).toBe('https://test.boracaya.com/e/ev-1/');
-        expect(inviteUrlFor('ev-1', 'abc123')).toBe('https://test.boracaya.com/e/ev-1/?invited=abc123');
+        expect(invitationUrlFor('ev-1', 'tok_abc123')).toBe('https://test.boracaya.com/e/ev-1/?invite=tok_abc123');
     });
 
     it('PROD pages mint boracaya.com links, identities encoded', async () => {
         await loadFor('valet.boracaya.com');
-        const { SiteUrls, inviteUrlFor } = await import('./siteUrls');
+        const { SiteUrls, invitationUrlFor } = await import('./siteUrls');
         expect(SiteUrls.PUBLIC).toBe('https://boracaya.com');
-        expect(inviteUrlFor('e/v?1', 'a&b c?#')).toBe('https://boracaya.com/e/e%2Fv%3F1/?invited=a%26b%20c%3F%23');
+        expect(invitationUrlFor('e/v?1', 'a&b c?#')).toBe('https://boracaya.com/e/e%2Fv%3F1/?invite=a%26b%20c%3F%23');
+    });
+
+    // cdk#1644: the `?invited=<userId>` builder is GONE, not deprecated. A
+    // consumer that can still build that form will, and the form dies at
+    // INVITE_LEGACY_UNTIL (cdk#1566). Pinned as an absence so a "helpful"
+    // re-add fails here.
+    it('has no builder for the retired ?invited=<userId> form', async () => {
+        await loadFor('valet.boracaya.com');
+        const siteUrls: Record<string, unknown> = await import('./siteUrls');
+        expect('inviteUrlFor' in siteUrls).toBe(false);
+        const builders = Object.values(siteUrls).filter(
+            (v): v is (...a: string[]) => string => typeof v === 'function');
+        expect(builders.length).toBeGreaterThan(0);
+        for (const fn of builders) expect(fn('ev-1', 'x')).not.toContain('invited=');
     });
 });

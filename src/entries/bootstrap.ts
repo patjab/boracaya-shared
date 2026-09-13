@@ -17,7 +17,7 @@ export { addBreadcrumb, flushReports, initReporter, leavePage, report } from '..
 export type { ReportContext, ReporterConfig } from '../report';
 export { getEnv, isTest, envSubdomain } from '../env';
 export type { EnvName } from '../env';
-export { SiteUrls, guestSiteUrlFor, inviteUrlFor, invitationUrlFor } from '../siteUrls';
+export { SiteUrls, guestSiteUrlFor, invitationUrlFor } from '../siteUrls';
 export {
   CURATED_DESIGNS,
   FALLBACK_DEFAULTS,

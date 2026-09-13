@@ -129,6 +129,13 @@ export const AdminEventApi = {
     // the server renders {{firstName}}/{{lastName}}/{{link}} per guest, mails
     // through SES and bumps sentCount on each delivered send.
     scrambleSend: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/scramble/send`,
+    // One guest's personal link (cdk#1644): POST -> {url}, the `?invite=` link
+    // with a FRESH token (a rotation — the previous link stops working, which
+    // is what hashing forces and what a host wants after a leak); DELETE ->
+    // revoke, the link dies on its next exchange. The console never builds a
+    // guest link itself: the raw token exists only in this response.
+    inviteLink: (eventId: string, userId: string) =>
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/invite/${encodeURIComponent(userId)}/link`,
     // Custom-stage definitions + the responses grid (cdk#466/#513).
     stages: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages`,
     stage: (eventId: string, stageId: string) =>

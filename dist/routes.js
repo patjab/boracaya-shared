@@ -49,6 +49,14 @@ exports.ApiRoutes = [
     // eligible guest their personal invite link and bumps sentCount itself —
     // Valet no longer copies one link at a time.
     { label: 'admin', method: 'POST', path: '/events/{eventId}/scramble/send' },
+    // A guest's personal link, handed to the host ONCE (cdk#1644, under
+    // cdk#1566): POST mints a fresh invitation token and answers with the
+    // finished `?invite=` URL — a rotation, exactly like a resend, because only
+    // the hash is stored and no later request can rebuild the link. DELETE
+    // revokes: the token leaves the index and the link answers the no-oracle
+    // 403 on its very next exchange. Singular /invite = the guest lane.
+    { label: 'admin', method: 'POST', path: '/events/{eventId}/invite/{userId}/link' },
+    { label: 'admin', method: 'DELETE', path: '/events/{eventId}/invite/{userId}/link' },
     // Custom-stage definitions + responses (cdk#466/#513): the generic stages lane.
     { label: 'admin', method: 'POST', path: '/events/{eventId}/stages' },
     // Reorder only (cdk#1398). Takes the stage IDS in their new order, never
