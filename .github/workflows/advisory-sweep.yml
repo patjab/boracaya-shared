@@ -1,0 +1,348 @@
+name: advisory-sweep
+
+# The weekly dependency-advisory sweep (cdk#1583, register U60/U56/U57).
+#
+# THIS IS AN INLINE COPY of the `sweep` job in
+# `patjab/boracaya-ops/.github/workflows/advisory-sweep.yml`, taken at ops
+# 55818de71b43806040aa6acaf43195fd823d58f9 (2026-09-13).
+#
+# Why a copy here and a one-line `uses:` in the other seven repos: **this
+# repository is public, and a public repository cannot call a private reusable
+# workflow.** boracaya-ops is private. That is the same constraint that already
+# gave this repo its own inline pr-gate, and the same reason the sweep runs in
+# each repo at all rather than centrally — an ops job would need a PAT that can
+# read seven private repositories (ops#44 territory), and this way every run
+# uses only its own repo's GITHUB_TOKEN.
+#
+# KEEP THE TWO IN STEP. The steps below are the ops job verbatim except that
+# the four `workflow_call` inputs are replaced by the literal defaults
+# (`ubuntu-latest`, `package-lock.json`, `docs/advisory-dispositions.json`,
+# `Dependency advisories — sweep`); the github-script body is byte-identical, so
+# a diff against the ops file shows only those substitutions. When the ops
+# workflow changes, re-copy it and update the SHA above. Its contract, decision
+# table and cost note are in boracaya-ops `docs/advisory-sweep.md`, and the
+# decision table is tested there (`tests/test_advisory_sweep.py`).
+#
+# What it does, once a week: `npm audit --omit=dev` over `package-lock.json`,
+# then open, update or close ONE issue here — "Dependency advisories — sweep" —
+# listing every advisory absent from `docs/advisory-dispositions.json`,
+# dispositioned `fixed` yet present in the tree again (a reverted bump), or left
+# `investigating` past two refreshes. `not-affected` rows stay silent.
+#
+# **It never blocks a merge, and it must never be added to main's required
+# checks.** Findings are the issue, not the exit code. `npm audit` exits 1
+# whenever it finds anything, which is why the audit step captures that code
+# and ends 0 and the script judges the report instead.
+#
+# Reverse in one change: delete the `schedule:` trigger below.
+
+on:
+  schedule:
+    # Mondays 11:11 UTC. Staggered an hour apart from the other repos so eight
+    # sweeps do not hit the registry in the same minute, and off the hour, where
+    # GitHub's scheduler is most congested.
+    - cron: '11 11 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: advisory-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # The house guard (repo-drift.yml): a job that lands on an unsupported
+      # runner must fail loudly rather than skip its steps and go green having
+      # audited nothing.
+      - name: Guard - supported runner OS
+        if: runner.os != 'Linux'
+        shell: bash
+        run: |
+          echo "::error::advisory-sweep: the sweep's steps are bash on a Linux runner, got ${{ runner.os }}"
+          exit 1
+
+      # A reusable workflow checks out the CALLER's repository by default -
+      # which is the whole point: this reads the calling repo's lockfile.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      # `npm audit` EXITS 1 WHEN IT FINDS SOMETHING. That is the normal case
+      # here, not a failure, so the exit code is captured rather than obeyed and
+      # the step always ends 0; the script below judges the REPORT, not the
+      # code. `continue-on-error` would do the same thing for the audit while
+      # also swallowing a genuinely broken run, so it is deliberately not used.
+      #
+      # No `npm ci`, and no `--package-lock-only`: verified 2026-09-13 that
+      # `npm audit --omit=dev --json` reads the lockfile alone with no
+      # node_modules present (npm 10.9.7) - cdk, valet, shore and e2e all
+      # returned a real report at exit 0. Add `--package-lock-only` here if a
+      # repo is ever found to need an installed tree.
+      #
+      # No setup-node: the sweep builds nothing, it reads a lockfile and asks
+      # the registry's bulk-advisory endpoint, so the versions.yml toolchain pin
+      # that matters for gates does not matter here. The runner's preinstalled
+      # npm keeps the job near half a minute. If npm's report shape ever moves,
+      # the `auditReportVersion` assertion below fails the job loudly rather
+      # than mis-parsing it.
+      - name: npm audit (production dependencies)
+        shell: bash
+        env:
+          LOCKFILE: package-lock.json
+        run: |
+          set -uo pipefail
+          if [ ! -f "$LOCKFILE" ]; then
+            echo "::error::advisory-sweep: lockfile not found: $LOCKFILE"
+            exit 1
+          fi
+          dir="$(dirname "$LOCKFILE")"
+          echo "auditing $LOCKFILE (npm $(npm --version), node $(node --version)) in ${dir}"
+          cd "$dir"
+          npm audit --omit=dev --json > "$GITHUB_WORKSPACE/audit.json" 2> "$GITHUB_WORKSPACE/audit-stderr.txt"
+          code=$?
+          # The sentinel file the script reads for its failure message. `npm
+          # audit` returns 1 for findings and 0 for none; anything else, or a
+          # report that will not parse, is a broken audit.
+          echo "$code" > "$GITHUB_WORKSPACE/audit-exit.txt"
+          echo "npm audit --omit=dev --json exit $code"
+          head -c 400 "$GITHUB_WORKSPACE/audit-stderr.txt" || true
+          exit 0
+
+      - name: Open, update or close the advisory issue
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          # Every caller-controlled value reaches the script through the
+          # environment. Nothing is interpolated into the script body: a
+          # `${{ }}` in here would splice a repo's input straight into the
+          # source it runs as.
+          DISPOSITIONS_PATH: docs/advisory-dispositions.json
+          ISSUE_TITLE: Dependency advisories — sweep
+          LOCKFILE: package-lock.json
+        with:
+          script: |
+            const fs = require('fs');
+
+            // An `investigating` row is stale once it has survived two weekly
+            // refreshes - the rule docs/advisories.md already states in prose
+            // ("an advisory that sits there across two refreshes is either
+            // reachable and should be fixed, or unreachable and should say
+            // why"). SWEEP_NOW exists so the tests can pin the clock.
+            const STALE_AFTER_DAYS = 14;
+            const now = new Date(process.env.SWEEP_NOW || Date.now());
+
+            const dispositionsPath = process.env.DISPOSITIONS_PATH;
+            const issueTitle = process.env.ISSUE_TITLE;
+            const lockfile = process.env.LOCKFILE;
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            // ---- the audit report -------------------------------------------------
+            // Judged by whether it PARSED, never by the exit code: exit 1 is
+            // what a report with findings looks like, and treating that as a
+            // failure is exactly the blocking gate this decision rejected.
+            let rawExit = '';
+            try { rawExit = fs.readFileSync('audit-exit.txt', 'utf8').trim(); } catch (e) { rawExit = '(no exit file)'; }
+            let audit = null;
+            let parseError = '';
+            try {
+              audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+            } catch (e) {
+              parseError = String((e && e.message) || e);
+            }
+            const brokenAudit = (msg) => {
+              let stderr = '';
+              try { stderr = fs.readFileSync('audit-stderr.txt', 'utf8').trim().slice(0, 2000); } catch (e) { /* optional */ }
+              core.setFailed(`advisory-sweep: ${msg} (npm audit exit ${rawExit})${stderr ? `\n${stderr}` : ''}`);
+            };
+            if (audit === null || typeof audit !== 'object' || Array.isArray(audit)) {
+              return brokenAudit(`npm audit produced no usable JSON report: ${parseError || 'not an object'}`);
+            }
+            // The tripwire for an npm upgrade that moves the report shape. A
+            // silent mis-parse would read as "no advisories" and CLOSE the
+            // issue, which is the one outcome that must never happen by accident.
+            if (audit.auditReportVersion !== 2) {
+              return brokenAudit(`unexpected auditReportVersion ${JSON.stringify(audit.auditReportVersion)} - the parser below is written against version 2`);
+            }
+            if (audit.vulnerabilities === null || typeof audit.vulnerabilities !== 'object') {
+              return brokenAudit('the report carries no `vulnerabilities` object');
+            }
+
+            // ---- the dispositions -------------------------------------------------
+            // A missing or unparseable dispositions file is a BROKEN INPUT, not
+            // an empty one: treating it as empty would list every advisory as
+            // new, and - worse - a typo'd path in a repo with no advisories
+            // would sweep clean forever and nobody would find out.
+            let raw;
+            try {
+              raw = JSON.parse(fs.readFileSync(dispositionsPath, 'utf8'));
+            } catch (e) {
+              return core.setFailed(`advisory-sweep: dispositions file '${dispositionsPath}' is missing or not valid JSON: ${String((e && e.message) || e)}`);
+            }
+            if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+              return core.setFailed(`advisory-sweep: dispositions file '${dispositionsPath}' must be a JSON object keyed by advisory id`);
+            }
+
+            const normId = (s) => String(s).trim().toUpperCase();
+            // Forgiving about formatting, strict about meaning: `Not Affected`
+            // and `not_affected` are the same word, `notaffected` is not.
+            const normState = (s) => String(s == null ? '' : s).trim().toLowerCase().replace(/[\s_]+/g, '-');
+            const dispositions = new Map();
+            for (const [key, value] of Object.entries(raw)) {
+              // The full row `{state, since, reason}` is the documented shape;
+              // a bare `"GHSA-x": "fixed"` string is accepted too (it simply
+              // carries no `since`, which makes a bare `investigating` stale).
+              const row = (value && typeof value === 'object' && !Array.isArray(value)) ? value : { state: value };
+              dispositions.set(normId(key), row);
+            }
+
+            // ---- what the tree actually carries -----------------------------------
+            // npm's report keys `vulnerabilities` by PACKAGE, and each entry's
+            // `via` holds one object per advisory (lodash routinely carries
+            // six) plus plain strings for packages it merely pulls in. The GHSA
+            // id lives only in the advisory's `url`.
+            const GHSA = /(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4})/i;
+            const found = new Map();
+            for (const entry of Object.values(audit.vulnerabilities)) {
+              if (!entry || typeof entry !== 'object' || !Array.isArray(entry.via)) continue;
+              for (const via of entry.via) {
+                if (!via || typeof via !== 'object') continue; // a string `via` is a transitive edge, not an advisory
+                const m = GHSA.exec(String(via.url || ''));
+                // No GHSA in the url (a registry-only advisory) still gets
+                // listed, under its npm source id, rather than vanishing.
+                const id = m ? normId(m[1]) : (via.source != null ? `NPM-${String(via.source)}` : null);
+                if (!id) continue;
+                const rec = found.get(id) || { id, severity: '', pkg: '', title: '', url: '', paths: new Set(), anyPaths: new Set() };
+                if (via.severity) rec.severity = String(via.severity);
+                if (via.title) rec.title = String(via.title);
+                if (via.url) rec.url = String(via.url);
+                if (via.name) rec.pkg = String(via.name);
+                for (const n of (Array.isArray(entry.nodes) ? entry.nodes : [])) {
+                  rec.anyPaths.add(String(n));
+                  // `nodes` belongs to the entry's own package; only record it
+                  // as this advisory's path when they are the same package.
+                  if (!via.name || !entry.name || String(via.name) === String(entry.name)) rec.paths.add(String(n));
+                }
+                if (!rec.pkg && entry.name) rec.pkg = String(entry.name);
+                found.set(id, rec);
+              }
+            }
+
+            // ---- the decision table -----------------------------------------------
+            // absent -> new · fixed-but-present -> reverted · investigating past
+            // two refreshes (or with no usable `since`) -> stale · anything the
+            // file calls a state that this does not recognise -> listed, never
+            // silently trusted. `not-affected` is the ONE silent branch.
+            const ageDays = (since) => {
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(String(since || '').trim())) return null;
+              const t = Date.parse(`${String(since).trim()}T00:00:00Z`);
+              if (Number.isNaN(t)) return null;
+              return Math.floor((now.getTime() - t) / 86400000);
+            };
+            const listing = [];
+            for (const rec of found.values()) {
+              const row = dispositions.get(rec.id);
+              if (!row) {
+                listing.push({ ...rec, kind: 'new', shown: '(absent)', why: 'not in the dispositions file - nobody has judged reachability yet' });
+                continue;
+              }
+              const state = normState(row.state);
+              if (state === 'not-affected') continue; // triaged and silent, by design
+              if (state === 'fixed') {
+                listing.push({ ...rec, kind: 'reverted', shown: 'fixed', why: 'dispositioned `fixed`, but the vulnerable node is in the tree again' });
+                continue;
+              }
+              if (state === 'investigating') {
+                const age = ageDays(row.since);
+                if (age === null) {
+                  listing.push({ ...rec, kind: 'stale', shown: 'investigating', why: `\`investigating\` with no usable \`since\` (${JSON.stringify(row.since ?? null)}); it cannot be shown to be fresh` });
+                } else if (age > STALE_AFTER_DAYS) {
+                  listing.push({ ...rec, kind: 'stale', shown: 'investigating', why: `\`investigating\` since ${row.since} - ${age} days, past the ${STALE_AFTER_DAYS}-day (two refreshes) limit` });
+                }
+                continue;
+              }
+              listing.push({ ...rec, kind: 'unknown-state', shown: String(row.state), why: 'the dispositions file gives a state the sweep does not recognise (`fixed` / `not-affected` / `investigating`)' });
+            }
+
+            const RANK = { critical: 0, high: 1, moderate: 2, low: 3, info: 4 };
+            listing.sort((a, b) => (RANK[a.severity] ?? 9) - (RANK[b.severity] ?? 9) || a.id.localeCompare(b.id));
+
+            // ---- the issue --------------------------------------------------------
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', per_page: 100,
+            });
+            const existing = open.find((i) => i.title === issueTitle && !i.pull_request);
+            const swept = now.toISOString().replace(/\.\d+Z$/, 'Z');
+            const counts = listing.reduce((acc, r) => ({ ...acc, [r.kind]: (acc[r.kind] || 0) + 1 }), {});
+            const countLine = ['new', 'reverted', 'stale', 'unknown-state']
+              .filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`).join(', ');
+
+            if (listing.length === 0) {
+              const clean = `No undispositioned advisory in \`${lockfile}\` as of ${swept} (${runUrl}).`;
+              if (existing) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body: `${clean}\nClosing.` });
+                await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed', state_reason: 'completed' });
+                core.info(`clean - closed #${existing.number}`);
+              } else {
+                core.info('clean - nothing open');
+              }
+              await core.summary.addHeading('Dependency advisories').addRaw(clean).write();
+              return;
+            }
+
+            const table = [
+              '| Advisory | Severity | Package | Path | Disposition | Why it is listed |',
+              '|---|---|---|---|---|---|',
+              ...listing.map((r) => {
+                const paths = [...(r.paths.size ? r.paths : r.anyPaths)];
+                const path = paths.length ? paths.map((p) => `\`${p}\``).join('<br>') : `\`node_modules/${r.pkg}\``;
+                const link = r.url ? `[${r.id}](${r.url})` : r.id;
+                return `| ${link} | ${r.severity || '?'} | \`${r.pkg}\` | ${path} | ${r.shown} | **${r.kind}** — ${r.why} |`;
+              }),
+            ].join('\n');
+
+            const body = [
+              '<!-- advisory-sweep -->',
+              '## Motivation',
+              `\`npm audit --omit=dev\` on \`${lockfile}\` reports ${listing.length} advisor${listing.length === 1 ? 'y' : 'ies'} (${countLine}) that nobody has dispositioned, that were dispositioned \`fixed\` and are back, or that have been \`investigating\` past two refreshes. An advisory is not a defect until someone says whether the vulnerable path is reachable; this issue is the list waiting for that judgement.`,
+              '',
+              '## Advisories',
+              table,
+              '',
+              '## Action',
+              `Edit \`${dispositionsPath}\` in this repository — one entry per advisory id:`,
+              '',
+              '```json',
+              '{',
+              '  "GHSA-xxxx-xxxx-xxxx": {',
+              '    "state": "fixed | not-affected | investigating",',
+              '    "since": "YYYY-MM-DD",',
+              '    "reason": "the reachability sentence, in full"',
+              '  }',
+              '}',
+              '```',
+              '',
+              `\`not-affected\` must name why the vulnerable code is unreachable and goes silent here. \`fixed\` means the node is gone from the lockfile — it stays in the file so that a **revert** shows up here again. \`investigating\` is not a resting state: past ${STALE_AFTER_DAYS} days (two refreshes) it is listed above.`,
+              '',
+              `The prose record, and the reachability analysis these one-liners are drawn from, is \`docs/advisories.md\` in boracaya-cdk. This issue closes itself on the next sweep that finds nothing.`,
+              '',
+              `_Swept ${swept} · ${runUrl} · this sweep never blocks a merge (cdk#1583)._`,
+            ].join('\n');
+
+            if (existing) {
+              // The body is REPLACED rather than commented on: this runs every
+              // week forever, and a comment per run would bury the list it
+              // exists to show. The issue always reads as the current state.
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+              core.info(`${listing.length} listed (${countLine}) - updated #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({ owner, repo, title: issueTitle, body });
+              core.info(`${listing.length} listed (${countLine}) - opened #${created.data.number}`);
+            }
+            // Deliberately NOT setFailed: findings are the issue, not the exit
+            // code. The job is green with a full list; it goes red only when the
+            // audit or the API broke.
+            await core.summary.addHeading('Dependency advisories').addRaw(`${listing.length} listed (${countLine})\n\n${table}`).write();
