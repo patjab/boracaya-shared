@@ -90,6 +90,28 @@ function legacyExchangeOnce(eventId: string, userId: string): Promise<LegacyExch
 }
 
 /**
+ * Whether this tab already holds a live session for `(eventId, userId)` — read
+ * from the cache only, never the network (cdk#1658, decision 2 on cdk#1659).
+ *
+ * Shore's link resolver uses it to decide whether a REMEMBERED identity (no link
+ * in the URL) needs exchanging at all: a guest who signed in on their token link
+ * minutes ago still holds that session, so presenting their internal id to the
+ * legacy lane — closed after the cutoff — would only sign them out for nothing.
+ * Absent or expired session → false, and the resolver's exchange proceeds.
+ */
+export function hasGuestSession(
+  eventId: string | null | undefined,
+  userId: string | null | undefined,
+): boolean {
+  if (!eventId || !userId) return false;
+  try {
+    return readValid(eventId, userId) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Return a valid guest token for this userId, exchanging + caching if needed. The exchange
  * is event-scoped (cdk#427): `eventId` is the SPA's path tenant, and the mint succeeds only
  * if the userId resolves to an invitation in THAT event. Never throws; returns null when

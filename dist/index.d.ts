@@ -46,7 +46,7 @@ export type { CacheHit, CachedLoadHandle, CachedLoadOptions } from './cache';
 export { initAuth, signOut, getIdToken, authHeaders, getEmail, } from './auth';
 export { idTokenExpiresInSeconds } from './authToken';
 export { GoogleSignInButton } from './GoogleSignInButton';
-export { ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds, exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken, } from './guestAuth';
+export { ensureGuestToken, hasGuestSession, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds, exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken, } from './guestAuth';
 export type { ClaimCandidate, ClaimResult, InvitationExchange, NoEventLoginChoice, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
