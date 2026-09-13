@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { hasGuestSession } from './guestAuth';
 
 /** `hasGuestSession` (cdk#1658): a cache read, never a network call. */
@@ -11,7 +11,15 @@ beforeEach(() => {
     setItem: (k: string, v: string) => void store.set(k, v),
     removeItem: (k: string) => void store.delete(k),
   });
-  vi.stubGlobal('fetch', vi.fn(() => { throw new Error('hasGuestSession must not touch the network'); }));
+  fetchSpy = vi.fn(() => { throw new Error('hasGuestSession must not touch the network'); });
+  vi.stubGlobal('fetch', fetchSpy);
+});
+// The no-network contract is asserted, not merely made to throw: the function
+// catches everything and answers false, so a throwing stub alone would hide a
+// mutation that reached for fetch on a cache miss (Codex r2 on #178).
+let fetchSpy: ReturnType<typeof vi.fn>;
+afterEach(() => {
+  expect(fetchSpy).not.toHaveBeenCalled();
 });
 
 const cache = (entry: Record<string, unknown>) => store.set('pdab_guest_token', JSON.stringify(entry));
