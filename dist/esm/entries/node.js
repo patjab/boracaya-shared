@@ -6,4 +6,4 @@ export * from './domain.js';
 export { AccountApi, AdminEventApi, ApiConstants, FacesApi, GuestEventApi, OrganizerInviteApi, PublicApi, } from '../api.js';
 export { ApiRoutes } from '../routes.js';
 export { getEnv, isTest, envSubdomain } from '../env.js';
-export { SiteUrls, guestSiteUrlFor, inviteUrlFor, invitationUrlFor } from '../siteUrls.js';
+export { SiteUrls, guestSiteUrlFor, invitationUrlFor } from '../siteUrls.js';

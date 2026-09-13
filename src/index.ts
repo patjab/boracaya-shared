@@ -2,7 +2,7 @@ export {
   ApiConstants, PublicApi, AdminEventApi, GuestEventApi,
   AccountApi, OrganizerInviteApi, FacesApi,
 } from './api';
-export { SiteUrls, guestSiteUrlFor, inviteUrlFor, invitationUrlFor } from './siteUrls';
+export { SiteUrls, guestSiteUrlFor, invitationUrlFor } from './siteUrls';
 export { getEnv, isTest, envSubdomain } from './env';
 export type { StageDefinition, StageField } from './stages';
 export type { PulseConfig, PulsePrompt, PulseAsk, PulseChallenge, PulsePin } from './pulse';

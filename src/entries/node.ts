@@ -16,4 +16,4 @@ export { ApiRoutes } from '../routes';
 export type { ApiRoute } from '../routes';
 export { getEnv, isTest, envSubdomain } from '../env';
 export type { EnvName } from '../env';
-export { SiteUrls, guestSiteUrlFor, inviteUrlFor, invitationUrlFor } from '../siteUrls';
+export { SiteUrls, guestSiteUrlFor, invitationUrlFor } from '../siteUrls';

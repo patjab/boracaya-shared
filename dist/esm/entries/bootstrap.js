@@ -13,5 +13,5 @@ export { ApiError, CancelledError, getJson, isCancelled, jsonOr, sendJson } from
 export { ownedContinuation } from '../ownedContinuation.js';
 export { addBreadcrumb, flushReports, initReporter, leavePage, report } from '../report.js';
 export { getEnv, isTest, envSubdomain } from '../env.js';
-export { SiteUrls, guestSiteUrlFor, inviteUrlFor, invitationUrlFor } from '../siteUrls.js';
+export { SiteUrls, guestSiteUrlFor, invitationUrlFor } from '../siteUrls.js';
 export { CURATED_DESIGNS, FALLBACK_DEFAULTS, OCCASION_DEFAULTS, SHELL_KEYS, TYPE_VOICES, isShellKey, } from '../shells.js';
