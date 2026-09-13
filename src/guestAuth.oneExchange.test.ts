@@ -82,13 +82,19 @@ describe('one legacy exchange per identity (shore#353)', () => {
     expect(server.spy).toHaveBeenCalledTimes(1);
   });
 
-  it('different identities are different flights', async () => {
-    const server = stubServer();
-    void exchangeLegacyInvite('evt-9', 'u1');
-    void ensureGuestToken('evt-9', 'u2');
-    await Promise.resolve();
-    expect(server.spy).toHaveBeenCalledTimes(2);
-    server.releaseAll();
+  it('different identities are different flights, each exchanging its own userId', async () => {
+    const tokens: Record<string, string> = { u1: jwt({ sub: 'u1', evt: 'evt-9' }), u2: jwt({ sub: 'u2', evt: 'evt-9' }) };
+    const posted: string[] = [];
+    const spy = vi.fn(async (_url: string, init: RequestInit) => {
+      const { userId } = JSON.parse(String(init.body)) as { userId: string };
+      posted.push(userId);
+      return { status: 200, ok: true, json: async () => ({ token: tokens[userId], exp: 9999999999 }) } as Response;
+    });
+    vi.stubGlobal('fetch', spy);
+    const [one, two] = await Promise.all([exchangeLegacyInvite('evt-9', 'u1'), ensureGuestToken('evt-9', 'u2')]);
+    expect(posted.sort()).toEqual(['u1', 'u2']);
+    expect(one).toMatchObject({ kind: 'ok', token: tokens.u1, userId: 'u1' });
+    expect(two).toBe(tokens.u2);
   });
 
   it('the same userId in two events is two flights, and each caller gets its own event session', async () => {
