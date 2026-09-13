@@ -58,9 +58,11 @@ export declare function exchangeInvitationToken(eventId: string | null | undefin
  * On success the server also hands back a freshly minted `invitationToken` —
  * the silent swap — which the caller puts in the URL in place of the userId.
  */
-export declare function exchangeLegacyInvite(eventId: string | null | undefined, userId: string | null | undefined): Promise<InvitationExchange & {
+export declare function exchangeLegacyInvite(eventId: string | null | undefined, userId: string | null | undefined): Promise<LegacyExchange>;
+/** The legacy exchange's wire shape: a session plus, on a first use, the swapped-in token. */
+type LegacyExchange = InvitationExchange & {
     invitationToken?: string;
-}>;
+};
 /**
  * Seconds until the cached guest token expires, or undefined when none is
  * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client
@@ -166,3 +168,4 @@ export type UnlinkResult =
 export declare function unlinkIdentity(eventId: string): Promise<UnlinkResult>;
 /** Drop the cached guest token (e.g. on identity change / sign-out). */
 export declare function clearGuestToken(): void;
+export {};
