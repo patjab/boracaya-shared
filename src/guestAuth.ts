@@ -56,39 +56,37 @@ function readValid(eventId: string, userId: string): string | null {
   return null;
 }
 
-// Dedup concurrent exchanges for the same userId (several reservations calls fire on mount).
-const inFlight = new Map<string, Promise<string | null>>();
-
 // A claim supersedes any in-flight exchange (#439 review): reservations calls firing on
 // mount can have an exchange for the OLD identity in flight while claimIdentity() lands
 // the canonical one — a stale exchange must not clobber the freshly claimed cache entry.
 // Each claim bumps the generation; an exchange only writes if its snapshot still matches.
 let cacheGeneration = 0;
 
-async function exchange(eventId: string, userId: string): Promise<string | null> {
-  const generation = cacheGeneration;
-  try {
-    const res = await fetch(GuestEventApi.exchange(eventId), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
-    });
-    // 403 (unknown invitation) / any failure -> no token; the caller proceeds without one
-    // (today's open reservations API still accepts it — until the authorizer lands).
-    if (!res.ok) return null;
-    const { token, exp, linkedEmail } = (await res.json()) as {
-      token: string; exp: number; linkedEmail?: string | null;
-    };
-    if (generation === cacheGeneration) {
-      sessionStorage.setItem(
-        TOKEN_KEY,
-        JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail ?? null } as StoredToken),
-      );
-    }
-    return token; // still valid for THIS caller's request even when superseded
-  } catch {
-    return null;
+// ONE legacy exchange per (event, userId) at a time, shared by EVERY caller (shore#353).
+//
+// Two kinds of caller want the same request on the same page load: the link resolver
+// (`exchangeLegacyInvite`, which needs the `invitationToken` the silent swap hands back)
+// and the reservations calls firing on mount (`ensureGuestToken`, which only needs the
+// session). Before cdk#1653 the swap ROTATED, so every exchange carried a fresh token and
+// two concurrent requests were merely wasteful. cdk#1653 made the swap idempotent behind a
+// DynamoDB condition — correctly, a rotation was killing the link it had just handed out —
+// so now exactly ONE of two racing exchanges receives the token. When the reservations call
+// won that race the resolver saw no token, the guest's URL was never rewritten, and the
+// host's "still on old links" count never moved (observed in the browser against testing:
+// two POSTs 6 ms apart, the token on the one the resolver did not make). Dedupe is the
+// fix: whichever caller asks first makes the request, every concurrent caller awaits it,
+// and the swap token reaches the one that knows what to do with it.
+const inFlight = new Map<string, Promise<LegacyExchange>>();
+
+function legacyExchangeOnce(eventId: string, userId: string): Promise<LegacyExchange> {
+  // JSON-encoded composite: collision-free even if an id ever contained ':'.
+  const flightKey = JSON.stringify([eventId, userId]);
+  let p = inFlight.get(flightKey);
+  if (!p) {
+    p = legacyExchange(eventId, userId).finally(() => inFlight.delete(flightKey));
+    inFlight.set(flightKey, p);
   }
+  return p;
 }
 
 /**
@@ -104,14 +102,9 @@ export async function ensureGuestToken(
   if (!eventId || !userId) return null;
   const cached = readValid(eventId, userId);
   if (cached) return cached;
-  // JSON-encoded composite: collision-free even if an id ever contained ':'.
-  const flightKey = JSON.stringify([eventId, userId]);
-  let p = inFlight.get(flightKey);
-  if (!p) {
-    p = exchange(eventId, userId).finally(() => inFlight.delete(flightKey));
-    inFlight.set(flightKey, p);
-  }
-  return p;
+  // 403 (unknown / replaced) or any failure -> no token; the caller proceeds without one.
+  const result = await legacyExchangeOnce(eventId, userId);
+  return result.kind === 'ok' ? result.token : null;
 }
 
 // ── invitation tokens (cdk#1566, U01) ────────────────────────────────────────
@@ -213,8 +206,17 @@ export async function exchangeInvitationToken(
 export async function exchangeLegacyInvite(
   eventId: string | null | undefined,
   userId: string | null | undefined,
-): Promise<InvitationExchange & { invitationToken?: string }> {
+): Promise<LegacyExchange> {
   if (!eventId || !userId) return { kind: 'unknown' };
+  return legacyExchangeOnce(eventId, userId);
+}
+
+/** The legacy exchange's wire shape: a session plus, on a first use, the swapped-in token. */
+type LegacyExchange = InvitationExchange & { invitationToken?: string };
+
+/** The one network call behind `exchangeLegacyInvite` AND `ensureGuestToken`; never call it
+ *  directly — `legacyExchangeOnce` is what keeps concurrent callers on a single request. */
+async function legacyExchange(eventId: string, userId: string): Promise<LegacyExchange> {
   const generation = cacheGeneration;
   try {
     const res = await fetch(GuestEventApi.exchange(eventId), {
