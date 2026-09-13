@@ -91,7 +91,7 @@ describe('one legacy exchange per identity (shore#353)', () => {
     server.releaseAll();
   });
 
-  it('the same userId in two events is two flights, and each caller gets its own event's session', async () => {
+  it('the same userId in two events is two flights, and each caller gets its own event session', async () => {
     // Tokens are event-scoped (cdk#427): one flight per (event, userId), never per userId.
     const byEvent: Record<string, string> = {
       [GuestEventApi.exchange('evt-9')]: jwt({ sub: 'u1', evt: 'evt-9' }),
@@ -110,7 +110,7 @@ describe('one legacy exchange per identity (shore#353)', () => {
     expect(eight).toBe(byEvent[GuestEventApi.exchange('evt-8')]);
   });
 
-  it('caches under the JWT's canonical subject, so a merged identity is a cache hit for its canonical id', async () => {
+  it('caches under the JWT canonical subject, so a merged identity is a cache hit for its canonical id', async () => {
     // A tombstoned link: the URL says old-id, the mint's `sub` says canonical (#373 D3a).
     const token = jwt({ sub: 'canonical', evt: 'evt-9' });
     const spy = vi.fn(async () => ({
