@@ -4,7 +4,7 @@ name: advisory-sweep
 #
 # THIS IS AN INLINE COPY of the `sweep` job in
 # `patjab/boracaya-ops/.github/workflows/advisory-sweep.yml`, taken at ops
-# 55818de71b43806040aa6acaf43195fd823d58f9 (2026-09-13).
+# 3c227c161aec679b11468f2831b41e6de560b101 (main, 2026-09-13, ops#66).
 #
 # Why a copy here and a one-line `uses:` in the other seven repos: **this
 # repository is public, and a public repository cannot call a private reusable
@@ -102,8 +102,15 @@ jobs:
           dir="$(dirname "$LOCKFILE")"
           echo "auditing $LOCKFILE (npm $(npm --version), node $(node --version)) in ${dir}"
           cd "$dir"
-          npm audit --omit=dev --json > "$GITHUB_WORKSPACE/audit.json" 2> "$GITHUB_WORKSPACE/audit-stderr.txt"
-          code=$?
+          # `shell: bash` runs this under `bash -eo pipefail`; the `set` above
+          # adds options, it does not remove that `-e`. `npm audit` exits 1 on
+          # every finding, so a bare call would end the step right here, before
+          # the exit code was recorded and before the script step ran -- a red
+          # weekly job on the very case the sweep exists for (Codex r1 on
+          # ops#66; tests/gate_harness/test_advisory_sweep_audit_step.py runs
+          # this step under the real invocation with an npm that exits 1).
+          code=0
+          npm audit --omit=dev --json > "$GITHUB_WORKSPACE/audit.json" 2> "$GITHUB_WORKSPACE/audit-stderr.txt" || code=$?
           # The sentinel file the script reads for its failure message. `npm
           # audit` returns 1 for findings and 0 for none; anything else, or a
           # report that will not parse, is a broken audit.
@@ -158,6 +165,17 @@ jobs:
               try { stderr = fs.readFileSync('audit-stderr.txt', 'utf8').trim().slice(0, 2000); } catch (e) { /* optional */ }
               core.setFailed(`advisory-sweep: ${msg} (npm audit exit ${rawExit})${stderr ? `\n${stderr}` : ''}`);
             };
+            // The exit code is checked FIRST, and only for the two values that
+            // mean "audit ran": 0 (clean) and 1 (findings). Anything else -- a
+            // registry outage, a lockfile npm refuses, a missing exit file --
+            // is a broken audit even when stdout happens to hold a report that
+            // parses (Codex r4 on ops#66: an exit-2 run that printed an empty
+            // version-2 report would otherwise read as a clean sweep and CLOSE
+            // the issue). Exit 1 is never a failure here: that is the
+            // blocking gate this decision rejected.
+            if (rawExit !== '0' && rawExit !== '1') {
+              return brokenAudit('npm audit did not run to a verdict (exit is neither 0 = clean nor 1 = findings)');
+            }
             if (audit === null || typeof audit !== 'object' || Array.isArray(audit)) {
               return brokenAudit(`npm audit produced no usable JSON report: ${parseError || 'not an object'}`);
             }
