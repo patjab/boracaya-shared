@@ -91,6 +91,40 @@ describe('one legacy exchange per identity (shore#353)', () => {
     server.releaseAll();
   });
 
+  it('the same userId in two events is two flights, and each caller gets its own event's session', async () => {
+    // Tokens are event-scoped (cdk#427): one flight per (event, userId), never per userId.
+    const byEvent: Record<string, string> = {
+      [GuestEventApi.exchange('evt-9')]: jwt({ sub: 'u1', evt: 'evt-9' }),
+      [GuestEventApi.exchange('evt-8')]: jwt({ sub: 'u1', evt: 'evt-8' }),
+    };
+    const spy = vi.fn(async (url: string) => ({
+      status: 200, ok: true, json: async () => ({ token: byEvent[url], exp: 9999999999, invitationToken: 'swap' }),
+    } as Response));
+    vi.stubGlobal('fetch', spy);
+    const [nine, eight] = await Promise.all([
+      exchangeLegacyInvite('evt-9', 'u1'),
+      ensureGuestToken('evt-8', 'u1'),
+    ]);
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(nine).toMatchObject({ kind: 'ok', token: byEvent[GuestEventApi.exchange('evt-9')] });
+    expect(eight).toBe(byEvent[GuestEventApi.exchange('evt-8')]);
+  });
+
+  it('caches under the JWT's canonical subject, so a merged identity is a cache hit for its canonical id', async () => {
+    // A tombstoned link: the URL says old-id, the mint's `sub` says canonical (#373 D3a).
+    const token = jwt({ sub: 'canonical', evt: 'evt-9' });
+    const spy = vi.fn(async () => ({
+      status: 200, ok: true, json: async () => ({ token, exp: 9999999999 }),
+    } as Response));
+    vi.stubGlobal('fetch', spy);
+    expect(await ensureGuestToken('evt-9', 'old-id')).toBe(token);
+    expect(JSON.parse(store.get('pdab_guest_token')!)).toMatchObject({ userId: 'canonical', eventId: 'evt-9' });
+    // The store's `actions.replace(canonical)` moves every consumer onto the canonical id;
+    // their next call is served from the cache the exchange wrote.
+    expect(await ensureGuestToken('evt-9', 'canonical')).toBe(token);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it('a failed flight is not pinned: the next caller gets a fresh request', async () => {
     const spy = vi.fn(async () => ({ status: 500, ok: false, json: async () => ({}) } as Response));
     vi.stubGlobal('fetch', spy);
