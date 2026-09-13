@@ -114,7 +114,7 @@ export {
 export { idTokenExpiresInSeconds } from './authToken';
 export { GoogleSignInButton } from './GoogleSignInButton';
 export {
-  ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken,
+  ensureGuestToken, hasGuestSession, guestAuthHeaders, guestLinkedEmail, clearGuestToken,
   claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds,
   exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken,
 } from './guestAuth';

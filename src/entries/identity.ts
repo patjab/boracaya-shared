@@ -11,6 +11,7 @@ export {
   claimIdentity,
   clearGuestToken,
   ensureGuestToken,
+  hasGuestSession,
   exchangeInvitationToken,
   exchangeLegacyInvite,
   guestAuthHeaders,

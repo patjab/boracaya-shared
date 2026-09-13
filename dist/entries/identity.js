@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.unlinkIdentity = exports.loginNoEvent = exports.guestTokenExpiresInSeconds = exports.guestSubjectFromToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.exchangeLegacyInvite = exports.exchangeInvitationToken = exports.ensureGuestToken = exports.clearGuestToken = exports.claimIdentity = exports.idTokenExpiresInSeconds = exports.signOut = exports.initAuth = exports.getIdToken = exports.getEmail = exports.authHeaders = void 0;
+exports.unlinkIdentity = exports.loginNoEvent = exports.guestTokenExpiresInSeconds = exports.guestSubjectFromToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.exchangeLegacyInvite = exports.exchangeInvitationToken = exports.hasGuestSession = exports.ensureGuestToken = exports.clearGuestToken = exports.claimIdentity = exports.idTokenExpiresInSeconds = exports.signOut = exports.initAuth = exports.getIdToken = exports.getEmail = exports.authHeaders = void 0;
 /** Browser identity and guest-token operations. UI controls live in `boracaya-shared/ui`. */
 var auth_1 = require("../auth");
 Object.defineProperty(exports, "authHeaders", { enumerable: true, get: function () { return auth_1.authHeaders; } });
@@ -14,6 +14,7 @@ var guestAuth_1 = require("../guestAuth");
 Object.defineProperty(exports, "claimIdentity", { enumerable: true, get: function () { return guestAuth_1.claimIdentity; } });
 Object.defineProperty(exports, "clearGuestToken", { enumerable: true, get: function () { return guestAuth_1.clearGuestToken; } });
 Object.defineProperty(exports, "ensureGuestToken", { enumerable: true, get: function () { return guestAuth_1.ensureGuestToken; } });
+Object.defineProperty(exports, "hasGuestSession", { enumerable: true, get: function () { return guestAuth_1.hasGuestSession; } });
 Object.defineProperty(exports, "exchangeInvitationToken", { enumerable: true, get: function () { return guestAuth_1.exchangeInvitationToken; } });
 Object.defineProperty(exports, "exchangeLegacyInvite", { enumerable: true, get: function () { return guestAuth_1.exchangeLegacyInvite; } });
 Object.defineProperty(exports, "guestAuthHeaders", { enumerable: true, get: function () { return guestAuth_1.guestAuthHeaders; } });

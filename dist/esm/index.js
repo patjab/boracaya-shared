@@ -29,7 +29,7 @@ export { DEFAULT_CACHE_TTL_MS, MAX_CACHE_ENTRIES, createCachedLoad, invalidateCa
 export { initAuth, signOut, getIdToken, authHeaders, getEmail, } from './auth.js';
 export { idTokenExpiresInSeconds } from './authToken.js';
 export { GoogleSignInButton } from './GoogleSignInButton.js';
-export { ensureGuestToken, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds, exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken, } from './guestAuth.js';
+export { ensureGuestToken, hasGuestSession, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds, exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken, } from './guestAuth.js';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about.js';
 export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation, stageQuestions, } from './stages.js';
 export { StageFormRenderer } from './StageFormRenderer.js';
