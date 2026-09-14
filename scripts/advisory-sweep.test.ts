@@ -265,11 +265,17 @@ describe('the action-pins decision', () => {
   });
 });
 
-type Release = { tag: string; sha: string; signed: boolean } | null | 'ERROR';
+// `annotated`: the tag is an object with its own SHA (`tagobj-<sha>`) that names
+// the commit - resolving to the tag object instead of the commit is the mistake
+// the annotated cases catch. `tagSigned` is the tag object's own signature.
+type Release = { tag: string; sha: string; signed: boolean; annotated?: boolean; tagSigned?: boolean } | null | 'ERROR';
 type PinCalls = Calls & { lookups: string[] };
+// Same-title open issues that are NOT the sweep's (this repo is public; anyone can open one),
+// plus one the sweep owns in every respect but the title, and a bot-authored PR quoting the body.
+type Decoy = 'user' | 'pasted' | 'bot' | 'pr' | 'wrong-title';
 
 /** The whole action-pins body, in a temp tree, with the release lookups and the issues API answered from the case. */
-async function runPins(c: { files: Record<string, string>; releases?: Record<string, Release>; existing?: boolean }): Promise<PinCalls> {
+async function runPins(c: { files: Record<string, string>; releases?: Record<string, Release>; existing?: boolean; decoy?: Decoy }): Promise<PinCalls> {
   const root = mkdtempSync(join(tmpdir(), 'pins-'));
   dirs.push(root);
   for (const [rel, text] of Object.entries(c.files)) {
@@ -287,15 +293,43 @@ async function runPins(c: { files: Record<string, string>; releases?: Record<str
     return x;
   };
   const MARKER = '<!-- action-pins -->';
-  const openIssues: any[] = c.existing ? [{ number: 91, title: 'Action pins are behind — sweep', body: `${MARKER}\n## Motivation`, user: { login: 'github-actions[bot]' } }] : [];
+  const TITLE = 'Action pins are behind — sweep';
+  const BOT = { login: 'github-actions[bot]' };
+  const openIssues: any[] = c.existing ? [{ number: 91, title: TITLE, body: `${MARKER}\n## Motivation`, user: BOT }] : [];
+  if (c.decoy === 'user') openIssues.push({ number: 95, title: TITLE, body: 'our pins are old?', user: { login: 'someone' } });
+  if (c.decoy === 'pasted') openIssues.push({ number: 96, title: TITLE, body: `${MARKER}\npasted`, user: { login: 'someone' } });
+  if (c.decoy === 'bot') openIssues.push({ number: 97, title: TITLE, body: 'opened by some other workflow', user: BOT });
+  if (c.decoy === 'wrong-title') openIssues.push({ number: 98, title: `${TITLE} (2024 archive)`, body: `${MARKER}\n## Motivation`, user: BOT });
+  if (c.decoy === 'pr') openIssues.push({ number: 93, title: TITLE, body: `${MARKER}\n## Motivation`, user: BOT, pull_request: { url: 'x' } });
+  // Every ref the script asks for is checked against the release it should be
+  // resolving: `tags/<tag>` on getRef, the tag object's SHA on getTag, the
+  // COMMIT (never the tag object) on getCommit. A wrong ref is a 404, which
+  // the script treats as a broken run - so a regression there is red, not green.
   const github = {
     paginate: async (fn: any, args: any) => fn(args),
     rest: {
       repos: {
         getLatestRelease: async ({ owner, repo }: any) => ({ data: { tag_name: rel(owner, repo).tag } }),
-        getCommit: async ({ owner, repo }: any) => ({ data: { commit: { verification: { verified: rel(owner, repo).signed } } } }),
+        getCommit: async ({ owner, repo, ref }: any) => {
+          const x = rel(owner, repo);
+          if (ref !== x.sha) throw notFound();
+          return { data: { commit: { verification: { verified: x.signed } } } };
+        },
       },
-      git: { getRef: async ({ owner, repo }: any) => ({ data: { object: { type: 'commit', sha: rel(owner, repo).sha } } }) },
+      git: {
+        getRef: async ({ owner, repo, ref }: any) => {
+          const x = rel(owner, repo);
+          if (ref !== `tags/${x.tag}`) throw notFound();
+          return x.annotated
+            ? { data: { object: { type: 'tag', sha: `tagobj-${x.sha}` } } }
+            : { data: { object: { type: 'commit', sha: x.sha } } };
+        },
+        getTag: async ({ owner, repo, tag_sha }: any) => {
+          const x = rel(owner, repo);
+          if (!x.annotated || tag_sha !== `tagobj-${x.sha}`) throw notFound();
+          return { data: { object: { sha: x.sha }, verification: { verified: x.tagSigned === true } } };
+        },
+      },
       issues: {
         listForRepo: async () => openIssues,
         create: async (a: any) => { calls.create.push(a); return { data: { number: 94 } }; },
@@ -318,17 +352,46 @@ async function runPins(c: { files: Record<string, string>; releases?: Record<str
 }
 
 describe('the action-pins step', () => {
-  it('opens one issue listing a pin that is behind, without failing the job', async () => {
-    const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V5} # v5.1.0`) } });
+  const BEHIND = { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V5} # v5.1.0`) };
+  const CURRENT = { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V7} # v7.0.1`) };
+  it('opens one issue listing a pin that is behind, naming the release commit to move to, without failing the job', async () => {
+    const c = await runPins({ files: BEHIND });
     expect(c.create).toHaveLength(1);
+    expect(c.create[0].title).toBe('Action pins are behind — sweep');
     expect(c.create[0].body).toContain('<!-- action-pins -->');
-    expect(c.create[0].body).toContain('**behind**');
+    expect(c.create[0].body).toContain('| `.github/workflows/ci.yml` | 7 | `actions/checkout` | `fbc6f39` # v5.1.0 | v7.0.1 `3d3c42e` | **behind**');
     expect(c.setFailed).toEqual([]);
   });
-  it('closes its open issue when every pin is current', async () => {
-    const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V7} # v7.0.1`) }, existing: true });
+  it('resolves an annotated tag to the commit it names, not the tag object', async () => {
+    // Different SHAs for the tag object and the commit: a script that pinned
+    // the tag object would list the current pin as behind (and 404 on getCommit).
+    const annotated = { 'actions/checkout': { tag: 'v7.0.1', sha: CHECKOUT_V7, signed: false, annotated: true, tagSigned: true } };
+    const clean = await runPins({ files: CURRENT, releases: annotated, existing: true });
+    expect(clean.setFailed).toEqual([]);
+    expect(clean.update).toEqual([expect.objectContaining({ issue_number: 91, state: 'closed' })]);
+    const behind = await runPins({ files: BEHIND, releases: annotated });
+    expect(behind.create[0].body).toContain('v7.0.1 `3d3c42e` |');
+    expect(behind.lookups).toEqual(['actions/checkout', 'actions/checkout', 'actions/checkout', 'actions/checkout']); // latest, ref, tag, commit
+  });
+  it('closes its own open issue, by number, when every pin is current', async () => {
+    const c = await runPins({ files: CURRENT, existing: true });
     expect(c.create).toEqual([]);
-    expect(c.update.some((u) => u.state === 'closed')).toBe(true);
+    expect(c.update).toEqual([expect.objectContaining({ issue_number: 91, state: 'closed' })]);
+    expect(c.createComment).toEqual([expect.objectContaining({ issue_number: 91 })]);
+  });
+  it('never mutates a same-title issue that is not its own, and finds its own beside them', async () => {
+    for (const decoy of ['user', 'pasted', 'bot', 'pr', 'wrong-title'] as const) {
+      // alone: a listing opens a NEW issue rather than updating the decoy; a
+      // clean run touches nothing
+      const found = await runPins({ files: BEHIND, decoy });
+      expect(found.create, decoy).toHaveLength(1);
+      expect([found.update, found.createComment], decoy).toEqual([[], []]);
+      const clean = await runPins({ files: CURRENT, decoy });
+      expect([clean.create, clean.update, clean.createComment], decoy).toEqual([[], [], []]);
+      // beside the sweep's own: exactly #91 is updated or closed
+      const own = await runPins({ files: CURRENT, decoy, existing: true });
+      expect(own.update, decoy).toEqual([expect.objectContaining({ issue_number: 91, state: 'closed' })]);
+    }
   });
   it('keeps the issue open on a current pin of a release with no verified signature', async () => {
     const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V7} # v7.0.1`) }, existing: true,
