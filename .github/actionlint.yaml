@@ -1,0 +1,7 @@
+# actionlint config (the ops precedent, boracaya-ops/.github/actionlint.yaml):
+# custom labels of the self-hosted runners this repo's workflows name, so
+# `actionlint` runs clean here. GitHub adds windows/macos/self-hosted itself.
+self-hosted-runner:
+  labels:
+    # codex-review's runs-on: the desktop runners that hold the Codex login (cdk#1475).
+    - codex

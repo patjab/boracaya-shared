@@ -2,9 +2,9 @@ name: advisory-sweep
 
 # The weekly dependency-advisory sweep (cdk#1583, register U60/U56/U57).
 #
-# THIS IS AN INLINE COPY of the `sweep` job in
+# THIS IS AN INLINE COPY of the `sweep` and `action-pins` jobs in
 # `patjab/boracaya-ops/.github/workflows/advisory-sweep.yml`, taken at ops
-# 51beb596fd6d2878179e29fdaced744e5de1f84f (main, 2026-09-13, ops#67).
+# 69d8e33096864f19de6aa7a22fe82f60bda6fb56 (ops#73, 2026-09-14).
 #
 # Why a copy here and a one-line `uses:` in the other seven repos: **this
 # repository is public, and a public repository cannot call a private reusable
@@ -14,11 +14,12 @@ name: advisory-sweep
 # read seven private repositories (ops#44 territory), and this way every run
 # uses only its own repo's GITHUB_TOKEN.
 #
-# KEEP THE TWO IN STEP. The steps below are the ops job verbatim except that
-# the four `workflow_call` inputs are replaced by the literal defaults
+# KEEP THE TWO IN STEP. The steps below are the ops jobs verbatim except that
+# the `workflow_call` inputs are replaced by the literal defaults
 # (`ubuntu-latest`, `package-lock.json`, `docs/advisory-dispositions.json`,
-# `Dependency advisories — sweep`); the github-script body is byte-identical, so
-# a diff against the ops file shows only those substitutions. When the ops
+# `Dependency advisories — sweep`, `Action pins are behind — sweep`; `audit`
+# has no equivalent here - both jobs always run); the github-script bodies are
+# byte-identical, so a diff against the ops file shows only those substitutions. When the ops
 # workflow changes, re-copy it and update the SHA above. Its contract, decision
 # table and cost note are in boracaya-ops `docs/advisory-sweep.md`, and the
 # decision table is tested there (`tests/test_advisory_sweep.py`).
@@ -33,6 +34,12 @@ name: advisory-sweep
 # checks.** Findings are the issue, not the exit code. `npm audit` exits 1
 # whenever it finds anything, which is why the audit step captures that code
 # and ends 0 and the script judges the report instead.
+#
+# The second job, `action-pins` (cdk#1573), lists every third-party `uses:`
+# in this repo that is not pinned to the commit of the action's latest release
+# with a `# vX.Y.Z` label, in ONE issue - "Action pins are behind — sweep".
+# Renewal is a normal reviewed PR, monthly; the sweep never edits a workflow
+# and never opens a PR (ops `docs/advisory-sweep.md`, "Action pins").
 #
 # Reverse in one change: delete the `schedule:` trigger below.
 
@@ -69,7 +76,7 @@ jobs:
 
       # A reusable workflow checks out the CALLER's repository by default -
       # which is the whole point: this reads the calling repo's lockfile.
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # `npm audit` EXITS 1 WHEN IT FINDS SOMETHING. That is the normal case
       # here, not a failure, so the exit code is captured rather than obeyed and
@@ -120,7 +127,7 @@ jobs:
           exit 0
 
       - name: Open, update or close the advisory issue
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           # Every caller-controlled value reaches the script through the
           # environment. Nothing is interpolated into the script body: a
@@ -373,3 +380,270 @@ jobs:
             // code. The job is green with a full list; it goes red only when the
             // audit or the API broke.
             await core.summary.addHeading('Dependency advisories').addRaw(`${listing.length} listed (${countLine})\n\n${table}`).write();
+
+  # The second concern (cdk#1573): every third-party `uses:` pinned to the
+  # commit of a signed release tag, labelled `# vX.Y.Z`, renewed monthly by a
+  # reviewed PR. This job is the noticing half only: it never edits a workflow
+  # and never opens a PR - the pin is a person's or an agent's change, through
+  # the repo's review gate. It runs beside `sweep`, not after it, so a broken
+  # npm audit does not hide a pin that has fallen behind (and the other way
+  # round). Cost: one checkout plus ~3 API reads per distinct action.
+  action-pins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # The caller's tree, like `sweep`: its workflows and its action.yml files
+      # are what is read. A depth-1 checkout is enough - nothing here looks at
+      # history.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: List action pins that are behind their latest release
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          # Env only, never `${{ }}` in the body - the same rule as the sweep.
+          PINS_ISSUE_TITLE: Action pins are behind — sweep
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // >>> pure: action-pins
+            // Lifted verbatim by tests/action_pins_harness.js and run over a
+            // workflow text plus a fake tag list: no I/O, nothing asynchronous,
+            // nothing from github/core/fs in here. Keep it that way - the
+            // marker comments are what the test extracts between.
+
+            // One `uses:` per line: a step's `- uses:` or a job's `uses:`,
+            // optionally quoted, with an optional trailing `# comment`.
+            const USES_LINE = /^(\s*(?:-\s*)?uses:\s*)(['"]?)([^\s'"#]+)\2\s*(?:#\s*(.*?))?\s*$/;
+            const SHA40 = /^[0-9a-f]{40}$/i;
+            // `# v7.0.1`, `# 7.0.1`, `# v7.0.1 (whatever)` all carry the label.
+            const LABEL = /(?:^|[\s(])v?(\d+\.\d+\.\d+)(?=$|[\s),;])/;
+
+            const parseUses = (text) => {
+              const out = [];
+              String(text).split(/\r?\n/).forEach((line, i) => {
+                const m = USES_LINE.exec(line);
+                if (!m) return;
+                const spec = m[3];
+                const at = spec.lastIndexOf('@');
+                out.push({
+                  line: i + 1,
+                  target: at < 0 ? spec : spec.slice(0, at),
+                  ref: at < 0 ? '' : spec.slice(at + 1),
+                  comment: m[4] || '',
+                });
+              });
+              return out;
+            };
+
+            // `owner/repo` of a third-party reference, or null for anything
+            // that is not one: a local `./` action, a `docker://` image, or a
+            // first-party reference (the caller's own owner - those are pinned
+            // to reviewed commits of repos that publish no releases, on
+            // purpose, and each line says so).
+            const thirdParty = (target, firstPartyOwner) => {
+              if (target.startsWith('./') || target.startsWith('docker://')) return null;
+              const [owner, repo] = target.split('/');
+              if (!owner || !repo) return null;
+              if (firstPartyOwner && owner.toLowerCase() === String(firstPartyOwner).toLowerCase()) return null;
+              // GitHub names are case-insensitive; one key per action, however
+              // a line spells it.
+              return `${owner}/${repo}`.toLowerCase();
+            };
+
+            // The distinct actions the sweep has to look up, sorted.
+            const actionsIn = (files, firstPartyOwner) => {
+              const seen = new Set();
+              for (const f of files) {
+                for (const u of parseUses(f.text)) {
+                  const a = thirdParty(u.target, firstPartyOwner);
+                  if (a) seen.add(a);
+                }
+              }
+              return [...seen].sort();
+            };
+
+            const normVersion = (s) => String(s || '').trim().replace(/^v/i, '');
+
+            // The decision table. `files` = [{ path, text }]; `latest` maps
+            // `owner/repo` to `{ tag, sha, signed }` or to null when the action
+            // publishes no release. Returns one row per line that is NOT a
+            // current, labelled pin; an empty list means every pin is current.
+            //   ref is not a 40-hex commit           -> unpinned
+            //   action publishes no release          -> no-release
+            //   sha is not the latest release's      -> behind
+            //   sha is current, comment lacks # vX   -> label
+            //   no lookup result for the action      -> unresolved (never silent)
+            const pinsBehind = (files, latest, opts) => {
+              const owner = (opts && opts.firstPartyOwner) || '';
+              const rows = [];
+              for (const f of [...files].sort((a, b) => String(a.path).localeCompare(String(b.path)))) {
+                for (const u of parseUses(f.text)) {
+                  const action = thirdParty(u.target, owner);
+                  if (!action) continue;
+                  const row = { path: f.path, line: u.line, action, target: u.target, ref: u.ref, comment: u.comment };
+                  const short = (s) => String(s || '').slice(0, 7);
+                  if (!Object.prototype.hasOwnProperty.call(latest, action)) {
+                    rows.push({ ...row, kind: 'unresolved', latestTag: '', latestSha: '', why: 'no release lookup result for this action - the sweep could not judge it' });
+                    continue;
+                  }
+                  const rel = latest[action];
+                  if (rel === null) {
+                    rows.push({ ...row, kind: 'no-release', latestTag: '', latestSha: '', why: 'the action publishes no release, so there is no signed tag to pin to; pin a reviewed commit by hand and say why on the line' });
+                    continue;
+                  }
+                  const latestTag = String(rel.tag);
+                  const latestSha = String(rel.sha).toLowerCase();
+                  const common = { ...row, latestTag, latestSha, signed: rel.signed === true };
+                  if (!SHA40.test(u.ref)) {
+                    rows.push({ ...common, kind: 'unpinned', why: `\`@${u.ref || '(none)'}\` is a mutable ref; pin the commit of ${latestTag} (\`${short(latestSha)}\`)` });
+                    continue;
+                  }
+                  if (u.ref.toLowerCase() !== latestSha) {
+                    rows.push({ ...common, kind: 'behind', why: `pinned \`${short(u.ref)}\`${u.comment ? ` (${u.comment})` : ''} is not the commit of the latest release ${latestTag} (\`${short(latestSha)}\`)` });
+                    continue;
+                  }
+                  const m = LABEL.exec(u.comment);
+                  if (!m || normVersion(m[1]) !== normVersion(latestTag)) {
+                    rows.push({ ...common, kind: 'label', why: `pinned at the latest release, but the line's comment does not say \`# ${latestTag}\`${u.comment ? ` (it says \`# ${u.comment}\`)` : ''}` });
+                  }
+                }
+              }
+              return rows;
+            };
+            // <<< pure: action-pins
+
+            const issueTitle = process.env.PINS_ISSUE_TITLE;
+            const MARKER = '<!-- action-pins -->';
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const now = new Date(process.env.SWEEP_NOW || Date.now());
+
+            // ---- the files ---------------------------------------------------------
+            // Every workflow, and every action.yml anywhere in the tree that is
+            // not under node_modules or a dot-directory other than .github
+            // (boracaya-ops keeps its composite actions at actions/ and review/).
+            const isYaml = (n) => /\.ya?ml$/i.test(n);
+            const files = [];
+            const wfDir = path.join('.github', 'workflows');
+            if (fs.existsSync(wfDir)) {
+              for (const n of fs.readdirSync(wfDir)) {
+                if (isYaml(n)) files.push({ path: `${wfDir}/${n}`.replace(/\\/g, '/'), text: fs.readFileSync(path.join(wfDir, n), 'utf8') });
+              }
+            }
+            const walk = (dir) => {
+              for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+                const rel = dir === '.' ? ent.name : `${dir}/${ent.name}`;
+                if (ent.isDirectory()) {
+                  if (ent.name === 'node_modules' || (ent.name.startsWith('.') && ent.name !== '.github')) continue;
+                  walk(rel);
+                } else if (/^action\.ya?ml$/i.test(ent.name)) {
+                  files.push({ path: rel, text: fs.readFileSync(rel, 'utf8') });
+                }
+              }
+            };
+            walk('.');
+
+            // ---- the releases ------------------------------------------------------
+            // The commit a release tag points at: a lightweight tag IS the
+            // commit; an annotated tag is an object that names it. `signed` is
+            // the tag's own signature when annotated, else the commit's -
+            // recorded so the pin PR can say which it verified.
+            const latestRelease = async (action) => {
+              const [o, r] = action.split('/');
+              let tag;
+              try {
+                tag = (await github.rest.repos.getLatestRelease({ owner: o, repo: r })).data.tag_name;
+              } catch (e) {
+                if (e && e.status === 404) return null;
+                throw e;
+              }
+              const ref = (await github.rest.git.getRef({ owner: o, repo: r, ref: `tags/${tag}` })).data.object;
+              if (ref.type === 'tag') {
+                const t = (await github.rest.git.getTag({ owner: o, repo: r, tag_sha: ref.sha })).data;
+                return { tag, sha: t.object.sha, signed: !!(t.verification && t.verification.verified) };
+              }
+              const c = (await github.rest.repos.getCommit({ owner: o, repo: r, ref: ref.sha })).data;
+              return { tag, sha: ref.sha, signed: !!(c.commit && c.commit.verification && c.commit.verification.verified) };
+            };
+            const latest = {};
+            for (const action of actionsIn(files, owner)) {
+              try {
+                latest[action] = await latestRelease(action);
+              } catch (e) {
+                // A lookup that broke (rate limit, outage) is a BROKEN RUN, not
+                // a clean one: fail here and touch no issue.
+                return core.setFailed(`action-pins: could not resolve the latest release of ${action}: ${String((e && e.message) || e)}`);
+              }
+            }
+
+            const listing = pinsBehind(files, latest, { firstPartyOwner: owner });
+
+            // ---- the issue ---------------------------------------------------------
+            // The same three-part ownership test as the advisory issue (ops#67):
+            // exact title, the marker in the body, authored by the workflow token.
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', per_page: 100,
+            });
+            const isSweeps = (i) => i.title === issueTitle && !i.pull_request
+              && typeof i.body === 'string' && i.body.includes(MARKER)
+              && i.user && i.user.login === 'github-actions[bot]';
+            const existing = open.find(isSweeps);
+            const swept = now.toISOString().replace(/\.\d+Z$/, 'Z');
+            const counts = listing.reduce((acc, r) => ({ ...acc, [r.kind]: (acc[r.kind] || 0) + 1 }), {});
+            const countLine = ['unpinned', 'behind', 'label', 'no-release', 'unresolved']
+              .filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`).join(', ');
+
+            if (listing.length === 0) {
+              const clean = `Every third-party action pin is at its latest release and labelled, as of ${swept} (${runUrl}).`;
+              if (existing) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body: `${clean}\nClosing.` });
+                await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed', state_reason: 'completed' });
+                core.info(`pins current - closed #${existing.number}`);
+              } else {
+                core.info('pins current - nothing open');
+              }
+              await core.summary.addHeading('Action pins').addRaw(clean).write();
+              return;
+            }
+
+            const table = [
+              '| File | Line | Action | Pinned | Latest release | Why it is listed |',
+              '|---|---|---|---|---|---|',
+              ...listing.map((r) => {
+                const pinned = r.ref ? `\`${SHA40.test(r.ref) ? r.ref.slice(0, 7) : r.ref}\`${r.comment ? ` # ${r.comment}` : ''}` : '(none)';
+                const rel = r.latestTag ? `${r.latestTag} \`${r.latestSha.slice(0, 7)}\`${r.signed ? '' : ' (unsigned)'}` : '—';
+                return `| \`${r.path}\` | ${r.line} | \`${r.target}\` | ${pinned} | ${rel} | **${r.kind}** — ${r.why} |`;
+              }),
+            ].join('\n');
+
+            const body = [
+              MARKER,
+              '## Motivation',
+              `${listing.length} third-party action reference${listing.length === 1 ? '' : 's'} in this repository (${countLine}) ${listing.length === 1 ? 'is' : 'are'} not a labelled pin to the commit of the action's latest release. A pin that is behind still runs reviewed code, so this never blocks anything; it is the monthly renewal queue (cdk#1573).`,
+              '',
+              '## Pins',
+              table,
+              '',
+              '## Action',
+              'One pull request, through this repository\'s normal review gate, that for each row:',
+              '',
+              '1. pins the line to the **full 40-hex commit** the latest release tag points at (the table\'s `Latest release` column; verify the tag or its commit is signed before trusting it — an `(unsigned)` row needs a reason on the line);',
+              '2. records the release on the same line as `# vX.Y.Z`;',
+              '3. reads that release\'s notes for anything the workflow relies on (runtime, inputs, artifact format) — a major bump is still a bump.',
+              '',
+              'Never auto-merge it. This issue closes itself on the next sweep that finds every pin current; renewal cadence is **monthly** (the sweep runs weekly so a release landing mid-month shows up before the next renewal, not after it).',
+              '',
+              `_Swept ${swept} · ${runUrl} · this sweep never blocks a merge and never edits a workflow (cdk#1573)._`,
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+              core.info(`${listing.length} listed (${countLine}) - updated #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({ owner, repo, title: issueTitle, body });
+              core.info(`${listing.length} listed (${countLine}) - opened #${created.data.number}`);
+            }
+            // Findings are the issue, not the exit code (the sweep's rule).
+            await core.summary.addHeading('Action pins').addRaw(`${listing.length} listed (${countLine})\n\n${table}`).write();
