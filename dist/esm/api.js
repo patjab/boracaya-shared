@@ -198,6 +198,13 @@ export const FacesApi = {
     // never claimed it — body carries {runId}.
     runCancel: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/run/cancel`,
     runs: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/runs`,
+    // One run's stored state (cdk#1570, U19): the BOX's read-back for a
+    // completion whose response it lost -- a GET that answers with what the
+    // platform already holds instead of re-sending an outcome. Rides the box
+    // lane (bearer = the faces-box secret; no user token reaches it), so in
+    // meaning it sits with `queue*` below even though the path is run-scoped
+    // like `runs`.
+    runById: (eventId, runId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/runs/${encodeURIComponent(runId)}`,
     queue: () => `${facesApi()}/faces/queue`,
     queueClaim: () => `${facesApi()}/faces/queue/claim`,
     // Mid-run phase heartbeat (cdk#803): the box stamps where the run is.

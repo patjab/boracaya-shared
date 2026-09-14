@@ -290,3 +290,24 @@ describe('OrganizerInviteApi contract', () => {
         expect(resourcePath(OrganizerInviteApi.accept('a/b?c'))).toBe('/invites/a%2Fb%3Fc/accept');
     });
 });
+
+// -- The faces run lane (cdk#796 / cdk#1570) -----------------------------------
+// The box's read-back (cdk#1570 U19) is a run-scoped path on the faces host:
+// both ids are path segments, so a hostile one must not restructure the route
+// into the list (`/runs`) or out of the faces tree.
+import { FacesApi } from './api';
+
+describe('FacesApi run lane contract', () => {
+    it('runById places both encoded segments under /faces/runs', () => {
+        const url = FacesApi.runById('e-1', '1757700000-ab12cd34');
+        expect(resourcePath(url)).toBe('/events/e-1/faces/runs/1757700000-ab12cd34');
+        expect(new URL(url).hostname).toMatch(/^faces-api./);
+    });
+
+    it('URI-encodes hostile ids instead of restructuring the path', () => {
+        expect(resourcePath(FacesApi.runById('a/b?c', 'r/1#x')))
+            .toBe('/events/a%2Fb%3Fc/faces/runs/r%2F1%23x');
+        // and the by-id read is the list's child, never a sibling of it
+        expect(resourcePath(FacesApi.runById('e-1', 'r-1')).startsWith(resourcePath(FacesApi.runs('e-1')) + '/')).toBe(true);
+    });
+});
