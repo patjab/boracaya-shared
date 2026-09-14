@@ -4,7 +4,7 @@ name: advisory-sweep
 #
 # THIS IS AN INLINE COPY of the `sweep` and `action-pins` jobs in
 # `patjab/boracaya-ops/.github/workflows/advisory-sweep.yml`, taken at ops
-# 23da35a106b361a256715f6e9b23d96a0a5fb348 (main via ops#73, 2026-09-14).
+# 5501d2738c058da00bfdcef834cdaf3f14640235 (main via ops#73, 2026-09-14).
 #
 # Why a copy here and a one-line `uses:` in the other seven repos: **this
 # repository is public, and a public repository cannot call a private reusable
@@ -426,9 +426,22 @@ jobs:
             // `# v7.0.1`, `# 7.0.1`, `# v7.0.1 (whatever)` all carry the label.
             const LABEL = /(?:^|[\s(])v?(\d+\.\d+\.\d+)(?=$|[\s),;])/;
 
+            // A block scalar (`run: |`, `script: >-`) carries text, not
+            // steps: a `uses:` line inside a heredoc is script data and must
+            // not become a lookup (Codex r7 on ops#73). The scalar runs from
+            // the key that opened it to the first non-blank line indented no
+            // deeper than that key, which is YAML's own rule for it.
+            const BLOCK_OPEN = /^(\s*(?:-\s*)?)[A-Za-z_-]+:\s*[|>][-+0-9]*\s*(?:#.*)?$/;
             const parseUses = (text) => {
               const out = [];
+              let blockIndent = -1;
               String(text).split(/\r?\n/).forEach((line, i) => {
+                if (blockIndent >= 0) {
+                  if (line.trim() === '' || line.search(/\S/) > blockIndent) return;
+                  blockIndent = -1;
+                }
+                const b = BLOCK_OPEN.exec(line);
+                if (b) { blockIndent = b[1].length; return; }
                 const m = USES_LINE.exec(line);
                 if (!m) return;
                 const spec = m[3];

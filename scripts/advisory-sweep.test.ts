@@ -269,6 +269,26 @@ describe('the action-pins decision', () => {
     expect(actionsIn(files, 'patjab')).toEqual(['actions/checkout']);
     expect(kinds(pinsBehind(files, LATEST, { firstPartyOwner: 'patjab' }))).toEqual([[4, 'unpinned']]);
   });
+  it('treats a uses: line inside a run heredoc or a script block as text, not a step', () => {
+    const { pinsBehind, actionsIn } = pureApi();
+    const text = [
+      'jobs:', '  a:', '    steps:',
+      '      - run: |',
+      "          cat <<'EOF'",
+      '          uses: example/tool@v1',
+      '',
+      '          EOF',
+      '      - uses: actions/checkout@v5',
+      '      - uses: actions/checkout@v4',
+      '        with:',
+      '          script: >-',
+      '            uses: example/inline@v3',
+      `      - uses: actions/checkout@${CHECKOUT_V7} # v7.0.1`,
+    ].join('\n');
+    const files = [{ path: 'w.yml', text }];
+    expect(actionsIn(files, 'patjab')).toEqual(['actions/checkout']);
+    expect(kinds(pinsBehind(files, LATEST, { firstPartyOwner: 'patjab' }))).toEqual([[9, 'unpinned'], [10, 'unpinned']]);
+  });
   it('skips first-party, local and docker references and never skips an action with no release', () => {
     const { pinsBehind, actionsIn } = pureApi();
     const files = [{ path: 'w.yml', text: wf('patjab/boracaya-ops/actions/e2e-gate@00f28cba239a1a0e128010ea330b9f763982436d # ops main', './.ops-review', 'docker://alpine:3', 'someone/tool@0123456789012345678901234567890123456789 # v1.0.0') }];
