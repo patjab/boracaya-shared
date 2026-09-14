@@ -257,6 +257,18 @@ describe('the action-pins decision', () => {
     const rows = pinsBehind([{ path: 'w.yml', text: wf(`actions/checkout@${CHECKOUT_V7} # v7.0.1`) }], unsigned, { firstPartyOwner: 'patjab' });
     expect(kinds(rows)).toEqual([[7, 'unsigned']]);
   });
+  it('parses a step written as a YAML flow mapping, and not a run line that mentions the word', () => {
+    const { pinsBehind, actionsIn } = pureApi();
+    const text = [
+      'jobs:', '  a:', '    steps:',
+      '      - { uses: actions/checkout@v5 }',
+      `      - { name: node, uses: 'actions/checkout@${CHECKOUT_V7}', with: { node-version: 20 } } # v7.0.1`,
+      "      - run: echo '{ uses: actions/checkout@v1 }'",
+    ].join('\n');
+    const files = [{ path: 'w.yml', text }];
+    expect(actionsIn(files, 'patjab')).toEqual(['actions/checkout']);
+    expect(kinds(pinsBehind(files, LATEST, { firstPartyOwner: 'patjab' }))).toEqual([[4, 'unpinned']]);
+  });
   it('skips first-party, local and docker references and never skips an action with no release', () => {
     const { pinsBehind, actionsIn } = pureApi();
     const files = [{ path: 'w.yml', text: wf('patjab/boracaya-ops/actions/e2e-gate@00f28cba239a1a0e128010ea330b9f763982436d # ops main', './.ops-review', 'docker://alpine:3', 'someone/tool@0123456789012345678901234567890123456789 # v1.0.0') }];

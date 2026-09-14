@@ -4,7 +4,7 @@ name: advisory-sweep
 #
 # THIS IS AN INLINE COPY of the `sweep` and `action-pins` jobs in
 # `patjab/boracaya-ops/.github/workflows/advisory-sweep.yml`, taken at ops
-# f45a52586e54bddaca1860ae5056024f7753c966 (main via ops#73, 2026-09-14).
+# 23da35a106b361a256715f6e9b23d96a0a5fb348 (main via ops#73, 2026-09-14).
 #
 # Why a copy here and a one-line `uses:` in the other seven repos: **this
 # repository is public, and a public repository cannot call a private reusable
@@ -414,8 +414,14 @@ jobs:
             // marker comments are what the test extracts between.
 
             // One `uses:` per line: a step's `- uses:` or a job's `uses:`,
-            // optionally quoted, with an optional trailing `# comment`.
-            const USES_LINE = /^(\s*(?:-\s*)?uses:\s*)(['"]?)([^\s'"#]+)\2\s*(?:#\s*(.*?))?\s*$/;
+            // optionally quoted, with an optional trailing `# comment`. A
+            // step written as a YAML flow mapping - `- { uses: x@v5 }`,
+            // `- { name: n, uses: x@v5, with: {...} }` - is the same line
+            // with `{` and any earlier `key: value,` pairs in front of the
+            // key (Codex r6 on ops#73); a `run:` line that merely mentions
+            // the word does not match, because `uses:` must be the line's
+            // first key or follow one of those pairs inside the brace.
+            const USES_LINE = /^(\s*(?:-\s*)?(?:\{\s*(?:[A-Za-z_-]+:\s*[^,{}]*?,\s*)*)?uses:\s*)(['"]?)([^\s'"#,}]+)\2[^#]*?(?:#\s*(.*?))?\s*$/;
             const SHA40 = /^[0-9a-f]{40}$/i;
             // `# v7.0.1`, `# 7.0.1`, `# v7.0.1 (whatever)` all carry the label.
             const LABEL = /(?:^|[\s(])v?(\d+\.\d+\.\d+)(?=$|[\s),;])/;
