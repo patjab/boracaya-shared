@@ -96,6 +96,7 @@ export declare const FacesApi: {
     readonly run: (eventId: string) => string;
     readonly runCancel: (eventId: string) => string;
     readonly runs: (eventId: string) => string;
+    readonly runById: (eventId: string, runId: string) => string;
     readonly queue: () => string;
     readonly queueClaim: () => string;
     readonly queueProgress: () => string;
