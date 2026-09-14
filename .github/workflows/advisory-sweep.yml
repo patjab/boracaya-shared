@@ -4,7 +4,7 @@ name: advisory-sweep
 #
 # THIS IS AN INLINE COPY of the `sweep` and `action-pins` jobs in
 # `patjab/boracaya-ops/.github/workflows/advisory-sweep.yml`, taken at ops
-# 69d8e33096864f19de6aa7a22fe82f60bda6fb56 (main via ops#73, 2026-09-14).
+# f45a52586e54bddaca1860ae5056024f7753c966 (main via ops#73, 2026-09-14).
 #
 # Why a copy here and a one-line `uses:` in the other seven repos: **this
 # repository is public, and a public repository cannot call a private reusable
@@ -474,6 +474,8 @@ jobs:
             //   action publishes no release          -> no-release
             //   sha is not the latest release's      -> behind
             //   sha is current, comment lacks # vX   -> label
+            //   current and labelled, but the release
+            //     carries no verified signature      -> unsigned (never silent)
             //   no lookup result for the action      -> unresolved (never silent)
             const pinsBehind = (files, latest, opts) => {
               const owner = (opts && opts.firstPartyOwner) || '';
@@ -507,6 +509,15 @@ jobs:
                   const m = LABEL.exec(u.comment);
                   if (!m || normVersion(m[1]) !== normVersion(latestTag)) {
                     rows.push({ ...common, kind: 'label', why: `pinned at the latest release, but the line's comment does not say \`# ${latestTag}\`${u.comment ? ` (it says \`# ${u.comment}\`)` : ''}` });
+                    continue;
+                  }
+                  // The ruling pins to a SIGNED release. A current, labelled
+                  // pin whose release carries no verified signature is not
+                  // compliant and must not read as clean (Codex r1 on ops#73):
+                  // it stays listed until the line says why, or a signed
+                  // release exists to move to.
+                  if (rel.signed !== true) {
+                    rows.push({ ...common, kind: 'unsigned', why: `pinned at the latest release ${latestTag}, but neither its tag nor the commit it names carries a verified signature; pin a signed release, or say on the line why this one is trusted` });
                   }
                 }
               }
@@ -548,8 +559,10 @@ jobs:
             // ---- the releases ------------------------------------------------------
             // The commit a release tag points at: a lightweight tag IS the
             // commit; an annotated tag is an object that names it. `signed` is
-            // the tag's own signature when annotated, else the commit's -
-            // recorded so the pin PR can say which it verified.
+            // true when the annotated tag carries a verified signature OR the
+            // commit it names does (GitHub signs its own merge commits, and
+            // several actions cut lightweight or unsigned tags on them) -
+            // either is verifiable provenance. Neither -> `unsigned`, listed.
             const latestRelease = async (action) => {
               const [o, r] = action.split('/');
               let tag;
@@ -560,12 +573,16 @@ jobs:
                 throw e;
               }
               const ref = (await github.rest.git.getRef({ owner: o, repo: r, ref: `tags/${tag}` })).data.object;
+              let sha = ref.sha;
+              let tagSigned = false;
               if (ref.type === 'tag') {
                 const t = (await github.rest.git.getTag({ owner: o, repo: r, tag_sha: ref.sha })).data;
-                return { tag, sha: t.object.sha, signed: !!(t.verification && t.verification.verified) };
+                sha = t.object.sha;
+                tagSigned = !!(t.verification && t.verification.verified);
               }
-              const c = (await github.rest.repos.getCommit({ owner: o, repo: r, ref: ref.sha })).data;
-              return { tag, sha: ref.sha, signed: !!(c.commit && c.commit.verification && c.commit.verification.verified) };
+              const c = (await github.rest.repos.getCommit({ owner: o, repo: r, ref: sha })).data;
+              const commitSigned = !!(c.commit && c.commit.verification && c.commit.verification.verified);
+              return { tag, sha, signed: tagSigned || commitSigned };
             };
             const latest = {};
             for (const action of actionsIn(files, owner)) {
@@ -592,7 +609,7 @@ jobs:
             const existing = open.find(isSweeps);
             const swept = now.toISOString().replace(/\.\d+Z$/, 'Z');
             const counts = listing.reduce((acc, r) => ({ ...acc, [r.kind]: (acc[r.kind] || 0) + 1 }), {});
-            const countLine = ['unpinned', 'behind', 'label', 'no-release', 'unresolved']
+            const countLine = ['unpinned', 'behind', 'label', 'unsigned', 'no-release', 'unresolved']
               .filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`).join(', ');
 
             if (listing.length === 0) {

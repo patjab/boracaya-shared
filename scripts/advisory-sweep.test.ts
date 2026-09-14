@@ -251,6 +251,12 @@ describe('the action-pins decision', () => {
     const rows = pinsBehind([{ path: 'w.yml', text: wf(`actions/checkout@${CHECKOUT_V7} # v7`) }], LATEST, { firstPartyOwner: 'patjab' });
     expect(kinds(rows)).toEqual([[7, 'label']]);
   });
+  it('lists a current, labelled pin whose release carries no verified signature (the ruling says signed)', () => {
+    const { pinsBehind } = pureApi();
+    const unsigned = { 'actions/checkout': { tag: 'v7.0.1', sha: CHECKOUT_V7, signed: false } };
+    const rows = pinsBehind([{ path: 'w.yml', text: wf(`actions/checkout@${CHECKOUT_V7} # v7.0.1`) }], unsigned, { firstPartyOwner: 'patjab' });
+    expect(kinds(rows)).toEqual([[7, 'unsigned']]);
+  });
   it('skips first-party, local and docker references and never skips an action with no release', () => {
     const { pinsBehind, actionsIn } = pureApi();
     const files = [{ path: 'w.yml', text: wf('patjab/boracaya-ops/actions/e2e-gate@00f28cba239a1a0e128010ea330b9f763982436d # ops main', './.ops-review', 'docker://alpine:3', 'someone/tool@0123456789012345678901234567890123456789 # v1.0.0') }];
@@ -323,6 +329,12 @@ describe('the action-pins step', () => {
     const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V7} # v7.0.1`) }, existing: true });
     expect(c.create).toEqual([]);
     expect(c.update.some((u) => u.state === 'closed')).toBe(true);
+  });
+  it('keeps the issue open on a current pin of a release with no verified signature', async () => {
+    const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V7} # v7.0.1`) }, existing: true,
+      releases: { 'actions/checkout': { tag: 'v7.0.1', sha: CHECKOUT_V7, signed: false } } });
+    expect(c.update.some((u) => u.state === 'closed')).toBe(false);
+    expect(c.update.find((u) => 'body' in u)?.body).toContain('**unsigned**');
   });
   it('fails on a broken release lookup and touches no issue', async () => {
     const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V5} # v5.1.0`) }, releases: { 'actions/checkout': 'ERROR' }, existing: true });
