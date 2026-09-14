@@ -209,3 +209,124 @@ describe('provenance', () => {
     expect(WORKFLOW).not.toMatch(/uses: patjab\/boracaya-ops\//);
   });
 });
+
+// ---- the action-pins step (cdk#1573): the pure decision, then the run against fakes ----
+//
+// Same reasoning as above: the copy's tests live in ops (tests/test_action_pins.py)
+// and nothing there pins THIS file. The pure region is lifted between its markers
+// and evaluated with nothing else in scope; the whole body then runs in a temp
+// tree with the release lookups and the issues API answered from the case.
+
+const PINS_SCRIPT = blockScalar('name: List action pins that are behind their latest release', 'script: |');
+const CHECKOUT_V7 = '3d3c42e5aac5ba805825da76410c181273ba90b1';
+const CHECKOUT_V5 = 'fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09';
+const LATEST = { 'actions/checkout': { tag: 'v7.0.1', sha: CHECKOUT_V7, signed: true } };
+const wf = (...uses: string[]) => `name: x\non: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n${uses.map((u) => `      - uses: ${u}`).join('\n')}\n`;
+
+type PinRow = { line: number; kind: string };
+type PureApi = {
+  pinsBehind: (files: { path: string; text: string }[], latest: Record<string, unknown>, opts: { firstPartyOwner: string }) => PinRow[];
+  actionsIn: (files: { path: string; text: string }[], owner: string) => string[];
+};
+
+/** The region between the pure markers, evaluated with nothing else in scope (as ops tests/action_pins_harness.js does). */
+function pureApi(): PureApi {
+  const START = '// >>> pure: action-pins';
+  const start = PINS_SCRIPT.indexOf(START);
+  const end = PINS_SCRIPT.indexOf('// <<< pure: action-pins');
+  if (start < 0 || end < start) throw new Error('pure region markers not found in the action-pins script');
+  const factory = new Function(`${PINS_SCRIPT.slice(start + START.length, end)}\n;return { pinsBehind, actionsIn };`);
+  return factory() as PureApi;
+}
+
+describe('the action-pins decision', () => {
+  const kinds = (rows: PinRow[]) => rows.map((r) => [r.line, r.kind]);
+  it('lists a floating tag as unpinned and a stale commit as behind; a current labelled pin is silent', () => {
+    const { pinsBehind } = pureApi();
+    const files = [{ path: 'w.yml', text: wf('actions/checkout@v5', `actions/checkout@${CHECKOUT_V5} # v5.1.0`, `actions/checkout@${CHECKOUT_V7} # v7.0.1`) }];
+    expect(kinds(pinsBehind(files, LATEST, { firstPartyOwner: 'patjab' }))).toEqual([[7, 'unpinned'], [8, 'behind']]);
+  });
+  it('lists a current commit whose comment does not name the release', () => {
+    const { pinsBehind } = pureApi();
+    const rows = pinsBehind([{ path: 'w.yml', text: wf(`actions/checkout@${CHECKOUT_V7} # v7`) }], LATEST, { firstPartyOwner: 'patjab' });
+    expect(kinds(rows)).toEqual([[7, 'label']]);
+  });
+  it('skips first-party, local and docker references and never skips an action with no release', () => {
+    const { pinsBehind, actionsIn } = pureApi();
+    const files = [{ path: 'w.yml', text: wf('patjab/boracaya-ops/actions/e2e-gate@00f28cba239a1a0e128010ea330b9f763982436d # ops main', './.ops-review', 'docker://alpine:3', 'someone/tool@0123456789012345678901234567890123456789 # v1.0.0') }];
+    expect(actionsIn(files, 'patjab')).toEqual(['someone/tool']);
+    expect(kinds(pinsBehind(files, { 'someone/tool': null }, { firstPartyOwner: 'patjab' }))).toEqual([[10, 'no-release']]);
+  });
+});
+
+type Release = { tag: string; sha: string; signed: boolean } | null | 'ERROR';
+type PinCalls = Calls & { lookups: string[] };
+
+/** The whole action-pins body, in a temp tree, with the release lookups and the issues API answered from the case. */
+async function runPins(c: { files: Record<string, string>; releases?: Record<string, Release>; existing?: boolean }): Promise<PinCalls> {
+  const root = mkdtempSync(join(tmpdir(), 'pins-'));
+  dirs.push(root);
+  for (const [rel, text] of Object.entries(c.files)) {
+    mkdirSync(join(root, rel, '..'), { recursive: true });
+    writeFileSync(join(root, rel), text);
+  }
+  const releases: Record<string, Release> = c.releases ?? LATEST;
+  const calls: PinCalls = { create: [], update: [], createComment: [], setFailed: [], lookups: [] };
+  const notFound = () => Object.assign(new Error('Not Found'), { status: 404 });
+  const rel = (o: string, r: string) => {
+    calls.lookups.push(`${o}/${r}`);
+    const x = releases[`${o}/${r}`];
+    if (x == null) throw notFound();
+    if (x === 'ERROR') throw Object.assign(new Error('boom'), { status: 500 });
+    return x;
+  };
+  const MARKER = '<!-- action-pins -->';
+  const openIssues: any[] = c.existing ? [{ number: 91, title: 'Action pins are behind — sweep', body: `${MARKER}\n## Motivation`, user: { login: 'github-actions[bot]' } }] : [];
+  const github = {
+    paginate: async (fn: any, args: any) => fn(args),
+    rest: {
+      repos: {
+        getLatestRelease: async ({ owner, repo }: any) => ({ data: { tag_name: rel(owner, repo).tag } }),
+        getCommit: async ({ owner, repo }: any) => ({ data: { commit: { verification: { verified: rel(owner, repo).signed } } } }),
+      },
+      git: { getRef: async ({ owner, repo }: any) => ({ data: { object: { type: 'commit', sha: rel(owner, repo).sha } } }) },
+      issues: {
+        listForRepo: async () => openIssues,
+        create: async (a: any) => { calls.create.push(a); return { data: { number: 94 } }; },
+        createComment: async (a: any) => { calls.createComment.push(a); },
+        update: async (a: any) => { calls.update.push(a); },
+      },
+    },
+  };
+  const context = { repo: { owner: 'patjab', repo: 'boracaya-shared' }, serverUrl: 'https://github.com', runId: 7 };
+  const summary = { addHeading() { return this; }, addRaw() { return this; }, async write() {} };
+  const core = { info: () => {}, setFailed: (m: unknown) => calls.setFailed.push(String(m)), summary };
+  process.env.PINS_ISSUE_TITLE = 'Action pins are behind — sweep';
+  process.env.SWEEP_NOW = '2026-09-14T00:00:00Z';
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const run = new AsyncFunction('require', 'github', 'context', 'core', PINS_SCRIPT);
+  const cwd = process.cwd();
+  process.chdir(root);
+  try { await run(require, github, context, core); } finally { process.chdir(cwd); }
+  return calls;
+}
+
+describe('the action-pins step', () => {
+  it('opens one issue listing a pin that is behind, without failing the job', async () => {
+    const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V5} # v5.1.0`) } });
+    expect(c.create).toHaveLength(1);
+    expect(c.create[0].body).toContain('<!-- action-pins -->');
+    expect(c.create[0].body).toContain('**behind**');
+    expect(c.setFailed).toEqual([]);
+  });
+  it('closes its open issue when every pin is current', async () => {
+    const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V7} # v7.0.1`) }, existing: true });
+    expect(c.create).toEqual([]);
+    expect(c.update.some((u) => u.state === 'closed')).toBe(true);
+  });
+  it('fails on a broken release lookup and touches no issue', async () => {
+    const c = await runPins({ files: { '.github/workflows/ci.yml': wf(`actions/checkout@${CHECKOUT_V5} # v5.1.0`) }, releases: { 'actions/checkout': 'ERROR' }, existing: true });
+    expect(c.setFailed).toHaveLength(1);
+    expect([c.create, c.update, c.createComment]).toEqual([[], [], []]);
+  });
+});

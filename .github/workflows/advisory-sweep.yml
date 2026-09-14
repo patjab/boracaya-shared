@@ -4,7 +4,7 @@ name: advisory-sweep
 #
 # THIS IS AN INLINE COPY of the `sweep` and `action-pins` jobs in
 # `patjab/boracaya-ops/.github/workflows/advisory-sweep.yml`, taken at ops
-# 69d8e33096864f19de6aa7a22fe82f60bda6fb56 (ops#73, 2026-09-14).
+# 69d8e33096864f19de6aa7a22fe82f60bda6fb56 (main via ops#73, 2026-09-14).
 #
 # Why a copy here and a one-line `uses:` in the other seven repos: **this
 # repository is public, and a public repository cannot call a private reusable
