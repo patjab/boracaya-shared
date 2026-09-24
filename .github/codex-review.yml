@@ -1,5 +1,5 @@
 # Codex review configuration for boracaya-shared (cdk#1475). Read by the
-# `codex-review` workflow in boracaya-ops on every round; flat YAML subset
+# `codex-review` workflow in patjab/codex-review on every round; flat YAML subset
 # (inline or block lists, scalars, comments) - no YAML library on the runner.
 # Unknown keys or axes fail the round on purpose.
 
