@@ -5,17 +5,17 @@ name: codex-review
 # .github/codex-review.yml, `final` after it), `/codex [axis]` on the PR for a
 # round by hand, "Run workflow" with a PR number for the same. Dispositions go
 # in the finding's thread (reply + resolve); the next round carries them.
-# Manual: boracaya-ops docs/codex-review.md.
+# Manual: patjab/codex-review docs/codex-review.md.
 #
-# THE PUBLIC-REPO EXCEPTION. The other four repos are ~25-line callers of the
-# reusable `codex-review` workflow in boracaya-ops. A public repository cannot
+# THE PUBLIC-REPO EXCEPTION. The other callers are ~25-line callers of the
+# reusable `codex-review` workflow in patjab/codex-review. A public repository cannot
 # use a private repository's reusable workflows or actions - the first attempt
 # from here failed at parse time with "workflow was not found" (run
 # 33013019258) while the same reference worked from the private repos - so this
-# file carries the job itself and takes the harness from the boracaya-ops
+# file carries the job itself and takes the harness from the codex-review
 # clone on the desktop (`git archive` of `origin/main:review`, after a fetch;
 # nothing in the clone's working tree is touched). Same steps as the reusable
-# workflow, same composite action, same identity rule: the Codex Reviewer App
+# workflow, same composite action, same identity rule: the Jeongyeon Reviewer App
 # when CODEX_APP_ID + CODEX_APP_PRIVATE_KEY exist here, else GITHUB_TOKEN
 # (reviews then appear as github-actions[bot]; the summary says so).
 #
@@ -67,9 +67,9 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
       CODEX_APP_ID: ${{ secrets.CODEX_APP_ID }}
-      # Where the desktop keeps boracaya-ops (bootstrap layout); override with a
+      # Where the desktop keeps its patjab/codex-review clone; override with a
       # repository variable when the clone lives elsewhere.
-      OPS_CLONE: ${{ vars.BORACAYA_OPS_CLONE || '' }}
+      CODEX_REVIEW_CLONE: ${{ vars.CODEX_REVIEW_CLONE || '' }}
     steps:
       - name: Guard - Windows desktop runner
         if: runner.os != 'Windows'
@@ -78,7 +78,7 @@ jobs:
           echo "::error::codex-review: runner OS '${{ runner.os }}' is not the Windows desktop that holds the Codex login"
           exit 1
 
-      - name: Codex Reviewer App token
+      - name: Jeongyeon Reviewer App token
         id: app
         if: env.CODEX_APP_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -94,10 +94,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           if ($env:HAS_APP_TOKEN -eq 'true') {
             $identity = 'app'
-            $line = 'codex-review: posting as the Codex Reviewer App'
+            $line = 'codex-review: posting as the Jeongyeon Reviewer App'
           } else {
             $identity = 'github-token'
-            $line = 'codex-review: no CODEX_APP_ID secret in this repo - posting as github-actions[bot] (owner: create the Codex Reviewer App, see boracaya-ops docs/codex-review.md)'
+            $line = 'codex-review: no CODEX_APP_ID secret in this repo - posting as github-actions[bot] (owner: see patjab/codex-review docs/codex-review.md, and runners/check-callers.ps1 there)'
             Write-Output "::warning::$line"
           }
           Add-Content -Path $env:GITHUB_OUTPUT -Value "identity=$identity"
@@ -108,35 +108,39 @@ jobs:
         with:
           fetch-depth: 0
 
-      # The harness, from boracaya-ops main via the desktop clone: fetch, then
+      # The harness, from codex-review main via the desktop clone: fetch, then
       # `git archive` review/ into a folder of this checkout so the composite
-      # action can be used as a local action (`uses: ./.ops-review`). The
+      # action can be used as a local action (`uses: ./.codex-review`). The
       # folder is untracked here and never committed (checkout cleans it).
-      - name: Fetch the review harness from boracaya-ops (desktop clone)
+      - name: Fetch the review harness from codex-review (desktop clone)
         run: |
           $ErrorActionPreference = 'Stop'
-          $clone = $env:OPS_CLONE
-          if (-not $clone) { $clone = Join-Path $env:USERPROFILE 'Desktop\boracaya\boracaya-ops' }
-          if (-not (Test-Path (Join-Path $clone '.git'))) { Write-Output "::error::codex-review: no boracaya-ops clone at $clone (set the BORACAYA_OPS_CLONE repository variable)"; exit 1 }
+          $clone = $env:CODEX_REVIEW_CLONE
+          if (-not $clone) { $clone = Join-Path $env:USERPROFILE 'Desktop\codex-review' }
+          if (-not (Test-Path (Join-Path $clone '.git'))) { Write-Output "::error::codex-review: no patjab/codex-review clone at $clone (clone it there, or set the CODEX_REVIEW_CLONE repository variable)"; exit 1 }
+          # The clone's code runs on this desktop with the App token: it must be
+          # GitHub's patjab/codex-review, exactly (codex-review#1, Codex r5).
+          $origin = (& git -C $clone remote get-url origin | Out-String).Trim()
+          if ($origin -cnotmatch '^(git@github\.com:|ssh://git@github\.com/|https://github\.com/)patjab/codex-review(\.git)?/?$') { Write-Output "::error::codex-review: the clone at $clone has origin '$origin', not GitHub's patjab/codex-review - refusing to run its review/"; exit 1 }
           & git -C $clone fetch -q origin main
-          if ($LASTEXITCODE -ne 0) { Write-Output "::error::codex-review: git fetch of boracaya-ops failed in $clone"; exit 1 }
+          if ($LASTEXITCODE -ne 0) { Write-Output "::error::codex-review: git fetch of codex-review failed in $clone"; exit 1 }
           $sha = (& git -C $clone rev-parse origin/main).Trim()
-          $zip = Join-Path $env:RUNNER_TEMP 'ops-review.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'codex-review.zip'
           & git -C $clone archive --format=zip -o $zip origin/main review
           if ($LASTEXITCODE -ne 0) { Write-Output '::error::codex-review: git archive of review/ failed'; exit 1 }
-          $dest = Join-Path $env:GITHUB_WORKSPACE '.ops-review'
+          $dest = Join-Path $env:GITHUB_WORKSPACE '.codex-review'
           if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
           New-Item -ItemType Directory -Path $dest | Out-Null
           Expand-Archive -Path $zip -DestinationPath $dest -Force
           Move-Item -Path (Join-Path $dest 'review\*') -Destination $dest
           Remove-Item -Recurse -Force (Join-Path $dest 'review')
           Remove-Item -Force $zip
-          Write-Output "harness from boracaya-ops $sha"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "harness: boracaya-ops review/ at $sha"
+          Write-Output "harness from codex-review $sha"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "harness: codex-review review/ at $sha"
 
       - name: Codex round
         id: round
-        uses: ./.ops-review
+        uses: ./.codex-review
         with:
           pr: ${{ env.PR_NUMBER }}
           token: ${{ steps.app.outputs.token || github.token }}
