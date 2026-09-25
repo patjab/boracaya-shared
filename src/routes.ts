@@ -76,6 +76,10 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'admin', method: 'POST', path: '/events/{eventId}/assets' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}/moments' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/moments' },
+  // Host photo delete (cdk#1692, MEDIA-LIFECYCLE D4): the original, its
+  // thumbnail and its metadata row go together, immediately. Same resource and
+  // `{ key }` body as the PATCH lane — an s3Key carries slashes a path segment can't.
+  { label: 'admin', method: 'DELETE', path: '/events/{eventId}/moments' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}/moments/public' },
   // Host album uploads (cdk#790 A2/A3): presign into the gallery prefix + row write.
   { label: 'admin', method: 'POST', path: '/events/{eventId}/moments/upload' },
