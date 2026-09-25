@@ -96,10 +96,18 @@ export const ApiRoutes = [
     // guard in the handler.
     { label: 'admin', method: 'POST', path: '/accounts' },
     { label: 'admin', method: 'GET', path: '/accounts/me' },
+    // Account deletion (cdk#1693): removes the caller's own membership edges and
+    // PROFILE row — the identity token IS the selector. 409 {solelyOwned} while
+    // the caller is the only OWNER of an event (delete or hand it off first).
+    { label: 'admin', method: 'DELETE', path: '/accounts/me' },
     // events CRUD (cdk#424): create mints the event row + the creator's OWNER
     // membership edge atomically; DELETE is a soft-archive (cdk#442 D1).
     { label: 'admin', method: 'POST', path: '/events' },
     { label: 'admin', method: 'DELETE', path: '/events/{eventId}' },
+    // The purge behind the archive (cdk#1693): "Delete now" stamps the archived
+    // row and removes every row and object the event owns (async, 202). Without
+    // it, the daily sweep purges an archive 30 days after it was archived.
+    { label: 'admin', method: 'POST', path: '/events/{eventId}/purge' },
     // Organizer image unlink (cdk#707): deletes the backing share-bucket object AND
     // clears the metadata field (hero / post-event). Explicit destructive lane, body
     // names which field — distinct from the generic PATCH that only edits references.

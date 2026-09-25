@@ -17,6 +17,7 @@ export declare const ApiConstants: {
  */
 export declare const AdminEventApi: {
     readonly config: (eventId: string) => string;
+    readonly purge: (eventId: string) => string;
     readonly branding: (eventId: string) => string;
     readonly design: (eventId: string) => string;
     readonly configure: (eventId: string) => string;
