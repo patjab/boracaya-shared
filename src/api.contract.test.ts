@@ -220,6 +220,30 @@ describe('ApiRoutes — the purge and account-delete routes (cdk#1693)', () => {
     });
 });
 
+// ── A host deletes a guest's photo (cdk#1692, MEDIA-LIFECYCLE D4) ─────────────
+// Destructive, and it shares its resource with the gallery reads and the PATCH
+// lane: pin the verb set on /events/{eventId}/moments, so the delete can't slip
+// off the admin lane or onto the guest-readable /moments/public form.
+describe('ApiRoutes — the host photo delete (cdk#1692)', () => {
+    const keyOf = (r: { label: string; method: string; path: string }) => `${r.label} ${r.method} ${r.path}`;
+
+    it('serves GET, PATCH and DELETE on /events/{eventId}/moments, all on the admin lane', () => {
+        const moments = ApiRoutes.filter((r) => r.path === '/events/{eventId}/moments').map(keyOf).sort();
+        expect(moments).toEqual([
+            'admin DELETE /events/{eventId}/moments',
+            'admin GET /events/{eventId}/moments',
+            'admin PATCH /events/{eventId}/moments',
+        ]);
+    });
+
+    it('registers no DELETE on any other moments path', () => {
+        const deletes = ApiRoutes
+            .filter((r) => r.method === 'DELETE' && r.path.includes('/moments'))
+            .map(keyOf);
+        expect(deletes).toEqual(['admin DELETE /events/{eventId}/moments']);
+    });
+});
+
 // Same contract style: lock each builder's resource path and its target API host,
 // and the URI-encoding of the caller-supplied eventId.
 import { GuestEventApi } from './api';
