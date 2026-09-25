@@ -90,6 +90,12 @@ export const ApiConstants = {
  */
 export const AdminEventApi = {
     config: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}`,
+    // "Delete now — this cannot be undone" (cdk#1693): POST -> 202
+    // {purge: 'requested'}. Archives the event (if it was not already) and
+    // purges every row and object it owns at once instead of after the 30-day
+    // grace period. OWNER + sole-organizer, the archive's own gates. The
+    // account-level delete is `DELETE AccountApi.me` — no builder of its own.
+    purge: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/purge`,
     // Validated flat-config write lanes (shared#133). All still merge onto the
     // event row, but the route fixes the field owner so one editor cannot write
     // another editor's fields.
