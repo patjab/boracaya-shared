@@ -99,6 +99,7 @@ import { AdminEventApi } from './api';
 describe('AdminEventApi contract', () => {
     const EXPECTED_EVENT_PATHS: Record<string, string> = {
         config: '/events/e-1',
+        purge: '/events/e-1/purge',
         branding: '/events/e-1/branding',
         design: '/events/e-1/design',
         configure: '/events/e-1/configure',
@@ -193,6 +194,55 @@ describe('ApiRoutes — /events/{eventId}/invite/{userId}/link (cdk#1644)', () =
     });
 });
 
+
+// ── Deleting data for real (cdk#1693) ─────────────────────────────────────────
+// The purge behind the archive and the account delete are destructive routes:
+// pin the registrations themselves (method, lane, path), so a drift fails here
+// before it reaches cdk's topology check.
+describe('ApiRoutes — the purge and account-delete routes (cdk#1693)', () => {
+    const keyOf = (r: { label: string; method: string; path: string }) => `${r.label} ${r.method} ${r.path}`;
+
+    it('registers POST /events/{eventId}/purge on the admin lane, beside the archive', () => {
+        const onEvent = ApiRoutes
+            .filter((r) => r.path === '/events/{eventId}' || r.path === '/events/{eventId}/purge')
+            .filter((r) => r.method !== 'GET' && r.method !== 'PATCH')
+            .map(keyOf)
+            .sort();
+        expect(onEvent).toEqual([
+            'admin DELETE /events/{eventId}',
+            'admin POST /events/{eventId}/purge',
+        ]);
+    });
+
+    it('registers exactly GET and DELETE on /accounts/me, both on the admin lane', () => {
+        const me = ApiRoutes.filter((r) => r.path === '/accounts/me').map(keyOf).sort();
+        expect(me).toEqual(['admin DELETE /accounts/me', 'admin GET /accounts/me']);
+    });
+});
+
+// ── A host deletes a guest's photo (cdk#1692, MEDIA-LIFECYCLE D4) ─────────────
+// Destructive, and it shares its resource with the gallery reads and the PATCH
+// lane: pin the verb set on /events/{eventId}/moments, so the delete can't slip
+// off the admin lane or onto the guest-readable /moments/public form.
+describe('ApiRoutes — the host photo delete (cdk#1692)', () => {
+    const keyOf = (r: { label: string; method: string; path: string }) => `${r.label} ${r.method} ${r.path}`;
+
+    it('serves GET, PATCH and DELETE on /events/{eventId}/moments, all on the admin lane', () => {
+        const moments = ApiRoutes.filter((r) => r.path === '/events/{eventId}/moments').map(keyOf).sort();
+        expect(moments).toEqual([
+            'admin DELETE /events/{eventId}/moments',
+            'admin GET /events/{eventId}/moments',
+            'admin PATCH /events/{eventId}/moments',
+        ]);
+    });
+
+    it('registers no DELETE on any other moments path', () => {
+        const deletes = ApiRoutes
+            .filter((r) => r.method === 'DELETE' && r.path.includes('/moments'))
+            .map(keyOf);
+        expect(deletes).toEqual(['admin DELETE /events/{eventId}/moments']);
+    });
+});
 
 // Same contract style: lock each builder's resource path and its target API host,
 // and the URI-encoding of the caller-supplied eventId.
