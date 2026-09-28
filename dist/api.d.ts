@@ -65,10 +65,15 @@ export declare const AdminEventApi: {
  * zero-membership sign-in gets a 200 with an empty list instead of the pre-#387
  * 403 dead end. `register` idempotently upserts the caller's account (PROFILE row
  * in the memberships table); Valet auto-calls it when `me` reports no account.
+ * `plan` (cdk#1732) is the caller's self-service plan change: POST {tier,
+ * expectedTier, checkout: {provider: 'mock', reference}} with an
+ * Idempotency-Key; `me` carries the account's `tier`, `entitlements`,
+ * `plan` {tier, since, source} and the served `tierPolicy` matrix.
  */
 export declare const AccountApi: {
     readonly me: string;
     readonly register: string;
+    readonly plan: string;
 };
 /**
  * Organizer-invitation token lanes (cdk#534/#544): the inviteId in the email
