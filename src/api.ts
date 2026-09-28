@@ -173,6 +173,13 @@ export const AdminEventApi = {
     // own sanitizer (cdk#1437).
     draftMessage: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/draft-message`,
     surveys: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/surveys`,
+    // The event's plan (cdk#1740, epic cdk#1738: tiers follow the event): POST
+    // {tier, expectedTier, checkout: {provider: 'mock', reference}} with an
+    // Idempotency-Key moves THIS event between tiers (OWNER only). The event
+    // read carries the event's `tier`, `plan` {tier, since, source} and
+    // `entitlements`; the served matrix (`tierPolicy`) and `selfService` ride
+    // GET /accounts/me.
+    plan: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/plan`,
 } as const;
 
 /**
@@ -183,15 +190,13 @@ export const AdminEventApi = {
  * zero-membership sign-in gets a 200 with an empty list instead of the pre-#387
  * 403 dead end. `register` idempotently upserts the caller's account (PROFILE row
  * in the memberships table); Valet auto-calls it when `me` reports no account.
- * `plan` (cdk#1732) is the caller's self-service plan change: POST {tier,
- * expectedTier, checkout: {provider: 'mock', reference}} with an
- * Idempotency-Key; `me` carries the account's `tier`, `entitlements`,
- * `plan` {tier, since, source} and the served `tierPolicy` matrix.
+ * Tiers follow the EVENT (cdk#1738): `me` carries the platform-wide
+ * `tierPolicy` matrix and `selfService`, and each entry of `events` carries
+ * that event's `tier`; the plan change is AdminEventApi.plan(eventId).
  */
 export const AccountApi = {
     get me() { return `${adminApi()}/accounts/me`; },
     get register() { return `${adminApi()}/accounts`; },
-    get plan() { return `${adminApi()}/accounts/me/plan`; },
 } as const;
 
 /**

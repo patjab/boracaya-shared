@@ -87,6 +87,13 @@ export const ApiRoutes = [
     // LLM drafting relay (cdk#1439) — the composer's AI rail.
     { label: 'admin', method: 'POST', path: '/events/{eventId}/draft-message' },
     { label: 'admin', method: 'GET', path: '/events/{eventId}/surveys' },
+    // The event's plan change (cdk#1740, epic cdk#1738: tiers follow the event).
+    // An OWNER moves THIS event between free / premium / first class — {tier,
+    // expectedTier, checkout} under a required Idempotency-Key; the mock
+    // checkout is the placeholder where payment will go. Served only where the
+    // platform table exists (testing today); 404 PLAN_NOT_SERVED elsewhere.
+    // Replaces the account-wide POST /accounts/me/plan of cdk#1732.
+    { label: 'admin', method: 'POST', path: '/events/{eventId}/plan' },
     { label: 'admin', method: 'GET', path: '/events' },
     // Account/registration lane (cdk#387, decision cdk#464): identity-level routes —
     // any verified Google identity, no membership required. POST /accounts registers
@@ -100,12 +107,6 @@ export const ApiRoutes = [
     // PROFILE row — the identity token IS the selector. 409 {solelyOwned} while
     // the caller is the only OWNER of an event (delete or hand it off first).
     { label: 'admin', method: 'DELETE', path: '/accounts/me' },
-    // Self-service plan change (cdk#1732): the caller moves their OWN account
-    // between free / premium / first class — {tier, expectedTier, checkout}
-    // under a required Idempotency-Key; the mock checkout is the placeholder
-    // where payment will go. Served only where the platform table exists
-    // (testing today); 404 PLAN_NOT_SERVED elsewhere.
-    { label: 'admin', method: 'POST', path: '/accounts/me/plan' },
     // events CRUD (cdk#424): create mints the event row + the creator's OWNER
     // membership edge atomically; DELETE is a soft-archive (cdk#442 D1).
     { label: 'admin', method: 'POST', path: '/events' },
