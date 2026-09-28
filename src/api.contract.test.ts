@@ -220,6 +220,35 @@ describe('ApiRoutes — the purge and account-delete routes (cdk#1693)', () => {
     });
 });
 
+// ── The organizer's own plan change (cdk#1732) ────────────────────────────────
+// Pin the registration itself (lane, method, path) and its place under the
+// account lane: a row that drifts to another verb, another lane or another
+// path fails here before it reaches cdk's topology check, and AccountApi.plan
+// must build exactly the registered path.
+describe('ApiRoutes — the self-service plan change (cdk#1732)', () => {
+    const keyOf = (r: { label: string; method: string; path: string }) => `${r.label} ${r.method} ${r.path}`;
+
+    it('registers exactly one POST /accounts/me/plan, on the admin lane', () => {
+        const plan = ApiRoutes.filter((r) => r.path === '/accounts/me/plan').map(keyOf);
+        expect(plan).toEqual(['admin POST /accounts/me/plan']);
+    });
+
+    it('is the only route under /accounts/me besides GET and DELETE on /accounts/me itself', () => {
+        const underMe = ApiRoutes.filter((r) => r.path.startsWith('/accounts/me')).map(keyOf).sort();
+        expect(underMe).toEqual([
+            'admin DELETE /accounts/me',
+            'admin GET /accounts/me',
+            'admin POST /accounts/me/plan',
+        ]);
+    });
+
+    it('is what AccountApi.plan builds', () => {
+        const registered = ApiRoutes.find((r) => r.method === 'POST' && r.path === '/accounts/me/plan');
+        expect(registered).toBeDefined();
+        expect(resourcePath(AccountApi.plan)).toBe(registered!.path);
+    });
+});
+
 // ── A host deletes a guest's photo (cdk#1692, MEDIA-LIFECYCLE D4) ─────────────
 // Destructive, and it shares its resource with the gallery reads and the PATCH
 // lane: pin the verb set on /events/{eventId}/moments, so the delete can't slip
