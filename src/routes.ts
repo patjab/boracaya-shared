@@ -109,6 +109,12 @@ export const ApiRoutes: readonly ApiRoute[] = [
   // PROFILE row — the identity token IS the selector. 409 {solelyOwned} while
   // the caller is the only OWNER of an event (delete or hand it off first).
   { label: 'admin', method: 'DELETE', path: '/accounts/me' },
+  // Self-service plan change (cdk#1732): the caller moves their OWN account
+  // between free / premium / first class — {tier, expectedTier, checkout}
+  // under a required Idempotency-Key; the mock checkout is the placeholder
+  // where payment will go. Served only where the platform table exists
+  // (testing today); 404 PLAN_NOT_SERVED elsewhere.
+  { label: 'admin', method: 'POST', path: '/accounts/me/plan' },
   // events CRUD (cdk#424): create mints the event row + the creator's OWNER
   // membership edge atomically; DELETE is a soft-archive (cdk#442 D1).
   { label: 'admin', method: 'POST', path: '/events' },

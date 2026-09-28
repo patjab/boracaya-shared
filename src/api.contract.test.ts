@@ -303,6 +303,7 @@ describe('AccountApi contract', () => {
     const EXPECTED: Record<keyof typeof AccountApi, string> = {
         me: '/accounts/me',
         register: '/accounts',
+        plan: '/accounts/me/plan',
     };
 
     it('covers every endpoint', () => {
