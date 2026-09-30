@@ -94,6 +94,7 @@ const shoreForms = await bothConditions('shore-forms.ts');
 const valetBrowser = await bothConditions('valet-browser.ts');
 const valetForms = await bothConditions('valet-forms.ts');
 const nodeSurface = await bothConditions('valet-node.ts', { platform: 'node' });
+const switchboard = await bothConditions('valet-switchboard.ts');
 
 assertInputs(legacy, [
   '/dist/StageFormRenderer.js',
@@ -208,6 +209,21 @@ for (const [condition, result] of Object.entries(nodeSurface)) {
   assert.doesNotMatch(result.code, /@mui|from\s*["']react["']/);
 }
 
+// The consoles' design tokens are pure constants: the graph is the entry and
+// the token module and nothing else, so importing the face never drags in an
+// endpoint, the identity client, a DOM adapter, React, or MUI.
+for (const [condition, result] of Object.entries(switchboard)) {
+  const prefix = condition === 'esm' ? '/dist/esm' : '/dist';
+  const label = `Switchboard ${condition.toUpperCase()}`;
+  assertInputs(result, [
+    `${prefix}/entries/switchboard.js`,
+    `${prefix}/switchboardTokens.js`,
+  ], label);
+  assert.equal(sharedInputCount(result), 2, `${label} retained more than the entry and the token module`);
+  assert.match(result.code, /#f04e23/, `${label} must retain the Bench accent`);
+  assert.doesNotMatch(result.code, /@mui|valet-api|from\s*["']react["']/);
+}
+
 const expectedSubpaths = [
   '.',
   './api',
@@ -226,9 +242,10 @@ const expectedSubpaths = [
   './identity',
   './node',
   './package.json',
+  './switchboard',
   './ui',
 ];
-assert.equal(packageJson.version, '11.0.0');
+assert.equal(packageJson.version, '11.1.0');
 assert.equal(packageJson.sideEffects, false);
 assert.deepEqual(Object.keys(packageJson.exports).sort(), expectedSubpaths);
 assert(!Object.keys(packageJson.exports).some((key) => key.includes('*')), 'exports must stay explicit');
@@ -287,6 +304,17 @@ assert.equal(typeof cjsBootstrap.GuestEventApi.momentsPublic, 'function');
 assert.equal(typeof esmBootstrap.GuestEventApi.momentsPublic, 'function');
 assert.equal(typeof esmNode.AdminEventApi.config, 'function');
 
+{
+  const { cjs, esm } = runtimeModules.get('./switchboard');
+  for (const [label, surface] of [['CJS', cjs], ['ESM', esm]]) {
+    assert.deepEqual(
+      Object.keys(surface).filter((name) => name !== 'default' && name !== '__esModule').sort(),
+      ['SWITCHBOARD_BODY_FONT', 'SWITCHBOARD_DATA_FONT', 'SWITCHBOARD_DISPLAY_FONT', 'SWITCHBOARD_TOKENS'],
+      `./switchboard ${label} runtime surface drifted`,
+    );
+    assert.deepEqual(Object.keys(surface.SWITCHBOARD_TOKENS).sort(), ['arcade', 'bench'], `./switchboard ${label} faces drifted`);
+  }
+}
 for (const subpath of ['./dist/routes', './dist/routes.js']) {
   const { cjs, esm } = runtimeModules.get(subpath);
   assert.equal(typeof cjs.ApiRoutes, 'object', `${subpath} CJS alias lacks ApiRoutes`);
@@ -367,6 +395,7 @@ const report = `# Tree-shaking evidence\n\n` +
   `- Shore and Valet \`forms\` fixtures include StageFormRenderer/WizardShell and MUI, but no API or identity client.\n` +
   `- Valet's \`api\` + \`domain\` fixture includes admin client code but excludes forms, generic UI, browser adapters, React, and MUI.\n` +
   `- \`boracaya-shared/node\` imports in Node without DOM, identity, React, or MUI modules.\n` +
+  `- \`boracaya-shared/switchboard\` (the consoles' design tokens) retains only its entry and the token module under both conditions: no endpoint, identity, DOM, React, or MUI code.\n` +
   `- Every supported subpath and compatibility alias resolves at runtime through ESM and CommonJS, has an exact legacy-Node \`typesVersions\` mapping where type-bearing, and is present in the npm pack manifest.\n` +
   `- \`check-packed-consumer-build.mjs\` goes one step further (cdk#1583 step 3): it packs a real tarball, extracts it under a throwaway \`node_modules\`, and rebuilds every fixture with esbuild's own resolver walking the installed \`exports\` map. That catches a module reachable in the working tree but absent from the package — a transitive file dropped from \`files\` passes the manifest audit above and fails there. Each build asserts WHICH dist tree it resolved into, and a generated \`require()\` probe covers the CommonJS branch, because an ESM entry takes the \`import\` condition whatever a \`conditions\` array says.\n`;
 

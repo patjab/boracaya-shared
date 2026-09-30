@@ -29,6 +29,7 @@ surface.
 | `boracaya-shared/ui` | Generic ErrorBoundary, Google sign-in control, and unsaved guard UI | Yes |
 | `boracaya-shared/hooks` | Shared React hooks | React |
 | `boracaya-shared/node` | Node-safe aggregate of domain and endpoint contracts | No |
+| `boracaya-shared/switchboard` | Switchboard design tokens: the Bench and Arcade faces, fonts | No |
 
 The explicit `dist/routes`, `dist/about`, and `dist/eventDate` aliases (with or
 without `.js`) remain temporarily supported for existing fleet imports. New
@@ -40,7 +41,7 @@ legacy `moduleResolution: "Node"`.
 `sideEffects` is `false`: package modules do not mutate global state at import
 time. Browser/storage/network behavior is invoked only through exported
 functions or mounted components. The consumer fixtures enforce that bootstrap,
-identity, forms, and Node each retain only their intended graph; their current
+identity, forms, Node, and switchboard each retain only their intended graph; their current
 before/after evidence is in [docs/tree-shaking.md](docs/tree-shaking.md).
 
 Typical Shore imports:
@@ -50,6 +51,14 @@ import { GuestEventApi, PublicApi, getJson } from 'boracaya-shared/bootstrap';
 import { guestAuthHeaders } from 'boracaya-shared/identity';
 import type { AboutTree, PublicEventMetadata } from 'boracaya-shared/domain';
 import { StageFormRenderer } from 'boracaya-shared/forms';
+```
+
+The consoles (Valet, Mission Control) read one Switchboard token table from
+`boracaya-shared/switchboard` (mission-control#47) and build their own MUI
+theme, theme-mode store, and face toggle from it; those stay in each console:
+
+```ts
+import { SWITCHBOARD_TOKENS, type SwitchboardFace } from 'boracaya-shared/switchboard';
 ```
 
 `PublicApi` is the tree-shakeable Shore replacement for the public members of

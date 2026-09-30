@@ -1,6 +1,6 @@
 {
   "name": "boracaya-shared",
-  "version": "11.0.0",
+  "version": "11.1.0",
   "description": "Shared API constants, types, and hooks for PDA Boracay apps",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
@@ -63,6 +63,11 @@
       "import": "./dist/esm/entries/node.js",
       "require": "./dist/entries/node.js"
     },
+    "./switchboard": {
+      "types": "./dist/entries/switchboard.d.ts",
+      "import": "./dist/esm/entries/switchboard.js",
+      "require": "./dist/entries/switchboard.js"
+    },
     "./dist/routes": {
       "types": "./dist/routes.d.ts",
       "import": "./dist/esm/routes.js",
@@ -123,6 +128,9 @@
       ],
       "node": [
         "dist/entries/node.d.ts"
+      ],
+      "switchboard": [
+        "dist/entries/switchboard.d.ts"
       ],
       "ui": [
         "dist/entries/ui.d.ts"

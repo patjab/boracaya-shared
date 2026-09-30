@@ -7,6 +7,7 @@ import { StageFormRenderer } from 'boracaya-shared/forms';
 import { useLoading } from 'boracaya-shared/hooks';
 import { loginNoEvent } from 'boracaya-shared/identity';
 import { formatEventDate } from 'boracaya-shared/node';
+import { SWITCHBOARD_TOKENS } from 'boracaya-shared/switchboard';
 import { ErrorBoundary } from 'boracaya-shared/ui';
 import { ABOUT_SCHEMA as about } from 'boracaya-shared/dist/about';
 import { ABOUT_SCHEMA as aboutJs } from 'boracaya-shared/dist/about.js';
@@ -28,6 +29,7 @@ export const legacyNodeResolutionSurface = {
   useLoading,
   loginNoEvent,
   formatEventDate,
+  SWITCHBOARD_TOKENS,
   ErrorBoundary,
   about,
   aboutJs,
