@@ -53,6 +53,18 @@ export type TypeVoice = (typeof TYPE_VOICES)[number];
 export const STYLE_MODES = ['dark', 'light'] as const;
 export type StyleMode = (typeof STYLE_MODES)[number];
 
+/**
+ * What the guest site renders for a generated-tier input the host has not set
+ * (valet#921): the resolver's fallbacks, kept here so the guest site and the
+ * consoles' style controls read one definition instead of two hand-kept
+ * copies. An absent input still means "use this"; nothing writes it.
+ */
+export const GENERATED_STYLE_DEFAULTS: { readonly energy: number; readonly typeVoice: TypeVoice; readonly mode: StyleMode } = {
+  energy: 0.6,
+  typeVoice: 'clean',
+  mode: 'dark',
+};
+
 /** Resolved CSS custom properties, stored at save time where possible. */
 export type ResolvedTokens = Record<string, string>;
 

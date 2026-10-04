@@ -11,7 +11,7 @@
  * exactly one place.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.isShellKey = exports.SHELL_KEYS = void 0;
+exports.FALLBACK_DEFAULTS = exports.OCCASION_DEFAULTS = exports.GENERATED_STYLE_DEFAULTS = exports.STYLE_MODES = exports.TYPE_VOICES = exports.CURATED_DESIGNS = exports.STYLE_TIERS = exports.isShellKey = exports.SHELL_KEYS = void 0;
 exports.SHELL_KEYS = [
     'classic',
     'invitation',
@@ -44,6 +44,17 @@ exports.TYPE_VOICES = ['elegant', 'bold', 'playful', 'mono', 'script', 'clean'];
  * rendering exactly as they did.
  */
 exports.STYLE_MODES = ['dark', 'light'];
+/**
+ * What the guest site renders for a generated-tier input the host has not set
+ * (valet#921): the resolver's fallbacks, kept here so the guest site and the
+ * consoles' style controls read one definition instead of two hand-kept
+ * copies. An absent input still means "use this"; nothing writes it.
+ */
+exports.GENERATED_STYLE_DEFAULTS = {
+    energy: 0.6,
+    typeVoice: 'clean',
+    mode: 'dark',
+};
 /**
  * The wizard's occasion quick-pick (D14): one tap applies a persona's D4
  * defaults; everything stays overridable, nothing here persists as an
