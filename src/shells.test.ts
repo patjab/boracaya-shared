@@ -7,10 +7,12 @@ import { describe, expect, it } from 'vitest';
 import {
   CURATED_DESIGNS,
   FALLBACK_DEFAULTS,
+  GENERATED_STYLE_DEFAULTS,
   OCCASION_DEFAULTS,
   SHELL_KEYS,
   STYLE_MODES,
   STYLE_TIERS,
+  TYPE_VOICES,
 } from './shells';
 
 describe('occasion defaults (cdk#739 D4/D14)', () => {
@@ -57,5 +59,15 @@ describe('occasion defaults (cdk#739 D4/D14)', () => {
     }
     expect(OCCASION_DEFAULTS['block-party'].style.inputs.mode).toBe('light');
     expect(OCCASION_DEFAULTS.reunion.style.inputs.mode).toBe('light');
+  });
+});
+
+describe('generated-tier fallbacks (valet#921)', () => {
+  it('are the values the guest site renders for an unset input, and valid ones', () => {
+    expect(GENERATED_STYLE_DEFAULTS).toEqual({ energy: 0.6, typeVoice: 'clean', mode: 'dark' });
+    expect(TYPE_VOICES).toContain(GENERATED_STYLE_DEFAULTS.typeVoice);
+    expect(STYLE_MODES).toContain(GENERATED_STYLE_DEFAULTS.mode);
+    expect(GENERATED_STYLE_DEFAULTS.energy).toBeGreaterThanOrEqual(0);
+    expect(GENERATED_STYLE_DEFAULTS.energy).toBeLessThanOrEqual(1);
   });
 });
