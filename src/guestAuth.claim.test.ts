@@ -152,5 +152,11 @@ describe('a 409 with no candidates is "unlink first" (cdk#1763, the #1566 B2 dec
   it('on the login lane a candidate-less 409 is a retryable error: there is nothing to unlink there', async () => {
     stubServer(reply(409, B2));
     expect(await claimIdentity({ eventId: 'evt-9', credential: 'c' })).toEqual({ kind: 'error' });
+    // Every shape of "no one to choose": an empty list, and a body that is not JSON.
+    stubServer(reply(409, { candidates: [] }));
+    expect(await claimIdentity({ eventId: 'evt-9', credential: 'c' })).toEqual({ kind: 'error' });
+    vi.stubGlobal('fetch', vi.fn(async () =>
+      ({ status: 409, ok: false, json: async () => { throw new SyntaxError('not json'); } } as unknown as Response)));
+    expect(await claimIdentity({ eventId: 'evt-9', credential: 'c' })).toEqual({ kind: 'error' });
   });
 });
