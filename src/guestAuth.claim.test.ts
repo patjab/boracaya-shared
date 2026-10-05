@@ -140,6 +140,12 @@ describe('a 409 with no candidates is "unlink first" (cdk#1763, the #1566 B2 dec
       ? ({ status: 409, ok: false, json: async () => { throw new SyntaxError('not json'); } } as unknown as Response)
       : reply(403, {}))));
     expect(await claimIdentity({ eventId: 'evt-9', credential: 'c', userId: 'u1' })).toEqual({ kind: 'unlinkFirst' });
+    // Valid JSON that is not an object: no candidates either.
+    for (const body of [null, 'unlink it first', 409]) {
+      stubServer(reply(409, body));
+      expect(await claimIdentity({ eventId: 'evt-9', credential: 'c', userId: 'u1' }), JSON.stringify(body))
+        .toEqual({ kind: 'unlinkFirst' });
+    }
   });
 
   it('a 409 that names candidates is still the chooser, on either lane', async () => {

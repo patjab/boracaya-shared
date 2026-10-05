@@ -386,7 +386,11 @@ export async function claimIdentity(params: {
     if (res.status === 404) return { kind: 'none' };
     if (res.status === 401) return { kind: 'invalid' };
     if (res.status === 409) {
-      const { candidates } = (await res.json().catch(() => ({}))) as { candidates?: unknown };
+      // Any body that is not an object (unparseable, `null`, a bare value) has no candidates.
+      const parsed: unknown = await res.json().catch(() => null);
+      const candidates = parsed && typeof parsed === 'object'
+        ? (parsed as { candidates?: unknown }).candidates
+        : undefined;
       if (Array.isArray(candidates) && candidates.length > 0) {
         return { kind: 'chooser', candidates: candidates as ClaimCandidate[] };
       }
