@@ -265,7 +265,7 @@ export async function claimIdentity(params) {
         const { eventId, ...body } = params;
         const res = await fetch(GuestEventApi.claim(eventId), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await claimProof(eventId, params.userId)) },
             body: JSON.stringify(body),
         });
         if (res.status === 200) {
@@ -283,13 +283,41 @@ export async function claimIdentity(params) {
         if (res.status === 401)
             return { kind: 'invalid' };
         if (res.status === 409) {
-            const { candidates } = (await res.json());
-            return { kind: 'chooser', candidates: Array.isArray(candidates) ? candidates : [] };
+            const { candidates } = (await res.json().catch(() => ({})));
+            if (Array.isArray(candidates) && candidates.length > 0) {
+                return { kind: 'chooser', candidates: candidates };
+            }
+            // No one to choose between: the B2 refusal (cdk#1763). It is only ever the answer
+            // to an invite-session claim; on the login lane a candidate-less 409 is not a state
+            // the guest can act on, so it is a retryable error rather than an empty chooser.
+            return params.userId ? { kind: 'unlinkFirst' } : { kind: 'error' };
         }
         return { kind: 'error' };
     }
     catch (_a) {
         return { kind: 'error' };
+    }
+}
+/**
+ * The invite-session proof for the claim's userId lane (cdk#1763): this guest's own
+ * session as a bearer header, ensured the way every reservations call ensures it.
+ * The login lane (no userId) has no session to prove and sends none.
+ *
+ * Backward compatible both ways. A backend from before cdk#1763 reads no header on
+ * this route (the gateway's CORS preflight already allows `Authorization`, which
+ * `/auth/unlink` relies on), so the header is inert there. And this never throws or
+ * fails the claim: no session (storage unavailable, the legacy lane closed, a failed
+ * exchange) sends no header — the request every client sent before — which a cdk#1763
+ * backend still accepts through the legacy grace period.
+ */
+async function claimProof(eventId, userId) {
+    if (!userId)
+        return {};
+    try {
+        return await guestAuthHeaders(eventId, userId);
+    }
+    catch (_a) {
+        return {};
     }
 }
 const isChoice = (row) => {

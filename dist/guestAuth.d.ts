@@ -111,6 +111,13 @@ export type ClaimResult =
     kind: 'chooser';
     candidates: ClaimCandidate[];
 }
+/** cdk#1763 (the #1566 B2 decision): this invitation is already linked to a DIFFERENT
+ *  Google account, and a claim never replaces it. Switching accounts is unlink-then-link:
+ *  `unlinkIdentity`, then claim again. Nothing was bound and no token was minted.
+ *  Only the invite-session lane (`userId` set) answers this. */
+ | {
+    kind: 'unlinkFirst';
+}
 /** The Google credential was rejected (401). */
  | {
     kind: 'invalid';
