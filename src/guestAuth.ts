@@ -318,6 +318,13 @@ export async function guestLinkedEmail(
 // On success the minted guest token is cached here (same shape the reservations calls
 // read), and the caller is handed the CANONICAL userId to remember as the session
 // identity (it may differ from the invite link's id after a merge).
+//
+// cdk#1763: the userId lane PROVES the invite session. A bare userId is a public
+// identifier (cdk#1566), so the claim carries this guest's own session as
+// `Authorization: Bearer <guest JWT>` — the same header the reservations calls send.
+// And it never REPLACES a bound Google any more (the #1566 B2 decision): an identity
+// already linked to a different account answers 409 with no `candidates`, which is
+// "unlink first" (`unlinkIdentity`, then claim again), not a chooser.
 
 /** One chooser option (cdk#452): label is event-scoped — this event's guest name or a generic fallback. */
 export interface ClaimCandidate {
@@ -333,6 +340,11 @@ export type ClaimResult =
   | { kind: 'none' }
   /** #373 D4 multi-match: present the chooser, then re-call with `chooseUserId`. */
   | { kind: 'chooser'; candidates: ClaimCandidate[] }
+  /** cdk#1763 (the #1566 B2 decision): this invitation is already linked to a DIFFERENT
+   *  Google account, and a claim never replaces it. Switching accounts is unlink-then-link:
+   *  `unlinkIdentity`, then claim again. Nothing was bound and no token was minted.
+   *  Only the invite-session lane (`userId` set) answers this. */
+  | { kind: 'unlinkFirst' }
   /** The Google credential was rejected (401). */
   | { kind: 'invalid' }
   /** Anything else (network failure, 4xx/5xx) — safe to offer a retry. */
@@ -349,7 +361,7 @@ export async function claimIdentity(params: {
     const { eventId, ...body } = params;
     const res = await fetch(GuestEventApi.claim(eventId), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await claimProof(eventId, params.userId)) },
       body: JSON.stringify(body),
     });
     if (res.status === 200) {
@@ -374,12 +386,46 @@ export async function claimIdentity(params: {
     if (res.status === 404) return { kind: 'none' };
     if (res.status === 401) return { kind: 'invalid' };
     if (res.status === 409) {
-      const { candidates } = (await res.json()) as { candidates?: ClaimCandidate[] };
-      return { kind: 'chooser', candidates: Array.isArray(candidates) ? candidates : [] };
+      // Any body that is not an object (unparseable, `null`, a bare value) has no candidates.
+      const parsed: unknown = await res.json().catch(() => null);
+      const candidates = parsed && typeof parsed === 'object'
+        ? (parsed as { candidates?: unknown }).candidates
+        : undefined;
+      if (Array.isArray(candidates) && candidates.length > 0) {
+        return { kind: 'chooser', candidates: candidates as ClaimCandidate[] };
+      }
+      // No one to choose between: the B2 refusal (cdk#1763). It is only ever the answer
+      // to an invite-session claim; on the login lane a candidate-less 409 is not a state
+      // the guest can act on, so it is a retryable error rather than an empty chooser.
+      return params.userId ? { kind: 'unlinkFirst' } : { kind: 'error' };
     }
     return { kind: 'error' };
   } catch {
     return { kind: 'error' };
+  }
+}
+
+/**
+ * The invite-session proof for the claim's userId lane (cdk#1763): this guest's own
+ * session as a bearer header, ensured the way every reservations call ensures it.
+ * The login lane (no userId) has no session to prove and sends none.
+ *
+ * Backward compatible both ways. A backend from before cdk#1763 reads no header on
+ * this route (the gateway's CORS preflight already allows `Authorization`, which
+ * `/auth/unlink` relies on), so the header is inert there. And this never throws or
+ * fails the claim: no session (storage unavailable, the legacy lane closed, a failed
+ * exchange) sends no header — the request every client sent before — which a cdk#1763
+ * backend still accepts through the legacy grace period.
+ */
+async function claimProof(
+  eventId: string,
+  userId: string | undefined,
+): Promise<Record<string, string>> {
+  if (!userId) return {};
+  try {
+    return await guestAuthHeaders(eventId, userId);
+  } catch {
+    return {};
   }
 }
 
