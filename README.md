@@ -65,6 +65,19 @@ import { SWITCHBOARD_TOKENS, type SwitchboardFace } from 'boracaya-shared/switch
 the compatibility `ApiConstants` object. Admin consumers import
 `AdminEventApi` from `boracaya-shared/api` (or `boracaya-shared/node` in Node).
 
+## Guest identity claim (cdk#1763)
+
+`claimIdentity` (`boracaya-shared/identity`) is the client for
+`POST /events/{eventId}/auth/claim`. On the invite-session lane (`userId` set),
+it proves the session by sending this guest's own session as
+`Authorization: Bearer <guest JWT>`, through the same `guestAuthHeaders` the
+reservations calls use. A claim never replaces a Google account that is already
+bound. The server refuses with a 409 that has no `candidates`, and the client
+returns that as `{ kind: 'unlinkFirst' }`. To switch accounts, call
+`unlinkIdentity` and then claim again. A 409 that does name candidates is still
+`{ kind: 'chooser' }`. Exhaustive `switch (result.kind)` handlers need the new
+case from 11.3.0 on.
+
 ## Client error reporting (cdk#1495)
 
 `report.ts` is the one funnel every browser-side failure passes through: the
