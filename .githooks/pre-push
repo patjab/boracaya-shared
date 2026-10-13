@@ -1,0 +1,18 @@
+#!/bin/sh
+# Adversarial review gate (patjab/boracaya-cdk#1913): a pushed feature branch
+# must carry .review/<patch-id>.json for exactly its diff. The Mission Control
+# review policy's record_check decides whether a missing record blocks
+# (`block`), warns (`report`) or is ignored (`off`). Installed by a Claude
+# session's SessionStart hook or AGENTS.md step 1 for Codex (git config
+# core.hooksPath .githooks); main,
+# develop and branch deletions are never checked.
+root=$(git rev-parse --show-toplevel) || exit 0
+engine="$root/.adversarial-review/adversarial_review.py"
+[ -f "$engine" ] || exit 0
+for py in python3 python; do
+  if command -v "$py" >/dev/null 2>&1; then
+    exec "$py" -I "$engine" verify --pre-push
+  fi
+done
+echo "pre-push: no python on PATH; the review-record check in CI still applies" >&2
+exit 0
