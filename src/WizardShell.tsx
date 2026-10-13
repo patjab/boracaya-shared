@@ -25,6 +25,13 @@ import type { WizardMessages } from './formMessages';
  *  - The step index resets when the step LIST identity changes length — a
  *    definition edit mid-flight (Valet live preview) must not strand the
  *    wizard past the end.
+ *  - Back/Next move focus to the new step's content, and the "N of M" caption
+ *    is a polite live region (shore#501): the pressed button often unmounts
+ *    (Back on step 2, Next onto the final step), which dropped focus to
+ *    <body>, and nothing told a screen-reader user the step changed. The
+ *    caption is aria-live only, with no status role, so a consumer's own
+ *    role="status" stays the only one. Only a press moves focus — never the
+ *    first render, nor a clamp from a shrinking step list.
  */
 export interface WizardStep {
     /** Stable key (question key / block id). */
@@ -50,6 +57,8 @@ export interface WizardShellProps {
 
 export const WizardShell = ({ steps, finish, messages }: WizardShellProps): React.ReactElement | null => {
     const [index, setIndex] = React.useState(0);
+    const stepRef = React.useRef<HTMLDivElement>(null);
+    const navigated = React.useRef(false);
     // Clamp, never strand: a shrinking step list (live preview edits, a
     // definition reload) pulls the wizard back to the new end.
     const max = Math.max(0, steps.length - 1);
@@ -57,6 +66,15 @@ export const WizardShell = ({ steps, finish, messages }: WizardShellProps): Reac
     React.useEffect(() => {
         if (index > max) setIndex(max);
     }, [index, max]);
+    React.useEffect(() => {
+        if (!navigated.current) return;
+        navigated.current = false;
+        stepRef.current?.focus();
+    }, [index]);
+    const go = (next: number) => {
+        navigated.current = true;
+        setIndex(next);
+    };
 
     if (steps.length === 0) return null;
     const step = steps[i];
@@ -69,7 +87,7 @@ export const WizardShell = ({ steps, finish, messages }: WizardShellProps): Reac
     return (
         <Box>
             <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" aria-live="polite" aria-atomic="true">
                     {stepCountLabel}
                 </Typography>
                 <LinearProgress
@@ -80,11 +98,11 @@ export const WizardShell = ({ steps, finish, messages }: WizardShellProps): Reac
                 />
             </Box>
 
-            <Box key={step.key}>{step.content}</Box>
+            <Box key={step.key} ref={stepRef} tabIndex={-1}>{step.content}</Box>
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
                 {i > 0 && (
-                    <Button variant="outlined" onClick={() => setIndex(i - 1)}>
+                    <Button variant="outlined" onClick={() => go(i - 1)}>
                         {messages.backActionLabel}
                     </Button>
                 )}
@@ -94,7 +112,7 @@ export const WizardShell = ({ steps, finish, messages }: WizardShellProps): Reac
                         disabled={step.canProceed === false}
                         onClick={() => {
                             if (step.validate && !step.validate()) return;
-                            setIndex(i + 1);
+                            go(i + 1);
                         }}
                     >
                         {messages.nextActionLabel}
