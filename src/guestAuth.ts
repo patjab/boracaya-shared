@@ -13,7 +13,13 @@
 // is safe — only calling ensureGuestToken() needs a browser.
 import { GuestEventApi, PublicApi } from './publicApi';
 
+// One cached session per EVENT (shore#529): `pdab_guest_token:<eventId>`. A guest invited to
+// two events holds both sessions in one tab, and signing out of one leaves the other alone.
+// The bare key is the single slot every event used to share; it is still READ (an entry for
+// the asked-for event, written before this change, stays usable) but never written again —
+// the event's first write moves it to its own key.
 const TOKEN_KEY = 'pdab_guest_token';
+const keyFor = (eventId: string): string => `${TOKEN_KEY}:${eventId}`;
 // Refresh a little before the real edge so an in-flight request never carries a token that
 // expires mid-flight.
 const SKEW_MS = 30_000;
@@ -32,27 +38,55 @@ interface StoredToken {
   linkedEmail?: string | null;
 }
 
-/** The cached guest token entry, or null when absent/corrupt. */
-function readStored(): StoredToken | null {
+/** The event most recently written in this tab, for the event-less expiry read. */
+let lastEventId: string | null = null;
+
+function parseEntry(raw: string | null): StoredToken | null {
+  if (!raw) return null;
   try {
-    const raw = sessionStorage.getItem(TOKEN_KEY);
-    return raw ? (JSON.parse(raw) as StoredToken) : null;
+    const s: unknown = JSON.parse(raw);
+    return s && typeof s === 'object' ? (s as StoredToken) : null;
   } catch {
     return null;
   }
 }
 
-function readValid(eventId: string, userId: string): string | null {
-  const raw = sessionStorage.getItem(TOKEN_KEY);
-  if (!raw) return null;
+/** The legacy single-slot entry, only if it belongs to `eventId`. Throws if storage does. */
+function readLegacy(eventId: string): StoredToken | null {
+  const s = parseEntry(sessionStorage.getItem(TOKEN_KEY));
+  return s && s.eventId === eventId ? s : null;
+}
+
+/** This event's cached session entry, or null when absent/corrupt. Never throws. */
+function readStored(eventId: string): StoredToken | null {
   try {
-    const s = JSON.parse(raw) as StoredToken;
-    if (s.eventId === eventId && s.userId === userId && s.token
-        && s.exp * 1000 - SKEW_MS > Date.now()) return s.token;
+    const raw = sessionStorage.getItem(keyFor(eventId));
+    if (raw !== null) {
+      const s = parseEntry(raw);
+      // A corrupt entry is absent; one naming another event can only be tampering.
+      return s && s.eventId === eventId ? s : null;
+    }
+    return readLegacy(eventId);
   } catch {
-    /* corrupt entry -> treat as absent (a pre-#427 entry without eventId parses
-       fine and is rejected by the eventId equality check above instead) */
+    return null;
   }
+}
+
+/** Cache `entry` as its event's session. Throws if storage does (see the callers). */
+function writeStored(entry: StoredToken): void {
+  lastEventId = entry.eventId;
+  sessionStorage.setItem(keyFor(entry.eventId), JSON.stringify(entry));
+  // Migrated: the shared slot no longer speaks for this event.
+  try {
+    if (readLegacy(entry.eventId)) sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* the entry is written; an unreadable old slot is no reason to fail the write */
+  }
+}
+
+function readValid(eventId: string, userId: string): string | null {
+  const s = readStored(eventId);
+  if (s && s.userId === userId && s.token && s.exp * 1000 - SKEW_MS > Date.now()) return s.token;
   return null;
 }
 
@@ -181,10 +215,7 @@ function displayNameField(value: unknown): { displayName?: string } {
 function cacheSession(eventId: string, userId: string, token: string, exp: number,
                       linkedEmail: string | null, generation: number): void {
   if (generation !== cacheGeneration) return;
-  sessionStorage.setItem(
-    TOKEN_KEY,
-    JSON.stringify({ token, exp, userId, eventId, linkedEmail } as StoredToken),
-  );
+  writeStored({ token, exp, userId, eventId, linkedEmail });
 }
 
 /**
@@ -287,9 +318,23 @@ async function legacyExchange(eventId: string, userId: string): Promise<LegacyEx
  * Seconds until the cached guest token expires, or undefined when none is
  * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client
  * error report. Exposes the expiry ONLY — never the token, userId or event.
+ *
+ * Sessions are cached per event (shore#529): pass `eventId` for that event's.
+ * Without one it reads the session this tab cached most recently (before any,
+ * the pre-#529 single slot) — what the event-less call has always meant.
  */
-export function guestTokenExpiresInSeconds(): number | undefined {
-  const s = readStored();
+export function guestTokenExpiresInSeconds(eventId?: string | null): number | undefined {
+  const event = eventId || lastEventId;
+  let s: StoredToken | null;
+  if (event) {
+    s = readStored(event);
+  } else {
+    try {
+      s = parseEntry(sessionStorage.getItem(TOKEN_KEY));
+    } catch {
+      s = null;
+    }
+  }
   if (!s || typeof s.exp !== 'number') return undefined;
   return Math.max(0, Math.round(s.exp - Date.now() / 1000));
 }
@@ -313,9 +358,9 @@ export async function guestLinkedEmail(
   userId: string | null | undefined,
 ): Promise<string | null> {
   const token = await ensureGuestToken(eventId, userId);
-  if (!token) return null;
-  const stored = readStored();
-  return stored && stored.eventId === eventId && stored.userId === userId
+  if (!token || !eventId) return null;
+  const stored = readStored(eventId);
+  return stored && stored.userId === userId
     ? stored.linkedEmail ?? null
     : null;
 }
@@ -390,12 +435,7 @@ export async function claimIdentity(params: {
         displayName?: unknown;
       };
       cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
-      sessionStorage.setItem(
-        TOKEN_KEY,
-        JSON.stringify({
-          token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail ?? null,
-        } as StoredToken),
-      );
+      writeStored({ token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail ?? null });
       return {
         kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail ?? null,
         ...displayNameField(displayName),
@@ -511,10 +551,7 @@ export async function loginNoEvent(credential: string): Promise<NoEventLoginResu
         displayName?: unknown;
       };
       cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
-      sessionStorage.setItem(
-        TOKEN_KEY,
-        JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail ?? null } as StoredToken),
-      );
+      writeStored({ token, exp, userId, eventId, linkedEmail: linkedEmail ?? null });
       return { kind: 'ok', userId, eventId, ...displayNameField(displayName) };
     }
     // 300 Multiple Choices (cdk#1617 step 1): the caller's own memberships, nothing minted.
@@ -555,10 +592,10 @@ export type UnlinkResult =
   | { kind: 'error' };
 
 export async function unlinkIdentity(eventId: string): Promise<UnlinkResult> {
-  const stored = readStored();
+  const stored = readStored(eventId);
   // The token must be THIS event's (auth is event-scoped, cdk#427) and unexpired-ish;
   // the server re-verifies, so this is only a fast local guard against a pointless call.
-  if (!stored || !stored.token || stored.eventId !== eventId) return { kind: 'unauthenticated' };
+  if (!stored || !stored.token) return { kind: 'unauthenticated' };
   try {
     const res = await fetch(GuestEventApi.unlink(eventId), {
       method: 'POST',
@@ -572,9 +609,9 @@ export async function unlinkIdentity(eventId: string): Promise<UnlinkResult> {
       // restore the old, soon-expiring one. `unlinkEpoch` tells a refresh still in flight
       // that its linkedEmail predates this unlink.
       unlinkEpoch += 1;
-      const current = readStored();
-      if (current && current.eventId === eventId && current.userId === stored.userId) {
-        sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...current, linkedEmail: null } as StoredToken));
+      const current = readStored(eventId);
+      if (current && current.userId === stored.userId) {
+        writeStored({ ...current, linkedEmail: null });
       }
       return { kind: 'ok' };
     }
@@ -635,10 +672,10 @@ export async function refreshGuestSession(
   eventId: string | null | undefined,
 ): Promise<GuestSessionRefresh> {
   if (!eventId) return { kind: 'noSession' };
-  const stored = readStored();
+  const stored = readStored(eventId);
   // The cache entry must be THIS event's (auth is event-scoped, cdk#427): a session for
   // another event is not one to renew here, and the server would refuse it anyway.
-  if (!stored || typeof stored.token !== 'string' || !stored.token || stored.eventId !== eventId) {
+  if (!stored || typeof stored.token !== 'string' || !stored.token) {
     return { kind: 'noSession' };
   }
   const flightKey = JSON.stringify([eventId, stored.token]);
@@ -679,16 +716,12 @@ async function refresh(eventId: string, sessionToken: string): Promise<GuestSess
       ? linkedEmail : null;
     // Supersession: an identity change (claim/login) bumped the generation, or the cache no
     // longer holds the session that was renewed (sign-out, another lane's mint).
-    const current = readStored();
-    if (generation !== cacheGeneration || !current || current.token !== sessionToken
-        || current.eventId !== eventId) {
+    const current = readStored(eventId);
+    if (generation !== cacheGeneration || !current || current.token !== sessionToken) {
       return { kind: 'superseded' };
     }
     try {
-      sessionStorage.setItem(
-        TOKEN_KEY,
-        JSON.stringify({ token, exp, userId, eventId, linkedEmail: email } as StoredToken),
-      );
+      writeStored({ token, exp, userId, eventId, linkedEmail: email });
     } catch {
       // storage unavailable — the renewed session just won't survive a reload
     }
@@ -698,10 +731,26 @@ async function refresh(eventId: string, sessionToken: string): Promise<GuestSess
   }
 }
 
-/** Drop the cached guest token (e.g. on identity change / sign-out). */
-export function clearGuestToken(): void {
+/**
+ * Drop the cached guest session (e.g. on identity change / sign-out).
+ *
+ * With `eventId`, only THAT event's session goes (shore#529): signing out of one event
+ * must not sign the guest out of another they hold a session for in this tab. Without
+ * one, every event's session goes — a sign-out everywhere, as the single slot used to.
+ */
+export function clearGuestToken(eventId?: string | null): void {
   try {
+    if (eventId) {
+      sessionStorage.removeItem(keyFor(eventId));
+      if (readLegacy(eventId)) sessionStorage.removeItem(TOKEN_KEY);
+      return;
+    }
     sessionStorage.removeItem(TOKEN_KEY);
+    const prefix = keyFor('');
+    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(prefix)) sessionStorage.removeItem(key);
+    }
   } catch {
     /* no storage (SSR) -> nothing to clear */
   }

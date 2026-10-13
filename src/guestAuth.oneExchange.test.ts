@@ -124,7 +124,7 @@ describe('one legacy exchange per identity (shore#353)', () => {
     } as Response));
     vi.stubGlobal('fetch', spy);
     expect(await ensureGuestToken('evt-9', 'old-id')).toBe(token);
-    expect(JSON.parse(store.get('pdab_guest_token')!)).toMatchObject({ userId: 'canonical', eventId: 'evt-9' });
+    expect(JSON.parse(store.get('pdab_guest_token:evt-9')!)).toMatchObject({ userId: 'canonical', eventId: 'evt-9' });
     // The store's `actions.replace(canonical)` moves every consumer onto the canonical id;
     // their next call is served from the cache the exchange wrote.
     expect(await ensureGuestToken('evt-9', 'canonical')).toBe(token);

@@ -22,7 +22,8 @@ import { GuestEventApi, PublicApi } from './publicApi';
  * while it was in flight (a claim, a login, a sign-out, another lane's mint).
  */
 
-const TOKEN_KEY = 'pdab_guest_token';
+// Sessions are cached per event (shore#529).
+const TOKEN_KEY = 'pdab_guest_token:evt-9';
 const store = new Map<string, string>();
 
 beforeEach(() => {
@@ -32,6 +33,8 @@ beforeEach(() => {
     getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
     setItem: (k: string, v: string) => void store.set(k, v),
     removeItem: (k: string) => void store.delete(k),
+    get length() { return store.size; },
+    key: (i: number) => [...store.keys()][i] ?? null,
   });
 });
 
@@ -46,7 +49,7 @@ const reply = (status: number, body: unknown) =>
 
 const session = (userId: string, eventId = 'evt-9', exp = FAR) => {
   const token = jwt({ sub: userId, evt: eventId, n: Math.random() });
-  store.set(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: 'old@example.com' }));
+  store.set(`pdab_guest_token:${eventId}`, JSON.stringify({ token, exp, userId, eventId, linkedEmail: 'old@example.com' }));
   return token;
 };
 const cached = () => JSON.parse(store.get(TOKEN_KEY)!);

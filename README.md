@@ -114,6 +114,16 @@ Since 11.4.0 the mint lanes (`exchangeInvitationToken`, `exchangeLegacyInvite`,
 (shore#503). The field is present only when the server names the guest with a
 non-empty string, so results from an older backend keep their old shape.
 
+## Guest session cache
+
+Each event's guest session is cached under its own key (shore#529), so a guest
+who opens two events in one tab stays signed in to both. `clearGuestToken(eventId)`
+drops only that event's session; `clearGuestToken()` with no event still drops
+every event's. `guestTokenExpiresInSeconds(eventId)` reads that event's expiry;
+with no event it reads the session the tab cached most recently. A session
+cached in the old single slot is still read for its own event and moves to that
+event's key on the next write.
+
 ## Client error reporting (cdk#1495)
 
 `report.ts` is the one funnel every browser-side failure passes through: the

@@ -44,7 +44,7 @@ function stubFetch(expectedUrl: string, status: number, body: unknown) {
   return spy;
 }
 
-const cached = () => JSON.parse(store.get('pdab_guest_token')!);
+const cached = () => JSON.parse(store.get('pdab_guest_token:evt-9')!); // per event (shore#529)
 
 describe('guestSubjectFromToken', () => {
   it('reads the canonical id out of the JWT the server minted', () => {

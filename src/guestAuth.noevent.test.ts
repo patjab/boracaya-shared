@@ -35,7 +35,7 @@ describe('loginNoEvent (cdk#623)', () => {
     stubFetch(200, { token: 'jwt.abc', exp: 9999999999, userId: 'u1', eventId: 'evt-9' });
     const res = await loginNoEvent('cred');
     expect(res).toEqual({ kind: 'ok', userId: 'u1', eventId: 'evt-9' });
-    const cached = JSON.parse(store.get('pdab_guest_token')!);
+    const cached = JSON.parse(store.get('pdab_guest_token:evt-9')!); // per event (shore#529)
     expect(cached).toMatchObject({ token: 'jwt.abc', userId: 'u1', eventId: 'evt-9' });
   });
 
@@ -43,7 +43,7 @@ describe('loginNoEvent (cdk#623)', () => {
     stubFetch(404, { error: 'no invitation found' });
     const res = await loginNoEvent('cred');
     expect(res).toEqual({ kind: 'none' });
-    expect(store.has('pdab_guest_token')).toBe(false);
+    expect(store.size).toBe(0);
   });
 
   it('several events (300) → choose, with exactly the rows the backend named, and no token cached (U68)', async () => {
@@ -58,7 +58,7 @@ describe('loginNoEvent (cdk#623)', () => {
       { eventId: 'evt-2', date: '2027-06-01' },
       { eventId: 'evt-3', name: 'Cy' },
     ] });
-    expect(store.has('pdab_guest_token')).toBe(false);
+    expect(store.size).toBe(0);
   });
 
   it('exactly two memberships is a chooser -- the boundary the backend answers 300 from (Codex r2 on #173)', async () => {
@@ -75,7 +75,7 @@ describe('loginNoEvent (cdk#623)', () => {
     expect(await loginNoEvent('cred')).toEqual({ kind: 'error' });
     stubFetch(300, {});
     expect(await loginNoEvent('cred')).toEqual({ kind: 'error' });
-    expect(store.has('pdab_guest_token')).toBe(false);
+    expect(store.size).toBe(0);
   });
 
   it('rejected credential (401) → invalid', async () => {
