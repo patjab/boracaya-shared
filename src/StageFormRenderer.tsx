@@ -128,6 +128,44 @@ const repeatingGroupInput = (
     );
 };
 
+const parseList = (text: string): string[] =>
+    text.split(',').map((v) => v.trim()).filter(Boolean);
+
+const sameList = (a: readonly string[], b: readonly string[]): boolean =>
+    a.length === b.length && a.every((v, i) => v === b[i]);
+
+/** A list of short strings (e.g. companions), edited comma-separated — the
+ *  server bounds items/length (cdk#518). The parsed array is reported on every
+ *  keystroke, but the input shows the guest's own text while they type
+ *  (shore#475): rebuilding it from `join(', ')` ate each trailing comma and
+ *  space the moment it was typed. The text tidies to `a, b` on blur, and a
+ *  value that changes from outside (a draft restore, a prefill) shows as is. */
+const ListInput = ({ f, value, onChange, messages }: {
+    f: StageQuestion;
+    value: StageFormValue | undefined;
+    onChange: (key: string, value: StageFormValue) => void;
+    messages: StageFormRendererMessages;
+}) => {
+    const items = Array.isArray(value) ? (value as string[]) : [];
+    const [draft, setDraft] = React.useState<string | null>(null);
+    const text = draft !== null && sameList(parseList(draft), items) ? draft : items.join(', ');
+    return (
+        <TextField
+            fullWidth margin="normal"
+            label={labelFor(f, messages)}
+            placeholder={f.placeholder}
+            helperText={messages.listSeparatorHint}
+            slotProps={{ htmlInput: requiredInputProps(f.required) }}
+            value={text}
+            onChange={(e) => {
+                setDraft(e.target.value);
+                onChange(f.key, parseList(e.target.value));
+            }}
+            onBlur={() => setDraft(null)}
+        />
+    );
+};
+
 const questionInput = (
     f: StageQuestion,
     value: StageFormValue | undefined,
@@ -138,20 +176,7 @@ const questionInput = (
         case 'repeatingGroup':
             return repeatingGroupInput(f, value, onChange, messages);
         case 'list':
-            // A list of short strings (e.g. companions), edited comma-separated —
-            // the server bounds items/length (cdk#518).
-            return (
-                <TextField
-                    key={f.key} fullWidth margin="normal"
-                    label={labelFor(f, messages)}
-                    placeholder={f.placeholder}
-                    helperText={messages.listSeparatorHint}
-                    slotProps={{ htmlInput: requiredInputProps(f.required) }}
-                    value={Array.isArray(value) ? value.join(', ') : ''}
-                    onChange={(e) => onChange(f.key,
-                        e.target.value.split(',').map((v) => v.trim()).filter(Boolean))}
-                />
-            );
+            return <ListInput key={f.key} f={f} value={value} onChange={onChange} messages={messages} />;
         case 'boolean':
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton
