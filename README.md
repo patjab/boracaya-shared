@@ -144,6 +144,14 @@ safe to retry. This holds for `exchangeInvitationToken`, `exchangeLegacyInvite`
 and `refreshGuestSession`, so a caller may treat `unknown` as definite and sign
 the guest out of the event.
 
+`guestLinkedEmail(eventId, userId)` resolves to the linked Google, or to `null`
+only when the server confirmed that none is linked (shore#483). When the link
+state cannot be known (no session could be minted after a 429, a 5xx or a
+network failure, the id was refused, or an id is missing), it rejects. Show an
+error with a retry on rejection, and do not offer Link: a claim binds the
+incoming Google, and without the current one no "replace?" check can run.
+Before 11.5.0 it resolved to `null` in all of these cases.
+
 ## Client error reporting (cdk#1495)
 
 `report.ts` is the one funnel every browser-side failure passes through: the

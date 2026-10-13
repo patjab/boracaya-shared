@@ -401,18 +401,21 @@ export async function guestAuthHeaders(
 /**
  * The identity's single linked Google for this (event, userId), or null if none (cdk#637).
  * Ensures a token first (the exchange response carries `linkedEmail`), so the gated screens
- * can render the Link vs Unlink toggle off one call. Null when no token can be minted.
+ * can render the Link vs Unlink toggle off one call.
+ *
+ * Null is only ever a confirmed "no Google linked" (shore#483). When the link state cannot
+ * be known — no session could be minted (a 429, a 5xx, offline, a refused id) or an id is
+ * missing — this REJECTS. A caller must not offer Link on a rejection: the claim it starts
+ * binds the incoming Google, and with the current one unseen no "replace?" check can run.
  */
 export async function guestLinkedEmail(
   eventId: string | null | undefined,
   userId: string | null | undefined,
 ): Promise<string | null> {
   const token = await ensureGuestToken(eventId, userId);
-  if (!token || !eventId) return null;
-  const stored = readStored(eventId);
-  return stored && stored.userId === userId
-    ? stored.linkedEmail ?? null
-    : null;
+  const stored = token && eventId ? readStored(eventId) : null;
+  if (!stored || stored.userId !== userId) throw new Error('guest link state unavailable');
+  return stored.linkedEmail ?? null;
 }
 
 // ---- identity claim / Google-first login (cdk#438 + cdk#439, #373 D2–D5) -------------
