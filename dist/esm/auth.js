@@ -29,7 +29,13 @@ export function initAuth(_app) {
         s.async = true;
         s.defer = true;
         s.onload = () => resolve();
-        s.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+        s.onerror = () => {
+            var _a;
+            // A failed element is dead weight: drop it so a retry's script is the only
+            // gsi <script> in <head> (shore#577).
+            (_a = s.parentNode) === null || _a === void 0 ? void 0 : _a.removeChild(s);
+            reject(new Error('Failed to load Google Identity Services'));
+        };
         document.head.appendChild(s);
     }).then(() => {
         gsi().initialize({

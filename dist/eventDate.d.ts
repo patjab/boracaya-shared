@@ -10,6 +10,13 @@ export interface EventDayWindow {
 export declare const isEventDate: (value: unknown) => value is string;
 /** Canonical IANA region identifier, with UTC as the explicit safe fallback. */
 export declare const isEventTimeZone: (value: unknown) => value is string;
+/**
+ * The zone.tab spelling of a zone the engine reports under ICU's legacy id
+ * (Chromium's `Asia/Calcutta` -> `Asia/Kolkata`); any other value unchanged.
+ * Use it on a detected browser zone before offering or saving it.
+ */
+export declare const canonicalEventTimeZone: (value: string) => string;
+/** UTC first, then the engine's zones in their zone.tab spelling, sorted. */
 export declare const supportedEventTimeZones: () => string[];
 export declare const eventDayWindow: (eventDate: string, eventTimeZone: string) => EventDayWindow;
 export declare const formatEventDate: (eventDate: string, options?: Intl.DateTimeFormatOptions, locale?: string | undefined) => string | null;

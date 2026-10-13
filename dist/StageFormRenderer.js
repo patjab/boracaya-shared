@@ -68,32 +68,82 @@ const requiredInputProps = (required) => (required ? { required: true, 'aria-req
 const requiredGroupLabelFor = (question, messages) => question.required
     ? `${question.label} ${messages.requiredFieldLabel}`
     : question.label;
-const repeatingGroupInput = (f, value, onChange, messages) => {
+/** The first input of an entry: its sub-fields' native inputs or MUI's
+ *  combobox, then a Yes/No pill — never the entry's own ✕ button. */
+const ENTRY_FOCUS_TARGET = 'input:not([aria-hidden]), textarea:not([aria-hidden]), [role="combobox"], :scope [role="group"] button';
+const RepeatingGroupInput = ({ f, value, onChange, messages }) => {
     var _a, _b, _c;
     const entries = Array.isArray(value)
         ? value.filter((e) => typeof e === 'object' && e !== null && !Array.isArray(e))
         : [];
     const subFields = (_a = f.subFields) !== null && _a !== void 0 ? _a : [];
     const max = (_b = f.maxEntries) !== null && _b !== void 0 ? _b : DEFAULT_MAX_ENTRIES;
-    const setEntries = (next) => onChange(f.key, next);
-    return ((0, jsx_runtime_1.jsxs)(Box_1.default, { role: "group", "aria-label": requiredGroupLabelFor(f, messages), sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsx)(Stack_1.default, { spacing: 1.5, children: entries.map((entry, i) => ((0, jsx_runtime_1.jsxs)(Box_1.default
-                // Positional keys are correct here: entries carry no
-                // identity, and remove rebuilds the array.
-                // eslint-disable-next-line react/no-array-index-key
-                , { sx: { border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }, children: [(0, jsx_runtime_1.jsx)(IconButton_1.default, { size: "small", "aria-label": messages.formatRemoveEntryActionLabel({
-                                fieldLabel: f.label,
-                                entryNumber: i + 1,
-                            }), onClick: () => setEntries(entries.filter((_, j) => j !== i)), sx: { position: 'absolute', top: 4, right: 4 }, children: "\u2715" }), subFields.map((sub) => questionInput({ ...sub, key: `${f.key}.${i}.${sub.key}` }, entry[sub.key], (_k, v) => setEntries(entries.map((e, j) => (j === i ? { ...e, [sub.key]: v } : e))), messages))] }, `${f.key}-${i}`))) }), entries.length < max && ((0, jsx_runtime_1.jsx)(Button_1.default, { size: "small", variant: "outlined", sx: { mt: 1 }, onClick: () => setEntries([...entries, {}]), children: (_c = f.addLabel) !== null && _c !== void 0 ? _c : messages.addEntryActionLabel }))] }, f.key));
+    // Entries carry no identity, so the group keeps a parallel list of local
+    // ids (shore#571): a Remove drops its own id, so the boxes after it keep
+    // their DOM (and focus) instead of shifting onto a neighbour's entry. A
+    // new entry or a value replaced from outside (a draft restore) just tops
+    // up or trims the list.
+    const nextId = React.useRef(0);
+    const ids = React.useRef([]);
+    while (ids.current.length < entries.length)
+        ids.current.push(`${f.key}-${nextId.current++}`);
+    ids.current.length = entries.length;
+    // shore#571: after Add/Remove, focus moves to an entry's first input
+    // (else the Add button) once the consumer's state brings the new entry
+    // count back — never left on a button that unmounted.
+    const list = React.useRef(null);
+    const addButton = React.useRef(null);
+    const pendingFocus = React.useRef(null);
+    React.useEffect(() => {
+        var _a, _b, _c, _d;
+        const pending = pendingFocus.current;
+        if ((pending === null || pending === void 0 ? void 0 : pending.count) !== entries.length)
+            return;
+        pendingFocus.current = null;
+        (_d = ((_c = (_b = (_a = list.current) === null || _a === void 0 ? void 0 : _a.children[pending.entry]) === null || _b === void 0 ? void 0 : _b.querySelector(ENTRY_FOCUS_TARGET)) !== null && _c !== void 0 ? _c : addButton.current)) === null || _d === void 0 ? void 0 : _d.focus();
+    });
+    const setEntries = (next, entry) => {
+        pendingFocus.current = { entry, count: next.length };
+        onChange(f.key, next);
+    };
+    // The entry that slid into the removed slot, else the one before, else Add.
+    const remove = (i) => {
+        ids.current.splice(i, 1);
+        setEntries(entries.filter((_, j) => j !== i), i < entries.length - 1 ? i : i - 1);
+    };
+    const add = () => setEntries([...entries, {}], entries.length);
+    return ((0, jsx_runtime_1.jsxs)(Box_1.default, { role: "group", "aria-label": requiredGroupLabelFor(f, messages), sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsx)(Stack_1.default, { ref: list, spacing: 1.5, children: entries.map((entry, i) => {
+                    const id = ids.current[i];
+                    return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }, children: [(0, jsx_runtime_1.jsx)(IconButton_1.default, { size: "small", "aria-label": messages.formatRemoveEntryActionLabel({
+                                    fieldLabel: f.label,
+                                    entryNumber: i + 1,
+                                }), onClick: () => remove(i), sx: { position: 'absolute', top: 4, right: 4 }, children: "\u2715" }), subFields.map((sub) => questionInput({ ...sub, key: `${id}.${sub.key}` }, entry[sub.key], (_k, v) => onChange(f.key, entries.map((e, j) => (j === i ? { ...e, [sub.key]: v } : e))), messages))] }, id));
+                }) }), entries.length < max && ((0, jsx_runtime_1.jsx)(Button_1.default, { ref: addButton, size: "small", variant: "outlined", sx: { mt: 1 }, onClick: add, children: (_c = f.addLabel) !== null && _c !== void 0 ? _c : messages.addEntryActionLabel }))] }));
+};
+const parseList = (text) => text.split(',').map((v) => v.trim()).filter(Boolean);
+const sameList = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+/** A list of short strings (e.g. companions), edited comma-separated — the
+ *  server bounds items/length (cdk#518). The parsed array is reported on every
+ *  keystroke, but the input shows the guest's own text while they type
+ *  (shore#475): rebuilding it from `join(', ')` ate each trailing comma and
+ *  space the moment it was typed. The text tidies to `a, b` on blur, and a
+ *  value that changes from outside (a draft restore, a prefill) shows as is. */
+const ListInput = ({ f, value, onChange, messages }) => {
+    const items = Array.isArray(value) ? value : [];
+    const [draft, setDraft] = React.useState(null);
+    const text = draft !== null && sameList(parseList(draft), items) ? draft : items.join(', ');
+    return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, helperText: messages.listSeparatorHint, slotProps: { htmlInput: requiredInputProps(f.required) }, value: text, onChange: (e) => {
+            setDraft(e.target.value);
+            onChange(f.key, parseList(e.target.value));
+        }, onBlur: () => setDraft(null) }));
 };
 const questionInput = (f, value, onChange, messages) => {
     var _a, _b;
     switch (f.type) {
         case 'repeatingGroup':
-            return repeatingGroupInput(f, value, onChange, messages);
+            return (0, jsx_runtime_1.jsx)(RepeatingGroupInput, { f: f, value: value, onChange: onChange, messages: messages }, f.key);
         case 'list':
-            // A list of short strings (e.g. companions), edited comma-separated —
-            // the server bounds items/length (cdk#518).
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, helperText: messages.listSeparatorHint, slotProps: { htmlInput: requiredInputProps(f.required) }, value: Array.isArray(value) ? value.join(', ') : '', onChange: (e) => onChange(f.key, e.target.value.split(',').map((v) => v.trim()).filter(Boolean)) }, f.key));
+            return (0, jsx_runtime_1.jsx)(ListInput, { f: f, value: value, onChange: onChange, messages: messages }, f.key);
         case 'boolean':
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton

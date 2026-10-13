@@ -65,22 +65,57 @@ const requiredGroupLabelFor = (
     ? `${question.label} ${messages.requiredFieldLabel}`
     : question.label;
 
-const repeatingGroupInput = (
-    f: StageQuestion,
-    value: StageFormValue | undefined,
-    onChange: (key: string, value: StageFormValue) => void,
-    messages: StageFormRendererMessages,
-) => {
+/** The first input of an entry: its sub-fields' native inputs or MUI's
+ *  combobox, then a Yes/No pill — never the entry's own ✕ button. */
+const ENTRY_FOCUS_TARGET =
+    'input:not([aria-hidden]), textarea:not([aria-hidden]), [role="combobox"], :scope [role="group"] button';
+
+const RepeatingGroupInput = ({ f, value, onChange, messages }: {
+    f: StageQuestion;
+    value: StageFormValue | undefined;
+    onChange: (key: string, value: StageFormValue) => void;
+    messages: StageFormRendererMessages;
+}) => {
     const entries: RepeatingGroupEntry[] = Array.isArray(value)
         ? (value as RepeatingGroupEntry[]).filter((e): e is RepeatingGroupEntry =>
             typeof e === 'object' && e !== null && !Array.isArray(e))
         : [];
     const subFields = f.subFields ?? [];
     const max = f.maxEntries ?? DEFAULT_MAX_ENTRIES;
-    const setEntries = (next: RepeatingGroupEntry[]) => onChange(f.key, next);
+    // Entries carry no identity, so the group keeps a parallel list of local
+    // ids (shore#571): a Remove drops its own id, so the boxes after it keep
+    // their DOM (and focus) instead of shifting onto a neighbour's entry. A
+    // new entry or a value replaced from outside (a draft restore) just tops
+    // up or trims the list.
+    const nextId = React.useRef(0);
+    const ids = React.useRef<string[]>([]);
+    while (ids.current.length < entries.length) ids.current.push(`${f.key}-${nextId.current++}`);
+    ids.current.length = entries.length;
+    // shore#571: after Add/Remove, focus moves to an entry's first input
+    // (else the Add button) once the consumer's state brings the new entry
+    // count back — never left on a button that unmounted.
+    const list = React.useRef<HTMLDivElement>(null);
+    const addButton = React.useRef<HTMLButtonElement>(null);
+    const pendingFocus = React.useRef<{ entry: number; count: number } | null>(null);
+    React.useEffect(() => {
+        const pending = pendingFocus.current;
+        if (pending?.count !== entries.length) return;
+        pendingFocus.current = null;
+        (list.current?.children[pending.entry]?.querySelector<HTMLElement>(ENTRY_FOCUS_TARGET)
+            ?? addButton.current)?.focus();
+    });
+    const setEntries = (next: RepeatingGroupEntry[], entry: number) => {
+        pendingFocus.current = { entry, count: next.length };
+        onChange(f.key, next);
+    };
+    // The entry that slid into the removed slot, else the one before, else Add.
+    const remove = (i: number) => {
+        ids.current.splice(i, 1);
+        setEntries(entries.filter((_, j) => j !== i), i < entries.length - 1 ? i : i - 1);
+    };
+    const add = () => setEntries([...entries, {}], entries.length);
     return (
         <Box
-            key={f.key}
             role="group"
             aria-label={requiredGroupLabelFor(f, messages)}
             sx={{ mt: 2, mb: 1 }}
@@ -88,43 +123,80 @@ const repeatingGroupInput = (
             <Typography variant="body2" sx={{ mb: 0.75 }}>
                 {labelFor(f, messages)}
             </Typography>
-            <Stack spacing={1.5}>
-                {entries.map((entry, i) => (
-                    <Box
-                        // Positional keys are correct here: entries carry no
-                        // identity, and remove rebuilds the array.
-                        // eslint-disable-next-line react/no-array-index-key
-                        key={`${f.key}-${i}`}
-                        sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }}
-                    >
-                        <IconButton
-                            size="small"
-                            aria-label={messages.formatRemoveEntryActionLabel({
-                                fieldLabel: f.label,
-                                entryNumber: i + 1,
-                            })}
-                            onClick={() => setEntries(entries.filter((_, j) => j !== i))}
-                            sx={{ position: 'absolute', top: 4, right: 4 }}
+            <Stack ref={list} spacing={1.5}>
+                {entries.map((entry, i) => {
+                    const id = ids.current[i];
+                    return (
+                        <Box
+                            key={id}
+                            sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }}
                         >
-                            ✕
-                        </IconButton>
-                        {subFields.map((sub: StageSubField) => questionInput(
-                            { ...sub, key: `${f.key}.${i}.${sub.key}` } as StageQuestion,
-                            entry[sub.key],
-                            (_k, v) => setEntries(entries.map((e, j) =>
-                                (j === i ? { ...e, [sub.key]: v as string | number | boolean } : e))),
-                            messages,
-                        ))}
-                    </Box>
-                ))}
+                            <IconButton
+                                size="small"
+                                aria-label={messages.formatRemoveEntryActionLabel({
+                                    fieldLabel: f.label,
+                                    entryNumber: i + 1,
+                                })}
+                                onClick={() => remove(i)}
+                                sx={{ position: 'absolute', top: 4, right: 4 }}
+                            >
+                                ✕
+                            </IconButton>
+                            {subFields.map((sub: StageSubField) => questionInput(
+                                { ...sub, key: `${id}.${sub.key}` } as StageQuestion,
+                                entry[sub.key],
+                                (_k, v) => onChange(f.key, entries.map((e, j) =>
+                                    (j === i ? { ...e, [sub.key]: v as string | number | boolean } : e))),
+                                messages,
+                            ))}
+                        </Box>
+                    );
+                })}
             </Stack>
             {entries.length < max && (
-                <Button size="small" variant="outlined" sx={{ mt: 1 }}
-                        onClick={() => setEntries([...entries, {}])}>
+                <Button ref={addButton} size="small" variant="outlined" sx={{ mt: 1 }} onClick={add}>
                     {f.addLabel ?? messages.addEntryActionLabel}
                 </Button>
             )}
         </Box>
+    );
+};
+
+const parseList = (text: string): string[] =>
+    text.split(',').map((v) => v.trim()).filter(Boolean);
+
+const sameList = (a: readonly string[], b: readonly string[]): boolean =>
+    a.length === b.length && a.every((v, i) => v === b[i]);
+
+/** A list of short strings (e.g. companions), edited comma-separated — the
+ *  server bounds items/length (cdk#518). The parsed array is reported on every
+ *  keystroke, but the input shows the guest's own text while they type
+ *  (shore#475): rebuilding it from `join(', ')` ate each trailing comma and
+ *  space the moment it was typed. The text tidies to `a, b` on blur, and a
+ *  value that changes from outside (a draft restore, a prefill) shows as is. */
+const ListInput = ({ f, value, onChange, messages }: {
+    f: StageQuestion;
+    value: StageFormValue | undefined;
+    onChange: (key: string, value: StageFormValue) => void;
+    messages: StageFormRendererMessages;
+}) => {
+    const items = Array.isArray(value) ? (value as string[]) : [];
+    const [draft, setDraft] = React.useState<string | null>(null);
+    const text = draft !== null && sameList(parseList(draft), items) ? draft : items.join(', ');
+    return (
+        <TextField
+            fullWidth margin="normal"
+            label={labelFor(f, messages)}
+            placeholder={f.placeholder}
+            helperText={messages.listSeparatorHint}
+            slotProps={{ htmlInput: requiredInputProps(f.required) }}
+            value={text}
+            onChange={(e) => {
+                setDraft(e.target.value);
+                onChange(f.key, parseList(e.target.value));
+            }}
+            onBlur={() => setDraft(null)}
+        />
     );
 };
 
@@ -136,22 +208,9 @@ const questionInput = (
 ) => {
     switch (f.type) {
         case 'repeatingGroup':
-            return repeatingGroupInput(f, value, onChange, messages);
+            return <RepeatingGroupInput key={f.key} f={f} value={value} onChange={onChange} messages={messages} />;
         case 'list':
-            // A list of short strings (e.g. companions), edited comma-separated —
-            // the server bounds items/length (cdk#518).
-            return (
-                <TextField
-                    key={f.key} fullWidth margin="normal"
-                    label={labelFor(f, messages)}
-                    placeholder={f.placeholder}
-                    helperText={messages.listSeparatorHint}
-                    slotProps={{ htmlInput: requiredInputProps(f.required) }}
-                    value={Array.isArray(value) ? value.join(', ') : ''}
-                    onChange={(e) => onChange(f.key,
-                        e.target.value.split(',').map((v) => v.trim()).filter(Boolean))}
-                />
-            );
+            return <ListInput key={f.key} f={f} value={value} onChange={onChange} messages={messages} />;
         case 'boolean':
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton

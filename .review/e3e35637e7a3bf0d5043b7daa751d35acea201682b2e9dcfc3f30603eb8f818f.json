@@ -1,0 +1,40 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "e3e35637e7a3bf0d5043b7daa751d35acea201682b2e9dcfc3f30603eb8f818f",
+  "repo": "patjab/boracaya-shared",
+  "branch": "claude/shore-shared-fixes",
+  "base": "origin/main",
+  "merge_base": "bf05200111b9fe5acbd00d3b091b9cb64a94bfa0",
+  "head": "ac595704d709edec13595af65724fe9fbfa1729c",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 5,
+  "ledger": [
+    {
+      "id": "F1",
+      "round": 1,
+      "axis": "broad",
+      "severity": "minor",
+      "location": "src/guestAuth.ts:416",
+      "title": "guestLinkedEmail now rejects where it resolved null, shipped as a minor bump",
+      "disposition": "Withdrawn by the reviewer: The rejection holds. The finding itself conceded the fix is consumer-side. The package is pinned by git SHA, so nothing picks up 11.5.0 without an explicit repin PR. The README documents the reject-on-unknown contract, and `src/guestAuth.linkedEmail.test.ts` pins it. The author reports that the only consumer caller, in shore, already has a rejection arm, which I did not re-check because consumers are off-limits."
+    }
+  ],
+  "created_at": "2026-10-13T20:30:25Z"
+}

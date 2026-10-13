@@ -4,7 +4,7 @@ export { getEnv, isTest, envSubdomain } from './env.js';
 export { isShellKey } from './shells.js';
 export { isEmojiIcon } from './emoji.js';
 export { EVENT_CONFIG_WRITE_ERROR_CODES } from './event.js';
-export { compareEventDates, daysUntilEventDate, eventCalendarWithLegacyFallback, eventDateFromLegacyISO, eventDateInTimeZone, eventDayWindow, formatEventDate, isEventDate, isEventTimeZone, supportedEventTimeZones, } from './eventDate.js';
+export { canonicalEventTimeZone, compareEventDates, daysUntilEventDate, eventCalendarWithLegacyFallback, eventDateFromLegacyISO, eventDateInTimeZone, eventDayWindow, formatEventDate, isEventDate, isEventTimeZone, supportedEventTimeZones, } from './eventDate.js';
 export { MUTATION_LIMITS, MUTATION_SECURITY_ERROR_CODES, retryAfterSeconds, } from './security.js';
 export { ApiRoutes } from './routes.js';
 export { useLoading } from './hooks/useLoading.js';
