@@ -24,6 +24,7 @@ export type {
   EventEmailSettingsPatch, EventConfigWriteErrorCode,
 } from './event';
 export {
+  canonicalEventTimeZone,
   compareEventDates,
   daysUntilEventDate,
   eventCalendarWithLegacyFallback,
