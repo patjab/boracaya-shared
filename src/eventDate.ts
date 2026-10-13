@@ -31,23 +31,80 @@ const canonicalTimeZones = (): readonly string[] | null => {
   return supportedValuesOf ? supportedValuesOf('timeZone') : null;
 };
 
+/**
+ * zone.tab names that V8 (Chrome, Edge, Android WebView, Node) reports under
+ * ICU's legacy ids: `Intl.supportedValuesOf('timeZone')` lists only the legacy
+ * spelling (Asia/Calcutta) and `resolvedOptions().timeZone` echoes it back.
+ * The backend accepts only zone.tab names, so without this list a stored
+ * `Asia/Kolkata` failed `isEventTimeZone` in Chromium and the event silently
+ * ran on UTC days (shore#506). The legacy ids are not listed: each engine says
+ * which spelling it uses, so the reverse map is read from it.
+ */
+const ENGINE_RENAMED_ZONES = [
+  'Africa/Asmara',
+  'America/Argentina/Buenos_Aires',
+  'America/Argentina/Catamarca',
+  'America/Argentina/Cordoba',
+  'America/Argentina/Jujuy',
+  'America/Argentina/Mendoza',
+  'America/Atikokan',
+  'America/Indiana/Indianapolis',
+  'America/Kentucky/Louisville',
+  'America/Nuuk',
+  'Asia/Ho_Chi_Minh',
+  'Asia/Kathmandu',
+  'Asia/Kolkata',
+  'Asia/Yangon',
+  'Atlantic/Faroe',
+  'Europe/Kyiv',
+  'Pacific/Chuuk',
+  'Pacific/Kanton',
+  'Pacific/Pohnpei',
+];
+
+/** The engine's own spelling of a zone, or null when it cannot format it. */
+const engineZoneId = (timeZone: string): string | null => {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone }).resolvedOptions().timeZone;
+  } catch {
+    return null;
+  }
+};
+
 /** Canonical IANA region identifier, with UTC as the explicit safe fallback. */
 export const isEventTimeZone = (value: unknown): value is string => {
   if (typeof value !== 'string' || !value || value !== value.trim()) return false;
   if (value === 'UTC') return true;
   if (!value.includes('/') || /^Etc\/GMT[+-]/.test(value)) return false;
+  // A zone.tab name the engine lists under a legacy id is still canonical.
+  if (ENGINE_RENAMED_ZONES.includes(value)) return engineZoneId(value) !== null;
   const supported = canonicalTimeZones();
   if (supported) return supported.includes(value);
-  try {
-    return new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone === value;
-  } catch {
-    return false;
-  }
+  return engineZoneId(value) === value;
 };
 
+let legacyZoneIds: Map<string, string> | undefined;
+
+/**
+ * The zone.tab spelling of a zone the engine reports under ICU's legacy id
+ * (Chromium's `Asia/Calcutta` -> `Asia/Kolkata`); any other value unchanged.
+ * Use it on a detected browser zone before offering or saving it.
+ */
+export const canonicalEventTimeZone = (value: string): string => {
+  if (!legacyZoneIds) {
+    legacyZoneIds = new Map();
+    for (const zone of ENGINE_RENAMED_ZONES) {
+      const id = engineZoneId(zone);
+      if (id && id !== zone) legacyZoneIds.set(id, zone);
+    }
+  }
+  return legacyZoneIds.get(value) ?? value;
+};
+
+/** UTC first, then the engine's zones in their zone.tab spelling, sorted. */
 export const supportedEventTimeZones = (): string[] => [
   'UTC',
-  ...(canonicalTimeZones() ?? []),
+  ...[...new Set((canonicalTimeZones() ?? []).map(canonicalEventTimeZone))].sort(),
 ];
 
 const partsOf = (date: string): [number, number, number] => {

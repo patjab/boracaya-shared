@@ -250,7 +250,8 @@ All of it is exported from the package root.
   multi-read screen.
 - `sendJson<T>(url, { method, body?, label? })` — write primitive: JSON body,
   ok-guard, and error mapping that prefers the server's own `{ error }` message
-  (e.g. a 409 conflict text) over a bare status code.
+  (e.g. a 409 conflict text) over a bare status code. A body's `code` (e.g.
+  `ASK_CLOSED`) is kept as `ApiError.code`, so callers pick copy by code, not text.
 
 **Shape coercions:**
 
