@@ -174,6 +174,11 @@ exports.ApiRoutes = [
     // in-handler by the guest JWT (no APIGW authorizer on the auth lanes), event-scoped so
     // the unlink email can name the event.
     { label: 'public', method: 'POST', path: '/events/{eventId}/auth/unlink' },
+    // Guest-session renewal (shore#395): re-mint a LIVE guest session for the event it is
+    // bound to. The credential is the unexpired guest JWT itself (verified in-handler like
+    // unlink, no APIGW authorizer) — the renewal lane for sessions that hold no invitation
+    // token to re-exchange (a Google claim or login), which otherwise die an hour in.
+    { label: 'public', method: 'POST', path: '/events/{eventId}/auth/refresh' },
     // Client error telemetry ingest (cdk#1495/#1496, epic cdk#1494): the ONE
     // unscoped public write — a batch of PII-free error reports from either app,
     // landing in the boracaya-client-errors log group. No tenant in the path by

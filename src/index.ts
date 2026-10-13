@@ -116,9 +116,9 @@ export { GoogleSignInButton } from './GoogleSignInButton';
 export {
   ensureGuestToken, hasGuestSession, guestAuthHeaders, guestLinkedEmail, clearGuestToken,
   claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds,
-  exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken,
+  exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken, refreshGuestSession,
 } from './guestAuth';
-export type { ClaimCandidate, ClaimResult, InvitationExchange, NoEventLoginChoice, NoEventLoginResult, UnlinkResult } from './guestAuth';
+export type { ClaimCandidate, ClaimResult, GuestSessionRefresh, InvitationExchange, NoEventLoginChoice, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export {

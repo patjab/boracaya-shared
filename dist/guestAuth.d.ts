@@ -18,11 +18,14 @@ export declare function hasGuestSession(eventId: string | null | undefined, user
 export declare function ensureGuestToken(eventId: string | null | undefined, userId: string | null | undefined): Promise<string | null>;
 /** The outcome of presenting a link's credential, for the screens to branch on. */
 export type InvitationExchange = 
-/** A session. `userId` is the canonical id, read from the JWT's own `sub`. */
+/** A session. `userId` is the canonical id, read from the JWT's own `sub`.
+ *  `displayName` (shore#503) is the guest's name as this event knows it, present
+ *  only when the server named one (a backend from before it never does). */
 {
     kind: 'ok';
     token: string;
     userId: string;
+    displayName?: string;
 }
 /** The legacy grace period ended: this `?invited=` link is dead (cdk#1566 Q2). */
  | {
@@ -95,12 +98,14 @@ export interface ClaimCandidate {
 }
 export type ClaimResult = 
 /** Token minted + cached; `userId` is the canonical identity to remember, and
- *  `linkedEmail` is the account now linked to it (cdk#637). */
+ *  `linkedEmail` is the account now linked to it (cdk#637). `displayName` (shore#503)
+ *  is the guest's name as this event knows it, present only when the server named one. */
 {
     kind: 'ok';
     userId: string;
     claimed: boolean;
     linkedEmail: string | null;
+    displayName?: string;
 }
 /** #373 D5 zero-match: no invitation for this email — guide to the invite link. */
  | {
@@ -144,11 +149,13 @@ export interface NoEventLoginChoice {
     date?: string;
 }
 export type NoEventLoginResult = 
-/** Exactly one member event: token minted + cached; redirect the guest into `eventId`. */
+/** Exactly one member event: token minted + cached; redirect the guest into `eventId`.
+ *  `displayName` (shore#503) is present only when the server named the guest. */
 {
     kind: 'ok';
     userId: string;
     eventId: string;
+    displayName?: string;
 }
 /** Zero member events (#373 D5): guide to the personal invite link. */
  | {
@@ -184,6 +191,46 @@ export type UnlinkResult =
     kind: 'error';
 };
 export declare function unlinkIdentity(eventId: string): Promise<UnlinkResult>;
+export type GuestSessionRefresh = 
+/** Renewed and cached. `userId` is the canonical id from the new JWT's own `sub` (a merged
+ *  identity renews as its canonical id); `linkedEmail` is the identity's linked Google or
+ *  null; `displayName` is present only when the server named the guest. */
+{
+    kind: 'ok';
+    token: string;
+    userId: string;
+    linkedEmail: string | null;
+    displayName?: string;
+}
+/** No session cached for this event: nothing was sent. Not a failure — there is nothing
+ *  to renew, and the guest's ordinary sign-in lanes apply. */
+ | {
+    kind: 'noSession';
+}
+/** 401: the session was missing, invalid or already expired. It cannot be renewed; send
+ *  the guest back through their invite link or sign-in (as `UnlinkResult`'s arm). */
+ | {
+    kind: 'unauthenticated';
+}
+/** 403: the identity is no longer on this event's list, or the host revoked its link —
+ *  deliberately indistinguishable, as `InvitationExchange`'s `unknown`. */
+ | {
+    kind: 'unknown';
+}
+/** The cached session changed while the renewal was in flight (a claim, a login, a
+ *  sign-out or another exchange won). Nothing was written; the current cache stands. */
+ | {
+    kind: 'superseded';
+}
+/** Network or server fault (5xx, an unreadable 200, any other status); retryable. */
+ | {
+    kind: 'error';
+};
+/**
+ * Renew this tab's live guest session for `eventId` (shore#395), returning the new session
+ * or why there is none. Never throws. See `GuestSessionRefresh` for the outcomes.
+ */
+export declare function refreshGuestSession(eventId: string | null | undefined): Promise<GuestSessionRefresh>;
 /** Drop the cached guest token (e.g. on identity change / sign-out). */
 export declare function clearGuestToken(): void;
 export {};

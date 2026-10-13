@@ -19,11 +19,13 @@ export {
   guestSubjectFromToken,
   guestTokenExpiresInSeconds,
   loginNoEvent,
+  refreshGuestSession,
   unlinkIdentity,
 } from '../guestAuth';
 export type {
   ClaimCandidate,
   ClaimResult,
+  GuestSessionRefresh,
   InvitationExchange,
   NoEventLoginChoice,
   NoEventLoginResult,

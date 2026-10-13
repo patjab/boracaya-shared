@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.unlinkIdentity = exports.loginNoEvent = exports.guestTokenExpiresInSeconds = exports.guestSubjectFromToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.exchangeLegacyInvite = exports.exchangeInvitationToken = exports.hasGuestSession = exports.ensureGuestToken = exports.clearGuestToken = exports.claimIdentity = exports.idTokenExpiresInSeconds = exports.signOut = exports.initAuth = exports.getIdToken = exports.getEmail = exports.authHeaders = void 0;
+exports.unlinkIdentity = exports.refreshGuestSession = exports.loginNoEvent = exports.guestTokenExpiresInSeconds = exports.guestSubjectFromToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.exchangeLegacyInvite = exports.exchangeInvitationToken = exports.hasGuestSession = exports.ensureGuestToken = exports.clearGuestToken = exports.claimIdentity = exports.idTokenExpiresInSeconds = exports.signOut = exports.initAuth = exports.getIdToken = exports.getEmail = exports.authHeaders = void 0;
 /** Browser identity and guest-token operations. UI controls live in `boracaya-shared/ui`. */
 var auth_1 = require("../auth");
 Object.defineProperty(exports, "authHeaders", { enumerable: true, get: function () { return auth_1.authHeaders; } });
@@ -22,4 +22,5 @@ Object.defineProperty(exports, "guestLinkedEmail", { enumerable: true, get: func
 Object.defineProperty(exports, "guestSubjectFromToken", { enumerable: true, get: function () { return guestAuth_1.guestSubjectFromToken; } });
 Object.defineProperty(exports, "guestTokenExpiresInSeconds", { enumerable: true, get: function () { return guestAuth_1.guestTokenExpiresInSeconds; } });
 Object.defineProperty(exports, "loginNoEvent", { enumerable: true, get: function () { return guestAuth_1.loginNoEvent; } });
+Object.defineProperty(exports, "refreshGuestSession", { enumerable: true, get: function () { return guestAuth_1.refreshGuestSession; } });
 Object.defineProperty(exports, "unlinkIdentity", { enumerable: true, get: function () { return guestAuth_1.unlinkIdentity; } });

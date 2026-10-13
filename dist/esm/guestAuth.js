@@ -134,6 +134,12 @@ export function guestSubjectFromToken(token) {
         return null;
     }
 }
+/** The mint body's `displayName` (shore#503), as a spreadable field: `{ displayName }` when
+ *  the server named the guest with a non-empty string, `{}` otherwise — so a result from a
+ *  backend that sends none is exactly the shape it always was. */
+function displayNameField(value) {
+    return typeof value === 'string' && value ? { displayName: value } : {};
+}
 function cacheSession(eventId, userId, token, exp, linkedEmail, generation) {
     if (generation !== cacheGeneration)
         return;
@@ -161,7 +167,7 @@ export async function exchangeInvitationToken(eventId, invitationToken) {
             return { kind: 'unknown' };
         if (!res.ok)
             return { kind: 'error' };
-        const { token, exp, linkedEmail } = (await res.json());
+        const { token, exp, linkedEmail, displayName } = (await res.json());
         const userId = guestSubjectFromToken(token);
         if (!userId)
             return { kind: 'error' };
@@ -171,7 +177,7 @@ export async function exchangeInvitationToken(eventId, invitationToken) {
         catch (_a) {
             // storage unavailable — the session just won't survive a reload
         }
-        return { kind: 'ok', token, userId };
+        return { kind: 'ok', token, userId, ...displayNameField(displayName) };
     }
     catch (_b) {
         return { kind: 'error' };
@@ -213,7 +219,7 @@ async function legacyExchange(eventId, userId) {
         }
         if (!res.ok)
             return { kind: 'error' };
-        const { token, exp, linkedEmail, invitationToken } = (await res.json());
+        const { token, exp, linkedEmail, invitationToken, displayName } = (await res.json());
         // The mint's own `sub` is authoritative: a tombstoned link resolves to a
         // DIFFERENT canonical id than the one in the URL (#373 D3a).
         const canonical = (_a = guestSubjectFromToken(token)) !== null && _a !== void 0 ? _a : userId;
@@ -223,7 +229,7 @@ async function legacyExchange(eventId, userId) {
         catch (_b) {
             // storage unavailable
         }
-        return { kind: 'ok', token, userId: canonical, invitationToken };
+        return { kind: 'ok', token, userId: canonical, invitationToken, ...displayNameField(displayName) };
     }
     catch (_c) {
         return { kind: 'error' };
@@ -271,12 +277,15 @@ export async function claimIdentity(params) {
         if (res.status === 200) {
             // The response's userId is the CANONICAL identity — after a merge it differs
             // from params.userId (the invite link's provisional id); never conflate them.
-            const { token, exp, userId: canonicalUserId, claimed, linkedEmail } = (await res.json());
+            const { token, exp, userId: canonicalUserId, claimed, linkedEmail, displayName } = (await res.json());
             cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
             sessionStorage.setItem(TOKEN_KEY, JSON.stringify({
                 token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null,
             }));
-            return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null };
+            return {
+                kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null,
+                ...displayNameField(displayName),
+            };
         }
         if (res.status === 404)
             return { kind: 'none' };
@@ -340,10 +349,10 @@ export async function loginNoEvent(credential) {
             body: JSON.stringify({ credential }),
         });
         if (res.status === 200) {
-            const { token, exp, userId, eventId, linkedEmail } = (await res.json());
+            const { token, exp, userId, eventId, linkedEmail, displayName } = (await res.json());
             cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
             sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null }));
-            return { kind: 'ok', userId, eventId };
+            return { kind: 'ok', userId, eventId, ...displayNameField(displayName) };
         }
         // 300 Multiple Choices (cdk#1617 step 1): the caller's own memberships, nothing minted.
         // A 300 whose body does not carry a usable list is an error, not a chooser with no
@@ -388,6 +397,76 @@ export async function unlinkIdentity(eventId) {
         return { kind: 'error' };
     }
     catch (_a) {
+        return { kind: 'error' };
+    }
+}
+// ONE renewal per cached session at a time: concurrent callers (several requests noticing
+// the edge at once) share the request, so a session is never renewed twice and the second
+// renewal never reads as `superseded` by the first.
+const refreshInFlight = new Map();
+/**
+ * Renew this tab's live guest session for `eventId` (shore#395), returning the new session
+ * or why there is none. Never throws. See `GuestSessionRefresh` for the outcomes.
+ */
+export async function refreshGuestSession(eventId) {
+    if (!eventId)
+        return { kind: 'noSession' };
+    const stored = readStored();
+    // The cache entry must be THIS event's (auth is event-scoped, cdk#427): a session for
+    // another event is not one to renew here, and the server would refuse it anyway.
+    if (!stored || typeof stored.token !== 'string' || !stored.token || stored.eventId !== eventId) {
+        return { kind: 'noSession' };
+    }
+    const flightKey = JSON.stringify([eventId, stored.token]);
+    let p = refreshInFlight.get(flightKey);
+    if (!p) {
+        p = refresh(eventId, stored.token).finally(() => refreshInFlight.delete(flightKey));
+        refreshInFlight.set(flightKey, p);
+    }
+    return p;
+}
+/** The one network call behind `refreshGuestSession`; `refreshInFlight` dedupes callers. */
+async function refresh(eventId, sessionToken) {
+    const generation = cacheGeneration;
+    try {
+        const res = await fetch(GuestEventApi.refresh(eventId), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        });
+        if (res.status === 401)
+            return { kind: 'unauthenticated' };
+        if (res.status === 403)
+            return { kind: 'unknown' };
+        if (res.status !== 200)
+            return { kind: 'error' };
+        const body = await res.json();
+        if (!body || typeof body !== 'object')
+            return { kind: 'error' };
+        const { token, exp, linkedEmail, displayName } = body;
+        if (typeof token !== 'string' || typeof exp !== 'number' || !Number.isFinite(exp)) {
+            return { kind: 'error' };
+        }
+        // The body carries no userId (cdk#1566): the new JWT's own `sub` names the identity.
+        const userId = guestSubjectFromToken(token);
+        if (!userId)
+            return { kind: 'error' };
+        const email = typeof linkedEmail === 'string' && linkedEmail ? linkedEmail : null;
+        // Supersession: an identity change (claim/login) bumped the generation, or the cache no
+        // longer holds the session that was renewed (sign-out, another lane's mint).
+        const current = readStored();
+        if (generation !== cacheGeneration || !current || current.token !== sessionToken
+            || current.eventId !== eventId) {
+            return { kind: 'superseded' };
+        }
+        try {
+            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: email }));
+        }
+        catch (_a) {
+            // storage unavailable — the renewed session just won't survive a reload
+        }
+        return { kind: 'ok', token, userId, linkedEmail: email, ...displayNameField(displayName) };
+    }
+    catch (_b) {
         return { kind: 'error' };
     }
 }

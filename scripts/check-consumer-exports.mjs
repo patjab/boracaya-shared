@@ -245,7 +245,7 @@ const expectedSubpaths = [
   './switchboard',
   './ui',
 ];
-assert.equal(packageJson.version, '11.3.1');
+assert.equal(packageJson.version, '11.4.0');
 assert.equal(packageJson.sideEffects, false);
 assert.deepEqual(Object.keys(packageJson.exports).sort(), expectedSubpaths);
 assert(!Object.keys(packageJson.exports).some((key) => key.includes('*')), 'exports must stay explicit');
@@ -391,7 +391,7 @@ const report = `# Tree-shaking evidence\n\n` +
   `The granular ESM bootstrap is **${reduction}% smaller gzip** in this controlled fixture.\n\n` +
   `Verified boundaries:\n\n` +
   `- Both published conditions of \`boracaya-shared/bootstrap\` retain the split public endpoint and token helpers while excluding the monolithic admin API, GIS loader, React, MUI, ErrorBoundary, GoogleSignInButton, StageFormRenderer, and WizardShell.\n` +
-  `- Shore's actual \`identity\` calls (including no-event login, claim, linked-email lookup, unlink, Google-token reads, and guest headers) exclude admin endpoints and UI; the ESM graph also tree-shakes the unused GIS loader.\n` +
+  `- Shore's actual \`identity\` calls (including no-event login, claim, linked-email lookup, session refresh, unlink, Google-token reads, and guest headers) exclude admin endpoints and UI; the ESM graph also tree-shakes the unused GIS loader.\n` +
   `- Shore and Valet \`forms\` fixtures include StageFormRenderer/WizardShell and MUI, but no API or identity client.\n` +
   `- Valet's \`api\` + \`domain\` fixture includes admin client code but excludes forms, generic UI, browser adapters, React, and MUI.\n` +
   `- \`boracaya-shared/node\` imports in Node without DOM, identity, React, or MUI modules.\n` +

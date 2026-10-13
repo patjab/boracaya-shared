@@ -275,6 +275,19 @@ describe('ApiRoutes — the host photo delete (cdk#1692)', () => {
     });
 });
 
+// ── Guest-session renewal (shore#395) ─────────────────────────────────────────
+// cdk's check-route-contract compares `${label} ${method} ${path}` against its
+// topology.json, where the route sits on the public API beside the other guest-token
+// lanes (exchange / claim / unlink / guest-token). One POST, nothing else on the path.
+describe('ApiRoutes — the guest-session refresh (shore#395)', () => {
+    it('registers exactly public POST /events/{eventId}/auth/refresh', () => {
+        const refresh = ApiRoutes
+            .filter((r) => r.path === '/events/{eventId}/auth/refresh')
+            .map((r) => `${r.label} ${r.method} ${r.path}`);
+        expect(refresh).toEqual(['public POST /events/{eventId}/auth/refresh']);
+    });
+});
+
 // Same contract style: lock each builder's resource path and its target API host,
 // and the URI-encoding of the caller-supplied eventId.
 import { GuestEventApi } from './api';
@@ -288,6 +301,7 @@ describe('GuestEventApi contract', () => {
         openRsvp: ['/events/e-1/rsvp/open', /^public-api\./],
         claim: ['/events/e-1/auth/claim', /^public-api\./],
         unlink: ['/events/e-1/auth/unlink', /^public-api\./],
+        refresh: ['/events/e-1/auth/refresh', /^public-api\./],
         invite: ['/events/e-1/invite', /^public-api\./],
         momentsPublic: ['/events/e-1/moments/public', /^public-api\./],
         wishes: ['/events/e-1/wishes', /^public-api\./],
