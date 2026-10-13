@@ -76,3 +76,66 @@ describe('StageFormRenderer list field (shore#475)', () => {
     expect(input().value).toBe('Cy');
   });
 });
+
+describe('StageFormRenderer repeating group focus (shore#571)', () => {
+  const companions = (maxEntries?: number): StageQuestion[] => [{
+    key: 'companions', label: 'Companions', type: 'repeatingGroup', maxEntries,
+    subFields: [{ key: 'name', label: 'Name', type: 'text' }],
+  }];
+  const nameInputs = () => screen.queryAllByLabelText('Name', { selector: 'input' });
+  const press = (el: HTMLElement) => {
+    el.focus();
+    fireEvent.click(el);
+  };
+
+  it('Add focuses the new entry\'s first input, also when it reaches the cap', () => {
+    const seen = { values: {} as StageFormValues };
+    render(<Host elements={companions(2)} initial={{ companions: [{ name: 'Ann' }] }} seen={seen} />);
+    press(screen.getByRole('button', { name: 'Add another' }));
+    expect(screen.queryByRole('button', { name: 'Add another' })).toBeNull();
+    expect(nameInputs()).toHaveLength(2);
+    expect(document.activeElement).toBe(nameInputs()[1]);
+  });
+
+  it('Remove on the last entry focuses the previous entry\'s first input', () => {
+    const seen = { values: {} as StageFormValues };
+    render(<Host elements={companions()} initial={{ companions: [{ name: 'Ann' }, { name: 'Bob' }] }}
+      seen={seen} />);
+    press(screen.getByRole('button', { name: 'Remove Companions 2' }));
+    expect(seen.values.companions).toEqual([{ name: 'Ann' }]);
+    expect(document.activeElement).toBe(nameInputs()[0]);
+  });
+
+  it('Remove on a middle entry focuses the entry that took its place, keeping its own DOM', () => {
+    const seen = { values: {} as StageFormValues };
+    render(<Host elements={companions()}
+      initial={{ companions: [{ name: 'Ann' }, { name: 'Bob' }, { name: 'Cy' }] }} seen={seen} />);
+    const cy = nameInputs()[2];
+    press(screen.getByRole('button', { name: 'Remove Companions 2' }));
+    expect(seen.values.companions).toEqual([{ name: 'Ann' }, { name: 'Cy' }]);
+    expect(nameInputs()[1]).toBe(cy);
+    expect(document.activeElement).toBe(cy);
+  });
+
+  it('Remove on the only entry focuses the Add button', () => {
+    const seen = { values: {} as StageFormValues };
+    render(<Host elements={companions()} initial={{ companions: [{ name: 'Ann' }] }} seen={seen} />);
+    press(screen.getByRole('button', { name: 'Remove Companions 1' }));
+    expect(seen.values.companions).toEqual([]);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add another' }));
+  });
+
+  it('a Yes/No sub-field takes focus on its pill, not the entry\'s remove button', () => {
+    const seen = { values: {} as StageFormValues };
+    render(<Host
+      elements={[{
+        key: 'kids', label: 'Kids', type: 'repeatingGroup',
+        subFields: [{ key: 'seat', label: 'Needs a seat', type: 'boolean' }],
+      }]}
+      initial={{}}
+      seen={seen}
+    />);
+    press(screen.getByRole('button', { name: 'Add another' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Yes' }));
+  });
+});
