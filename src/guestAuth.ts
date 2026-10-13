@@ -61,6 +61,9 @@ function readValid(eventId: string, userId: string): string | null {
 // the canonical one — a stale exchange must not clobber the freshly claimed cache entry.
 // Each claim bumps the generation; an exchange only writes if its snapshot still matches.
 let cacheGeneration = 0;
+/** Bumped by every successful unlink (shore#395): a refresh that started before it must not
+ *  write the pre-unlink linkedEmail back. */
+let unlinkEpoch = 0;
 
 // ONE legacy exchange per (event, userId) at a time, shared by EVERY caller (shore#353).
 //
@@ -133,8 +136,10 @@ export async function ensureGuestToken(
 
 /** The outcome of presenting a link's credential, for the screens to branch on. */
 export type InvitationExchange =
-  /** A session. `userId` is the canonical id, read from the JWT's own `sub`. */
-  | { kind: 'ok'; token: string; userId: string }
+  /** A session. `userId` is the canonical id, read from the JWT's own `sub`.
+   *  `displayName` (shore#503) is the guest's name as this event knows it, present
+   *  only when the server named one (a backend from before it never does). */
+  | { kind: 'ok'; token: string; userId: string; displayName?: string }
   /** The legacy grace period ended: this `?invited=` link is dead (cdk#1566 Q2). */
   | { kind: 'replaced' }
   /** Unknown, revoked, or wrong-event — deliberately indistinguishable. */
@@ -164,6 +169,13 @@ export function guestSubjectFromToken(token: string | null | undefined): string 
   } catch {
     return null;
   }
+}
+
+/** The mint body's `displayName` (shore#503), as a spreadable field: `{ displayName }` when
+ *  the server named the guest with a non-empty string, `{}` otherwise — so a result from a
+ *  backend that sends none is exactly the shape it always was. */
+function displayNameField(value: unknown): { displayName?: string } {
+  return typeof value === 'string' && value ? { displayName: value } : {};
 }
 
 function cacheSession(eventId: string, userId: string, token: string, exp: number,
@@ -197,8 +209,8 @@ export async function exchangeInvitationToken(
     });
     if (res.status === 403) return { kind: 'unknown' };
     if (!res.ok) return { kind: 'error' };
-    const { token, exp, linkedEmail } = (await res.json()) as {
-      token: string; exp: number; linkedEmail?: string | null;
+    const { token, exp, linkedEmail, displayName } = (await res.json()) as {
+      token: string; exp: number; linkedEmail?: string | null; displayName?: unknown;
     };
     const userId = guestSubjectFromToken(token);
     if (!userId) return { kind: 'error' };
@@ -207,7 +219,7 @@ export async function exchangeInvitationToken(
     } catch {
       // storage unavailable — the session just won't survive a reload
     }
-    return { kind: 'ok', token, userId };
+    return { kind: 'ok', token, userId, ...displayNameField(displayName) };
   } catch {
     return { kind: 'error' };
   }
@@ -253,8 +265,9 @@ async function legacyExchange(eventId: string, userId: string): Promise<LegacyEx
         : { kind: 'unknown' };
     }
     if (!res.ok) return { kind: 'error' };
-    const { token, exp, linkedEmail, invitationToken } = (await res.json()) as {
+    const { token, exp, linkedEmail, invitationToken, displayName } = (await res.json()) as {
       token: string; exp: number; linkedEmail?: string | null; invitationToken?: string;
+      displayName?: unknown;
     };
     // The mint's own `sub` is authoritative: a tombstoned link resolves to a
     // DIFFERENT canonical id than the one in the URL (#373 D3a).
@@ -264,7 +277,7 @@ async function legacyExchange(eventId: string, userId: string): Promise<LegacyEx
     } catch {
       // storage unavailable
     }
-    return { kind: 'ok', token, userId: canonical, invitationToken };
+    return { kind: 'ok', token, userId: canonical, invitationToken, ...displayNameField(displayName) };
   } catch {
     return { kind: 'error' };
   }
@@ -334,8 +347,9 @@ export interface ClaimCandidate {
 
 export type ClaimResult =
   /** Token minted + cached; `userId` is the canonical identity to remember, and
-   *  `linkedEmail` is the account now linked to it (cdk#637). */
-  | { kind: 'ok'; userId: string; claimed: boolean; linkedEmail: string | null }
+   *  `linkedEmail` is the account now linked to it (cdk#637). `displayName` (shore#503)
+   *  is the guest's name as this event knows it, present only when the server named one. */
+  | { kind: 'ok'; userId: string; claimed: boolean; linkedEmail: string | null; displayName?: string }
   /** #373 D5 zero-match: no invitation for this email — guide to the invite link. */
   | { kind: 'none' }
   /** #373 D4 multi-match: present the chooser, then re-call with `chooseUserId`. */
@@ -367,12 +381,13 @@ export async function claimIdentity(params: {
     if (res.status === 200) {
       // The response's userId is the CANONICAL identity — after a merge it differs
       // from params.userId (the invite link's provisional id); never conflate them.
-      const { token, exp, userId: canonicalUserId, claimed, linkedEmail } = (await res.json()) as {
+      const { token, exp, userId: canonicalUserId, claimed, linkedEmail, displayName } = (await res.json()) as {
         token: string;
         exp: number;
         userId: string;
         claimed?: boolean;
         linkedEmail?: string | null;
+        displayName?: unknown;
       };
       cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
       sessionStorage.setItem(
@@ -381,7 +396,10 @@ export async function claimIdentity(params: {
           token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail ?? null,
         } as StoredToken),
       );
-      return { kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail ?? null };
+      return {
+        kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail ?? null,
+        ...displayNameField(displayName),
+      };
     }
     if (res.status === 404) return { kind: 'none' };
     if (res.status === 401) return { kind: 'invalid' };
@@ -455,8 +473,9 @@ export interface NoEventLoginChoice {
 }
 
 export type NoEventLoginResult =
-  /** Exactly one member event: token minted + cached; redirect the guest into `eventId`. */
-  | { kind: 'ok'; userId: string; eventId: string }
+  /** Exactly one member event: token minted + cached; redirect the guest into `eventId`.
+   *  `displayName` (shore#503) is present only when the server named the guest. */
+  | { kind: 'ok'; userId: string; eventId: string; displayName?: string }
   /** Zero member events (#373 D5): guide to the personal invite link. */
   | { kind: 'none' }
   /** Several member events (G5 / U68): the caller's own memberships, to choose from. No
@@ -483,19 +502,20 @@ export async function loginNoEvent(credential: string): Promise<NoEventLoginResu
       body: JSON.stringify({ credential }),
     });
     if (res.status === 200) {
-      const { token, exp, userId, eventId, linkedEmail } = (await res.json()) as {
+      const { token, exp, userId, eventId, linkedEmail, displayName } = (await res.json()) as {
         token: string;
         exp: number;
         userId: string;
         eventId: string;
         linkedEmail?: string | null;
+        displayName?: unknown;
       };
       cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
       sessionStorage.setItem(
         TOKEN_KEY,
         JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail ?? null } as StoredToken),
       );
-      return { kind: 'ok', userId, eventId };
+      return { kind: 'ok', userId, eventId, ...displayNameField(displayName) };
     }
     // 300 Multiple Choices (cdk#1617 step 1): the caller's own memberships, nothing minted.
     // A 300 whose body does not carry a usable list is an error, not a chooser with no
@@ -547,11 +567,132 @@ export async function unlinkIdentity(eventId: string): Promise<UnlinkResult> {
     if (res.status === 200) {
       // Keep the session token — the guest stays signed in via their invite link; only
       // the linked-Google marker is cleared so the toggle flips back to "Link".
-      sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...stored, linkedEmail: null } as StoredToken));
+      // shore#395: clear it on the entry cached NOW, not the one read before the call — a
+      // refresh that landed meanwhile renewed the token, and writing `stored` back would
+      // restore the old, soon-expiring one. `unlinkEpoch` tells a refresh still in flight
+      // that its linkedEmail predates this unlink.
+      unlinkEpoch += 1;
+      const current = readStored();
+      if (current && current.eventId === eventId && current.userId === stored.userId) {
+        sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...current, linkedEmail: null } as StoredToken));
+      }
       return { kind: 'ok' };
     }
     if (res.status === 401) return { kind: 'unauthenticated' };
     return { kind: 'error' };
+  } catch {
+    return { kind: 'error' };
+  }
+}
+
+// ---- guest-session renewal (shore#395) ----------------------------------------------
+//
+// POST /events/{eventId}/auth/refresh — re-mint the LIVE guest session this tab holds for
+// the event. Sessions live an hour; one minted from an invitation token renews by
+// re-exchanging it, but one from a Google claim or login holds nothing to re-exchange, and
+// its only other re-mint (the legacy /auth/exchange) closes after the grace period. This
+// lane's credential is the session itself: the cached guest JWT as a bearer header, which
+// the server takes only while it is unexpired (it extends a session, it never revives
+// one), only for its own event, and only while the identity is still a member and its link
+// has not been revoked by the host.
+//
+// The write follows the same supersession rule as the exchange lanes, and one more: the
+// renewed token replaces the cache only if no claim/login bumped `cacheGeneration` while
+// the request was in flight AND the cache still holds the very token that was renewed. A
+// sign-out, a claim, or any other lane that wrote a different session in the meantime wins,
+// and the renewal is reported as `superseded` with nothing written.
+
+export type GuestSessionRefresh =
+  /** Renewed and cached. `userId` is the canonical id from the new JWT's own `sub` (a merged
+   *  identity renews as its canonical id); `linkedEmail` is the identity's linked Google or
+   *  null; `displayName` is present only when the server named the guest. */
+  | { kind: 'ok'; token: string; userId: string; linkedEmail: string | null; displayName?: string }
+  /** No session cached for this event: nothing was sent. Not a failure — there is nothing
+   *  to renew, and the guest's ordinary sign-in lanes apply. */
+  | { kind: 'noSession' }
+  /** 401: the session was missing, invalid or already expired. It cannot be renewed; send
+   *  the guest back through their invite link or sign-in (as `UnlinkResult`'s arm). */
+  | { kind: 'unauthenticated' }
+  /** 403: the identity is no longer on this event's list, or the host revoked its link —
+   *  deliberately indistinguishable, as `InvitationExchange`'s `unknown`. */
+  | { kind: 'unknown' }
+  /** The cached session changed while the renewal was in flight (a claim, a login, a
+   *  sign-out or another exchange won). Nothing was written; the current cache stands. */
+  | { kind: 'superseded' }
+  /** Network or server fault (5xx, an unreadable 200, any other status); retryable. */
+  | { kind: 'error' };
+
+// ONE renewal per cached session at a time: concurrent callers (several requests noticing
+// the edge at once) share the request, so a session is never renewed twice and the second
+// renewal never reads as `superseded` by the first.
+const refreshInFlight = new Map<string, Promise<GuestSessionRefresh>>();
+
+/**
+ * Renew this tab's live guest session for `eventId` (shore#395), returning the new session
+ * or why there is none. Never throws. See `GuestSessionRefresh` for the outcomes.
+ */
+export async function refreshGuestSession(
+  eventId: string | null | undefined,
+): Promise<GuestSessionRefresh> {
+  if (!eventId) return { kind: 'noSession' };
+  const stored = readStored();
+  // The cache entry must be THIS event's (auth is event-scoped, cdk#427): a session for
+  // another event is not one to renew here, and the server would refuse it anyway.
+  if (!stored || typeof stored.token !== 'string' || !stored.token || stored.eventId !== eventId) {
+    return { kind: 'noSession' };
+  }
+  const flightKey = JSON.stringify([eventId, stored.token]);
+  let p = refreshInFlight.get(flightKey);
+  if (!p) {
+    p = refresh(eventId, stored.token).finally(() => refreshInFlight.delete(flightKey));
+    refreshInFlight.set(flightKey, p);
+  }
+  return p;
+}
+
+/** The one network call behind `refreshGuestSession`; `refreshInFlight` dedupes callers. */
+async function refresh(eventId: string, sessionToken: string): Promise<GuestSessionRefresh> {
+  const generation = cacheGeneration;
+  const unlinks = unlinkEpoch;
+  try {
+    const res = await fetch(GuestEventApi.refresh(eventId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+    });
+    if (res.status === 401) return { kind: 'unauthenticated' };
+    if (res.status === 403) return { kind: 'unknown' };
+    if (res.status !== 200) return { kind: 'error' };
+    const body: unknown = await res.json();
+    if (!body || typeof body !== 'object') return { kind: 'error' };
+    const { token, exp, linkedEmail, displayName } = body as {
+      token?: unknown; exp?: unknown; linkedEmail?: unknown; displayName?: unknown;
+    };
+    if (typeof token !== 'string' || typeof exp !== 'number' || !Number.isFinite(exp)) {
+      return { kind: 'error' };
+    }
+    // The body carries no userId (cdk#1566): the new JWT's own `sub` names the identity.
+    const userId = guestSubjectFromToken(token);
+    if (!userId) return { kind: 'error' };
+    // An unlink that completed while this request was out wins: the server may have read
+    // the binding before it was removed.
+    const email = unlinks === unlinkEpoch && typeof linkedEmail === 'string' && linkedEmail
+      ? linkedEmail : null;
+    // Supersession: an identity change (claim/login) bumped the generation, or the cache no
+    // longer holds the session that was renewed (sign-out, another lane's mint).
+    const current = readStored();
+    if (generation !== cacheGeneration || !current || current.token !== sessionToken
+        || current.eventId !== eventId) {
+      return { kind: 'superseded' };
+    }
+    try {
+      sessionStorage.setItem(
+        TOKEN_KEY,
+        JSON.stringify({ token, exp, userId, eventId, linkedEmail: email } as StoredToken),
+      );
+    } catch {
+      // storage unavailable — the renewed session just won't survive a reload
+    }
+    return { kind: 'ok', token, userId, linkedEmail: email, ...displayNameField(displayName) };
   } catch {
     return { kind: 'error' };
   }

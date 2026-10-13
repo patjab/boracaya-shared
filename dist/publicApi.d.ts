@@ -15,6 +15,8 @@ export declare const GuestEventApi: {
     readonly guestToken: (eventId: string) => string;
     readonly claim: (eventId: string) => string;
     readonly unlink: (eventId: string) => string;
+    /** shore#395: renew a live guest session (the guest JWT is the credential). */
+    readonly refresh: (eventId: string) => string;
     readonly invite: (eventId: string) => string;
     readonly momentsPublic: (eventId: string) => string;
     readonly wishes: (eventId: string) => string;

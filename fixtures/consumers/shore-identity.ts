@@ -5,6 +5,7 @@ import {
   guestAuthHeaders,
   guestLinkedEmail,
   loginNoEvent,
+  refreshGuestSession,
   unlinkIdentity,
   type ClaimCandidate,
 } from 'boracaya-shared/identity';
@@ -28,7 +29,8 @@ export const exerciseShoreIdentity = async (
         chooseUserId: choose?.userId,
       })
     : undefined;
+  const refreshed = await refreshGuestSession(eventId);
   const unlink = await unlinkIdentity(eventId);
 
-  return { email, headers, linkedEmail, login, claim, unlink };
+  return { email, headers, linkedEmail, login, claim, refreshed, unlink };
 };

@@ -78,6 +78,42 @@ returns that as `{ kind: 'unlinkFirst' }`. To switch accounts, call
 `{ kind: 'chooser' }`. Exhaustive `switch (result.kind)` handlers need the new
 case from 11.3.0 on.
 
+## Guest session refresh (shore#395)
+
+`refreshGuestSession(eventId)` (`boracaya-shared/identity`) is the client for
+`POST /events/{eventId}/auth/refresh` (`GuestEventApi.refresh`). It renews the
+live guest session this tab holds for the event, including one minted by a
+Google claim or login, which has no invitation token to re-exchange. The only
+credential is the cached guest JWT, sent as `Authorization: Bearer <guest JWT>`.
+The server takes it only while it is unexpired, bound to this event (or to no
+event), still a member of the event, and not revoked by the host.
+
+It never throws, and it returns a `GuestSessionRefresh`:
+
+- `{ kind: 'ok', token, userId, linkedEmail, displayName? }`: the new session
+  is cached. `userId` comes from the new JWT's `sub` (the body has no userId),
+  so a merged identity renews as its canonical id.
+- `{ kind: 'noSession' }`: no session is cached for this event, so nothing was
+  sent.
+- `{ kind: 'unauthenticated' }` (401): the session is missing, invalid or
+  already expired. It cannot be renewed.
+- `{ kind: 'unknown' }` (403): the guest is no longer on the list, or the host
+  revoked the link. Handle it like `InvitationExchange`'s `unknown`.
+- `{ kind: 'superseded' }`: the cached session changed while the request was in
+  flight (a claim, a login, a sign-out or another exchange). Nothing was
+  written, and the newer session stays.
+- `{ kind: 'error' }`: a network failure, a 5xx, or any other answer. Safe to
+  retry.
+
+The 401 and 403 arms leave the cache as it was. Call `clearGuestToken` if the
+app signs the guest out. Concurrent calls for one session share a single
+request.
+
+Since 11.4.0 the mint lanes (`exchangeInvitationToken`, `exchangeLegacyInvite`,
+`claimIdentity` and `loginNoEvent`) also return `displayName` on `ok`
+(shore#503). The field is present only when the server names the guest with a
+non-empty string, so results from an older backend keep their old shape.
+
 ## Client error reporting (cdk#1495)
 
 `report.ts` is the one funnel every browser-side failure passes through: the

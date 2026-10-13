@@ -28,6 +28,8 @@ export const GuestEventApi = {
     guestToken: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/guest-token`,
     claim: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/claim`,
     unlink: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/unlink`,
+    /** shore#395: renew a live guest session (the guest JWT is the credential). */
+    refresh: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/auth/refresh`,
     invite: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/invite`,
     momentsPublic: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/moments/public`,
     wishes: (eventId) => `${publicApi()}/events/${encodeURIComponent(eventId)}/wishes`,
