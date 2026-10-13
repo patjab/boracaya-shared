@@ -9,8 +9,10 @@ import type { StageFormRendererMessages } from './formMessages';
  * cdk#976 a stage is an ordered mix of two element kinds: questions (asked and
  * saved) and display blocks (shown, not asked — values arrive server-resolved
  * via `resolved`). Data fetching/submission stay with the consumers. MUI is a
- * peer dependency (Shore v6 / Valet v7 — only cross-stable APIs are used
- * here).
+ * peer dependency, and only APIs stable across v6, v7 and v9 are used here: native
+ * input attributes go through TextField `slotProps` (v9 removed `inputProps` /
+ * `InputLabelProps`), and layout styles go through `sx` (v9 removed the system
+ * props such as `alignItems` on Stack/Box/Typography/Grid) — shore#592.
  */
 /** Legacy name for a question element (pre-#976 consumers). */
 export type RendererField = StageQuestion;
