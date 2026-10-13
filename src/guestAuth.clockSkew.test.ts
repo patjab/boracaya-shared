@@ -97,11 +97,19 @@ describe('session expiry follows the device clock from receipt (shore#530)', () 
     const claimed = mint('uA');
     const loggedIn = mint('uB', 'evB');
     const renewed = mint('uA');
+    const legacy = mint('uC', 'evC');
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (url === GuestEventApi.claim('evA')) return reply(200, { ...claimed, userId: 'uA', claimed: true });
       if (url === GuestEventApi.refresh('evA')) return reply(200, renewed);
+      if (url === GuestEventApi.exchange('evC')) return reply(200, legacy);
       return reply(200, { ...loggedIn, userId: 'uB', eventId: 'evB' });
     }));
+
+    // The legacy lane, with a usable iat, on the same fast clock (Codex r2 on #197).
+    expect(await exchangeLegacyInvite('evC', 'uC')).toMatchObject({ kind: 'ok', token: legacy.token });
+    expect(hasGuestSession('evC', 'uC')).toBe(true);
+    expect(await ensureGuestToken('evC', 'uC')).toBe(legacy.token);
+    expect(JSON.parse(store.get('pdab_guest_token:evC')!).expiresAt).toBe(Date.now() + TTL * 1000);
 
     await claimIdentity({ eventId: 'evA', credential: 'g' });
     expect(hasGuestSession('evA', 'uA')).toBe(true);

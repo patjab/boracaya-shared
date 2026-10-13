@@ -140,3 +140,39 @@ describe('storage that comes back (shore#491)', () => {
     expect(hasGuestSession('e1', 'u1')).toBe(false); // nothing stale left in memory
   });
 });
+
+describe('storage that is reachable but refuses the write (shore#491)', () => {
+  // Quota full, or Safari's private mode in older releases: the getter works, setItem
+  // throws. The session must still serve the tab from memory (Codex r2 on #197).
+  const refusing = new Map<string, string>();
+  beforeEach(() => {
+    refusing.clear();
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => (refusing.has(k) ? refusing.get(k)! : null),
+        setItem: () => { throw new DOMException('full', 'QuotaExceededError'); },
+        removeItem: (k: string) => void refusing.delete(k),
+        key: (i: number) => [...refusing.keys()][i] ?? null,
+        get length() { return refusing.size; },
+        clear: () => refusing.clear(),
+      },
+    });
+  });
+
+  it('exchange is ok, the headers reuse the minted token with no second exchange, and clear drops it', async () => {
+    const token = jwt({ sub: 'u1', evt: 'e1' });
+    const spy = vi.fn(async () => reply(200, { token, exp: soon() }));
+    vi.stubGlobal('fetch', spy);
+
+    expect(await exchangeInvitationToken('e1', 'tok')).toMatchObject({ kind: 'ok', userId: 'u1' });
+    expect(refusing.size).toBe(0); // nothing reached storage
+    expect(await guestAuthHeaders('e1', 'u1')).toEqual({ Authorization: `Bearer ${token}` });
+    expect(await ensureGuestToken('e1', 'u1')).toBe(token);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    clearGuestToken('e1');
+    expect(hasGuestSession('e1', 'u1')).toBe(false);
+    expect(guestTokenExpiresInSeconds('e1')).toBeUndefined();
+  });
+});
