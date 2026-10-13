@@ -124,6 +124,12 @@ with no event it reads the session the tab cached most recently. A session
 cached in the old single slot is still read for its own event and moves to that
 event's key on the next write.
 
+When the browser blocks site storage (shore#491), a session the server minted
+is held in memory for the life of the tab instead, so `guestAuthHeaders` keeps
+sending it. `ensureGuestToken` and `hasGuestSession` never throw, and
+`claimIdentity`, `loginNoEvent` and `unlinkIdentity` return `ok` whenever the
+server succeeded, even if the session could not be persisted.
+
 ## Client error reporting (cdk#1495)
 
 `report.ts` is the one funnel every browser-side failure passes through: the

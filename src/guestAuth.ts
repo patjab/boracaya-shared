@@ -41,6 +41,14 @@ interface StoredToken {
 /** The event most recently written in this tab, for the event-less expiry read. */
 let lastEventId: string | null = null;
 
+// Sessions storage would not keep (shore#491): with site data blocked, reading the
+// `sessionStorage` global itself throws, and a session minted on a 200 would be lost the
+// moment it arrived — the guest shown as signed in while every call went out without a
+// token. A write that fails lands here instead, so the session serves this tab for as long
+// as the page lives. An entry here is always newer than storage's (a write that persists
+// removes it), so a read prefers it.
+const unpersisted = new Map<string, StoredToken>();
+
 function parseEntry(raw: string | null): StoredToken | null {
   if (!raw) return null;
   try {
@@ -59,6 +67,8 @@ function readLegacy(eventId: string): StoredToken | null {
 
 /** This event's cached session entry, or null when absent/corrupt. Never throws. */
 function readStored(eventId: string): StoredToken | null {
+  const held = unpersisted.get(eventId);
+  if (held) return held;
   try {
     const raw = sessionStorage.getItem(keyFor(eventId));
     if (raw !== null) {
@@ -72,10 +82,17 @@ function readStored(eventId: string): StoredToken | null {
   }
 }
 
-/** Cache `entry` as its event's session. Throws if storage does (see the callers). */
+/** Cache `entry` as its event's session: in storage, or in memory when storage refuses
+ *  it (shore#491). Never throws — a server success is never turned into a failure here. */
 function writeStored(entry: StoredToken): void {
   lastEventId = entry.eventId;
-  sessionStorage.setItem(keyFor(entry.eventId), JSON.stringify(entry));
+  try {
+    sessionStorage.setItem(keyFor(entry.eventId), JSON.stringify(entry));
+  } catch {
+    unpersisted.set(entry.eventId, entry);
+    return;
+  }
+  unpersisted.delete(entry.eventId);
   // Migrated: the shared slot no longer speaks for this event.
   try {
     if (readLegacy(entry.eventId)) sessionStorage.removeItem(TOKEN_KEY);
@@ -245,11 +262,7 @@ export async function exchangeInvitationToken(
     };
     const userId = guestSubjectFromToken(token);
     if (!userId) return { kind: 'error' };
-    try {
-      cacheSession(eventId, userId, token, exp, linkedEmail ?? null, generation);
-    } catch {
-      // storage unavailable — the session just won't survive a reload
-    }
+    cacheSession(eventId, userId, token, exp, linkedEmail ?? null, generation);
     return { kind: 'ok', token, userId, ...displayNameField(displayName) };
   } catch {
     return { kind: 'error' };
@@ -303,11 +316,7 @@ async function legacyExchange(eventId: string, userId: string): Promise<LegacyEx
     // The mint's own `sub` is authoritative: a tombstoned link resolves to a
     // DIFFERENT canonical id than the one in the URL (#373 D3a).
     const canonical = guestSubjectFromToken(token) ?? userId;
-    try {
-      cacheSession(eventId, canonical, token, exp, linkedEmail ?? null, generation);
-    } catch {
-      // storage unavailable
-    }
+    cacheSession(eventId, canonical, token, exp, linkedEmail ?? null, generation);
     return { kind: 'ok', token, userId: canonical, invitationToken, ...displayNameField(displayName) };
   } catch {
     return { kind: 'error' };
@@ -720,11 +729,7 @@ async function refresh(eventId: string, sessionToken: string): Promise<GuestSess
     if (generation !== cacheGeneration || !current || current.token !== sessionToken) {
       return { kind: 'superseded' };
     }
-    try {
-      writeStored({ token, exp, userId, eventId, linkedEmail: email });
-    } catch {
-      // storage unavailable — the renewed session just won't survive a reload
-    }
+    writeStored({ token, exp, userId, eventId, linkedEmail: email });
     return { kind: 'ok', token, userId, linkedEmail: email, ...displayNameField(displayName) };
   } catch {
     return { kind: 'error' };
@@ -739,6 +744,8 @@ async function refresh(eventId: string, sessionToken: string): Promise<GuestSess
  * one, every event's session goes — a sign-out everywhere, as the single slot used to.
  */
 export function clearGuestToken(eventId?: string | null): void {
+  if (eventId) unpersisted.delete(eventId);
+  else unpersisted.clear();
   try {
     if (eventId) {
       sessionStorage.removeItem(keyFor(eventId));
