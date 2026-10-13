@@ -29,8 +29,10 @@ import type { StageFormRendererMessages } from './formMessages';
  * cdk#976 a stage is an ordered mix of two element kinds: questions (asked and
  * saved) and display blocks (shown, not asked — values arrive server-resolved
  * via `resolved`). Data fetching/submission stay with the consumers. MUI is a
- * peer dependency (Shore v6 / Valet v7 — only cross-stable APIs are used
- * here).
+ * peer dependency, and only APIs stable across v6, v7 and v9 are used here: native
+ * input attributes go through TextField `slotProps` (v9 removed `inputProps` /
+ * `InputLabelProps`), and layout styles go through `sx` (v9 removed the system
+ * props such as `alignItems` on Stack/Box/Typography/Grid) — shore#592.
  */
 
 /** Legacy name for a question element (pre-#976 consumers). */
@@ -144,7 +146,7 @@ const questionInput = (
                     label={labelFor(f, messages)}
                     placeholder={f.placeholder}
                     helperText={messages.listSeparatorHint}
-                    inputProps={requiredInputProps(f.required)}
+                    slotProps={{ htmlInput: requiredInputProps(f.required) }}
                     value={Array.isArray(value) ? value.join(', ') : ''}
                     onChange={(e) => onChange(f.key,
                         e.target.value.split(',').map((v) => v.trim()).filter(Boolean))}
@@ -197,7 +199,7 @@ const questionInput = (
                     key={f.key} fullWidth margin="normal" type="number"
                     label={labelFor(f, messages)}
                     placeholder={f.placeholder}
-                    inputProps={requiredInputProps(f.required)}
+                    slotProps={{ htmlInput: requiredInputProps(f.required) }}
                     value={value ?? ''}
                     onChange={(e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value))}
                 />
@@ -207,8 +209,10 @@ const questionInput = (
                 <TextField
                     key={f.key} fullWidth margin="normal" type="date"
                     label={labelFor(f, messages)}
-                    InputLabelProps={{ shrink: true }}
-                    inputProps={requiredInputProps(f.required)}
+                    slotProps={{
+                        inputLabel: { shrink: true },
+                        htmlInput: requiredInputProps(f.required),
+                    }}
                     value={value ?? ''}
                     onChange={(e) => onChange(f.key, e.target.value)}
                 />
@@ -221,9 +225,11 @@ const questionInput = (
                     placeholder={f.placeholder}
                     multiline={f.type === 'multiline'}
                     minRows={f.type === 'multiline' ? 3 : undefined}
-                    inputProps={{
-                        maxLength: f.maxLength ?? 500,
-                        ...requiredInputProps(f.required),
+                    slotProps={{
+                        htmlInput: {
+                            maxLength: f.maxLength ?? 500,
+                            ...requiredInputProps(f.required),
+                        },
                     }}
                     value={value ?? ''}
                     onChange={(e) => onChange(f.key, e.target.value)}
@@ -271,7 +277,7 @@ const displayBlock = (
                 {b.label ? blockLabel(b.label) : null}
                 <Stack spacing={0.75} sx={{ mt: 0.5 }}>
                     {value.map((name, i) => (
-                        <Stack key={`${b.id}-${i}`} direction="row" spacing={1} alignItems="center">
+                        <Stack key={`${b.id}-${i}`} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                             <Avatar sx={{
                                 width: 26, height: 26, fontSize: '0.8rem',
                                 bgcolor: 'transparent', color: 'primary.main',
@@ -399,7 +405,7 @@ export const StageFormRenderer = ({
             key={row.map(keyOf).join('+')}
             direction={{ xs: 'column', sm: 'row' }}
             spacing={{ xs: 0, sm: 2 }}
-            alignItems="flex-start"
+            sx={{ alignItems: 'flex-start' }}
         >
             {row.map((el) => (
                 <Box key={keyOf(el)} sx={{ flex: 1, minWidth: 0, width: '100%' }}>

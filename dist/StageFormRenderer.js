@@ -93,7 +93,7 @@ const questionInput = (f, value, onChange, messages) => {
         case 'list':
             // A list of short strings (e.g. companions), edited comma-separated —
             // the server bounds items/length (cdk#518).
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, helperText: messages.listSeparatorHint, inputProps: requiredInputProps(f.required), value: Array.isArray(value) ? value.join(', ') : '', onChange: (e) => onChange(f.key, e.target.value.split(',').map((v) => v.trim()).filter(Boolean)) }, f.key));
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, helperText: messages.listSeparatorHint, slotProps: { htmlInput: requiredInputProps(f.required) }, value: Array.isArray(value) ? value.join(', ') : '', onChange: (e) => onChange(f.key, e.target.value.split(',').map((v) => v.trim()).filter(Boolean)) }, f.key));
         case 'boolean':
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton
@@ -107,13 +107,18 @@ const questionInput = (f, value, onChange, messages) => {
         case 'select':
             return ((0, jsx_runtime_1.jsxs)(FormControl_1.default, { fullWidth: true, margin: "normal", children: [(0, jsx_runtime_1.jsx)(InputLabel_1.default, { id: `stage-${f.key}`, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsx)(Select_1.default, { labelId: `stage-${f.key}`, label: labelFor(f, messages), required: f.required, value: typeof value === 'string' ? value : '', onChange: (e) => onChange(f.key, e.target.value), children: ((_a = f.options) !== null && _a !== void 0 ? _a : []).map((o) => ((0, jsx_runtime_1.jsx)(MenuItem_1.default, { value: o, children: o }, o))) })] }, f.key));
         case 'number':
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "number", label: labelFor(f, messages), placeholder: f.placeholder, inputProps: requiredInputProps(f.required), value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value)) }, f.key));
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "number", label: labelFor(f, messages), placeholder: f.placeholder, slotProps: { htmlInput: requiredInputProps(f.required) }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value)) }, f.key));
         case 'date':
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "date", label: labelFor(f, messages), InputLabelProps: { shrink: true }, inputProps: requiredInputProps(f.required), value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value) }, f.key));
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "date", label: labelFor(f, messages), slotProps: {
+                    inputLabel: { shrink: true },
+                    htmlInput: requiredInputProps(f.required),
+                }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value) }, f.key));
         default: // text | multiline
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, multiline: f.type === 'multiline', minRows: f.type === 'multiline' ? 3 : undefined, inputProps: {
-                    maxLength: (_b = f.maxLength) !== null && _b !== void 0 ? _b : 500,
-                    ...requiredInputProps(f.required),
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, multiline: f.type === 'multiline', minRows: f.type === 'multiline' ? 3 : undefined, slotProps: {
+                    htmlInput: {
+                        maxLength: (_b = f.maxLength) !== null && _b !== void 0 ? _b : 500,
+                        ...requiredInputProps(f.required),
+                    },
                 }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value) }, f.key));
     }
 };
@@ -141,7 +146,7 @@ const displayBlock = (b, resolved) => {
         return null;
     const presentation = (_a = b.presentation) !== null && _a !== void 0 ? _a : (typeof b.text === 'string' ? 'note' : 'line');
     if (presentation === 'roster') {
-        return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [b.label ? blockLabel(b.label) : null, (0, jsx_runtime_1.jsx)(Stack_1.default, { spacing: 0.75, sx: { mt: 0.5 }, children: value.map((name, i) => ((0, jsx_runtime_1.jsxs)(Stack_1.default, { direction: "row", spacing: 1, alignItems: "center", children: [(0, jsx_runtime_1.jsx)(Avatar_1.default, { sx: {
+        return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [b.label ? blockLabel(b.label) : null, (0, jsx_runtime_1.jsx)(Stack_1.default, { spacing: 0.75, sx: { mt: 0.5 }, children: value.map((name, i) => ((0, jsx_runtime_1.jsxs)(Stack_1.default, { direction: "row", spacing: 1, sx: { alignItems: 'center' }, children: [(0, jsx_runtime_1.jsx)(Avatar_1.default, { sx: {
                                     width: 26, height: 26, fontSize: '0.8rem',
                                     bgcolor: 'transparent', color: 'primary.main',
                                     border: '1px solid', borderColor: 'primary.main',
@@ -207,7 +212,7 @@ const StageFormRenderer = ({ elements, fields, values, onChange, resolved, prese
     const rendered = (el) => ((0, stages_1.isDisplayBlock)(el)
         ? displayBlock(el, resolved)
         : questionInput(el, values[el.key], onChange, messages));
-    const renderRow = (row) => (row.length === 1 ? rendered(row[0]) : ((0, jsx_runtime_1.jsx)(Stack_1.default, { direction: { xs: 'column', sm: 'row' }, spacing: { xs: 0, sm: 2 }, alignItems: "flex-start", children: row.map((el) => ((0, jsx_runtime_1.jsx)(Box_1.default, { sx: { flex: 1, minWidth: 0, width: '100%' }, children: rendered(el) }, keyOf(el)))) }, row.map(keyOf).join('+'))));
+    const renderRow = (row) => (row.length === 1 ? rendered(row[0]) : ((0, jsx_runtime_1.jsx)(Stack_1.default, { direction: { xs: 'column', sm: 'row' }, spacing: { xs: 0, sm: 2 }, sx: { alignItems: 'flex-start' }, children: row.map((el) => ((0, jsx_runtime_1.jsx)(Box_1.default, { sx: { flex: 1, minWidth: 0, width: '100%' }, children: rendered(el) }, keyOf(el)))) }, row.map(keyOf).join('+'))));
     if (presentation === 'stepped' && rows.length > 0) {
         // One row per screen: a hidden display block (value resolved to
         // nothing) must not leave a blank screen, so empty interstitials are
