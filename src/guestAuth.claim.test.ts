@@ -13,7 +13,8 @@ import { GuestEventApi } from './publicApi';
  * chooser.
  */
 
-const TOKEN_KEY = 'pdab_guest_token';
+// Sessions are cached per event (shore#529).
+const TOKEN_KEY = 'pdab_guest_token:evt-9';
 const store = new Map<string, string>();
 
 beforeEach(() => {
@@ -33,7 +34,7 @@ const jwt = (claims: Record<string, unknown>) =>
 
 const FAR = 9999999999;
 const session = (userId: string, eventId = 'evt-9', token = jwt({ sub: userId, evt: eventId })) => {
-  store.set(TOKEN_KEY, JSON.stringify({ token, exp: FAR, userId, eventId, linkedEmail: 'anna@example.com' }));
+  store.set(`pdab_guest_token:${eventId}`, JSON.stringify({ token, exp: FAR, userId, eventId, linkedEmail: 'anna@example.com' }));
   return token;
 };
 

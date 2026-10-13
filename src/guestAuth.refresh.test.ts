@@ -22,7 +22,8 @@ import { GuestEventApi, PublicApi } from './publicApi';
  * while it was in flight (a claim, a login, a sign-out, another lane's mint).
  */
 
-const TOKEN_KEY = 'pdab_guest_token';
+// Sessions are cached per event (shore#529).
+const TOKEN_KEY = 'pdab_guest_token:evt-9';
 const store = new Map<string, string>();
 
 beforeEach(() => {
@@ -32,6 +33,8 @@ beforeEach(() => {
     getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
     setItem: (k: string, v: string) => void store.set(k, v),
     removeItem: (k: string) => void store.delete(k),
+    get length() { return store.size; },
+    key: (i: number) => [...store.keys()][i] ?? null,
   });
 });
 
@@ -46,7 +49,7 @@ const reply = (status: number, body: unknown) =>
 
 const session = (userId: string, eventId = 'evt-9', exp = FAR) => {
   const token = jwt({ sub: userId, evt: eventId, n: Math.random() });
-  store.set(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: 'old@example.com' }));
+  store.set(`pdab_guest_token:${eventId}`, JSON.stringify({ token, exp, userId, eventId, linkedEmail: 'old@example.com' }));
   return token;
 };
 const cached = () => JSON.parse(store.get(TOKEN_KEY)!);
@@ -126,9 +129,12 @@ describe('refreshGuestSession (shore#395)', () => {
     expect(cached().token).toBe(old);
   });
 
-  it('5xx, a 429, a network failure and an unusable 200 are retryable errors that write nothing', async () => {
+  it('5xx, a 429, a WAF 403, a network failure and an unusable 200 are retryable errors that write nothing', async () => {
     const old = session('u1');
     const failures: Array<Response | (() => Promise<Response>)> = [
+      // shore#401: a 403 the auth service did not write — the WAF's /auth/ rate limit.
+      { status: 403, ok: false, json: async () => { throw new SyntaxError('not json'); } } as unknown as Response,
+      reply(403, { message: 'Forbidden' }),
       reply(500, { error: 'lookup failed' }),
       reply(503, {}),
       reply(429, { error: 'rate limited' }),

@@ -114,6 +114,44 @@ Since 11.4.0 the mint lanes (`exchangeInvitationToken`, `exchangeLegacyInvite`,
 (shore#503). The field is present only when the server names the guest with a
 non-empty string, so results from an older backend keep their old shape.
 
+## Guest session cache
+
+Each event's guest session is cached under its own key (shore#529), so a guest
+who opens two events in one tab stays signed in to both. `clearGuestToken(eventId)`
+drops only that event's session; `clearGuestToken()` with no event still drops
+every event's. `guestTokenExpiresInSeconds(eventId)` reads that event's expiry;
+with no event it reads the session the tab cached most recently. A session
+cached in the old single slot is still read for its own event and moves to that
+event's key on the next write.
+
+When the browser blocks site storage (shore#491), a session the server minted
+is held in memory for the life of the tab instead, so `guestAuthHeaders` keeps
+sending it. `ensureGuestToken` and `hasGuestSession` never throw, and
+`claimIdentity`, `loginNoEvent` and `unlinkIdentity` return `ok` whenever the
+server succeeded, even if the session could not be persisted.
+
+A session's expiry is judged on the device's own clock from when it was
+received (shore#530): the cache records the token's lifetime (`exp - iat`,
+read from the JWT) counted from receipt, so a device clock that is fast or slow
+against the server no longer expires fresh sessions or keeps dead ones. The
+30-second margin stays. An entry or token without `iat` falls back to `exp`.
+
+A 403 is a refusal only when the auth service wrote it (shore#401): the body
+`{ "error": "unknown invitation" }` is `unknown` and, on the legacy lane,
+`{ "error": "invitation link replaced" }` is `replaced`. Any other 403, such as
+the WAF's `/auth/` rate-limit block with its non-JSON body, is `error`, which is
+safe to retry. This holds for `exchangeInvitationToken`, `exchangeLegacyInvite`
+and `refreshGuestSession`, so a caller may treat `unknown` as definite and sign
+the guest out of the event.
+
+`guestLinkedEmail(eventId, userId)` resolves to the linked Google, or to `null`
+only when the server confirmed that none is linked (shore#483). When the link
+state cannot be known (no session could be minted after a 429, a 5xx or a
+network failure, the id was refused, or an id is missing), it rejects. Show an
+error with a retry on rejection, and do not offer Link: a claim binds the
+incoming Google, and without the current one no "replace?" check can run.
+Before 11.5.0 it resolved to `null` in all of these cases.
+
 ## Client error reporting (cdk#1495)
 
 `report.ts` is the one funnel every browser-side failure passes through: the
