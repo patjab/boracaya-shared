@@ -237,6 +237,27 @@ describe('sendJson', () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(429);
     expect(err.retryAfterSeconds).toBe(75);
+    expect(err.code).toBe('RATE_LIMITED');
+  });
+
+  it("carries the server's error code beside its message (shore#518)", async () => {
+    fetchMock().mockResolvedValue(jsonResponse({ code: 'ASK_CLOSED', message: 'This ask is closed' }, 403));
+    const err = await sendJson('https://x/y', { method: 'PUT', body: {}, label: 'pulse-post' }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(403);
+    expect(err.code).toBe('ASK_CLOSED');
+    expect(err.message).toBe('This ask is closed');
+  });
+
+  it.each([
+    ['no code', { message: 'Unauthorized' }],
+    ['a blank code', { code: '  ', error: 'internal error' }],
+    ['a non-string code', { code: 403, error: 'internal error' }],
+  ])('leaves code undefined for %s', async (_label, body) => {
+    fetchMock().mockResolvedValue(jsonResponse(body, 500));
+    const err = await sendJson('https://x/y', { method: 'PUT', body: {}, label: 'save' }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.code).toBeUndefined();
   });
 
   it('preserves the server error when a fetch adapter omits response headers', async () => {

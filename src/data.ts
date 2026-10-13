@@ -33,12 +33,20 @@ export class ApiError extends Error {
 
   readonly retryAfterSeconds?: number;
 
-  constructor(label: string, message: string, status?: number, retryAfter?: number) {
+  /**
+   * The server's machine-readable `code` from a non-2xx JSON body (e.g.
+   * `ASK_CLOSED`, `RATE_LIMITED`), so a caller can choose its copy without
+   * matching the free-text message (shore#518). Undefined when the body had none.
+   */
+  readonly code?: string;
+
+  constructor(label: string, message: string, status?: number, retryAfter?: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.label = label;
     this.status = status;
     this.retryAfterSeconds = retryAfter;
+    this.code = code;
   }
 }
 
@@ -238,12 +246,14 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
   if (!res.ok) {
     let serverMessage: string | undefined;
     let bodyRetryAfter: number | undefined;
+    let serverCode: string | undefined;
     try {
       const parsed = JSON.parse(text) as {
-        error?: unknown; message?: unknown; retryAfterSeconds?: unknown;
+        error?: unknown; message?: unknown; retryAfterSeconds?: unknown; code?: unknown;
       };
       const m = parsed?.error ?? parsed?.message;
       if (typeof m === 'string' && m.trim()) serverMessage = m;
+      if (typeof parsed?.code === 'string' && parsed.code.trim()) serverCode = parsed.code;
       if (typeof parsed.retryAfterSeconds === 'number'
           && Number.isSafeInteger(parsed.retryAfterSeconds)
           && parsed.retryAfterSeconds >= 0) {
@@ -260,6 +270,7 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
       serverMessage ?? `${label}: HTTP ${res.status}`,
       res.status,
       parseRetryAfterSeconds(retryHeader) ?? bodyRetryAfter,
+      serverCode,
     );
     throw opts.expect?.includes(res.status)
       ? expected(err, opts.method, url, res.status)
