@@ -1,0 +1,89 @@
+name: review-record
+
+# The merge gate of the in-session adversarial review (cdk#1913, cdk#1917):
+# this PR must carry `.review/<patch-id>.json` for exactly its diff, written by
+# .adversarial-review/adversarial_review.py when the author's reviewer loop
+# reached a clean `final` pass. No model runs here; whether a missing record
+# fails, warns or is ignored is the Mission Control review policy's
+# `record_check` (patjab/mission-control#54). Installed by patjab/codex-review
+# local/install.py.
+#
+# THE PUBLIC-REPO EXCEPTION (the same one codex-review.yml here documents). The
+# other callers are ~25-line callers of the reusable review-record workflow in
+# patjab/codex-review, but a public repository cannot use a private
+# repository's reusable workflows or actions. So this job runs on the desktop
+# runner that already serves this repo's Codex rounds and takes the checker
+# (record/, plus the engine in local/ and review/ it imports) from the
+# desktop's codex-review clone with `git archive` at the pinned SHA below - so a
+# PR is never checked by its own copy of the checker. It runs only Python from
+# that archive and git over the checkout; no PR code executes, and fork heads
+# never reach the runner.
+
+on:
+  pull_request:
+    branches: [main]
+    # edited: retargeting a PR onto the base re-runs the check at an unchanged
+    # head (Jeongyeon r1 on boracaya-cdk#1920).
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  review-record:
+    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, windows, codex]
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: powershell
+    env:
+      # codex-review b73e215 (codex-review#8, the hardened engine); bump deliberately; never a mutable ref
+      CODEX_REVIEW_PIN: b73e21560997c1521d67ed298b929fd374bf2507
+      # Where the desktop keeps its patjab/codex-review clone; override with a
+      # repository variable when the clone lives elsewhere.
+      CODEX_REVIEW_CLONE: ${{ vars.CODEX_REVIEW_CLONE || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Fetch the record checker from codex-review (desktop clone, pinned)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $clone = $env:CODEX_REVIEW_CLONE
+          if (-not $clone) { $clone = Join-Path $env:USERPROFILE 'Desktop\codex-review' }
+          if (-not (Test-Path (Join-Path $clone '.git'))) { Write-Output "::error::review-record: no patjab/codex-review clone at $clone (clone it there, or set the CODEX_REVIEW_CLONE repository variable)"; exit 1 }
+          # The clone's code runs on this desktop: it must be GitHub's
+          # patjab/codex-review, exactly (codex-review#1, Codex r5).
+          $origin = (& git -C $clone remote get-url origin | Out-String).Trim()
+          if ($origin -cnotmatch '^(git@github\.com:|ssh://git@github\.com/|https://github\.com/)patjab/codex-review(\.git)?/?$') { Write-Output "::error::review-record: the clone at $clone has origin '$origin', not GitHub's patjab/codex-review - refusing to run its code"; exit 1 }
+          & git -C $clone fetch -q origin main
+          if ($LASTEXITCODE -ne 0) { Write-Output "::error::review-record: git fetch of codex-review failed in $clone"; exit 1 }
+          & git -C $clone cat-file -e "$($env:CODEX_REVIEW_PIN)^{commit}"
+          if ($LASTEXITCODE -ne 0) { Write-Output "::error::review-record: pinned commit $($env:CODEX_REVIEW_PIN) is not in the codex-review clone"; exit 1 }
+          $zip = Join-Path $env:RUNNER_TEMP 'review-record.zip'
+          & git -C $clone archive --format=zip -o $zip $env:CODEX_REVIEW_PIN record local review
+          if ($LASTEXITCODE -ne 0) { Write-Output '::error::review-record: git archive of the checker failed'; exit 1 }
+          $dest = Join-Path $env:RUNNER_TEMP 'codex-review-record'
+          if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          Remove-Item -Force $zip
+          Add-Content -Path $env:GITHUB_ENV -Value "RECORD_CHECKER=$dest"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "checker: codex-review record/ at $($env:CODEX_REVIEW_PIN)"
+
+      - name: Verify the review record
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & git fetch --quiet --no-tags origin "+refs/heads/$($env:BASE_REF):refs/remotes/origin/$($env:BASE_REF)"
+          if ($LASTEXITCODE -ne 0) { Write-Output "::error::review-record: git fetch of $($env:BASE_REF) failed"; exit 1 }
+          & python (Join-Path $env:RECORD_CHECKER 'record\record_check.py') --base "origin/$($env:BASE_REF)" --head $env:HEAD_SHA --pr $env:PR
+          exit $LASTEXITCODE

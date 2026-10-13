@@ -22,3 +22,7 @@ skip_paths: ["**/*.md", "docs/**", "LICENSE"]
 
 # Automatic rounds per PR before the workflow stops and asks for `/codex <axis>`.
 round_cap: 8
+
+# The in-session adversarial review's record and engine copy (cdk#1913): the
+# record check verifies them; neither is worth the reviewer's payload budget.
+payload_exclude: [".review/**", ".adversarial-review/**"]

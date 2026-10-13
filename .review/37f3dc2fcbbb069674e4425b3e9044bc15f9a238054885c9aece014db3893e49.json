@@ -1,0 +1,40 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "37f3dc2fcbbb069674e4425b3e9044bc15f9a238054885c9aece014db3893e49",
+  "repo": "patjab/boracaya-shared",
+  "branch": "claude/adversarial-review-gate",
+  "base": "origin/main",
+  "merge_base": "13a8a754dd1a9381311732c103c74126b0cf9432",
+  "head": "40c82c1cc0619f073944025887c4666746e42465",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 3,
+  "ledger": [
+    {
+      "id": "F1",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": ".adversarial-review/adversarial_review.py:1",
+      "title": "Vendored gate engine has no failing-test pin in this repo",
+      "disposition": "Withdrawn by the reviewer: The rejection is right. The engine is vendored, so its tests belong upstream, and the merge gate runs the pinned upstream checker rather than this copy. Duplicating the tests here would add another unpinned copy. I could not run cmp against the upstream pin myself."
+    }
+  ],
+  "created_at": "2026-10-13T19:34:14Z"
+}
