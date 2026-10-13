@@ -292,6 +292,25 @@ describe('refreshGuestSession and its neighbours keep one another’s writes (sh
     expect(cached()).toMatchObject({ token: old, linkedEmail: 'bob@example.com' });
   });
 
+  it('a no-event login that re-mints the very same token string is still caught by the generation', async () => {
+    const old = session('u1');
+    const { release } = deferredFetch();
+    const pending = refreshGuestSession('evt-9');
+
+    const refreshFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) =>
+      url === PublicApi.GUEST_LOGIN
+        ? reply(200, { token: old, exp: FAR - 7, userId: 'u1', eventId: 'evt-9', linkedEmail: 'carol@example.com' })
+        : (refreshFetch as typeof fetch)(url, init)));
+    expect(await loginNoEvent('cred')).toMatchObject({ kind: 'ok' });
+    const afterLogin = cached();
+
+    release(reply(200, renewed('u1').body));
+    expect(await pending).toEqual({ kind: 'superseded' });
+    expect(cached()).toEqual(afterLogin);
+    expect(afterLogin).toMatchObject({ token: old, exp: FAR - 7, linkedEmail: 'carol@example.com' });
+  });
+
   it('an unlink that lands after a renewal keeps the renewed session, not the one it read first', async () => {
     session('u1', 'evt-9', 1);
     let releaseUnlink!: (r: Response) => void;
