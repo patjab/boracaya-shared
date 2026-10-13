@@ -136,6 +136,14 @@ read from the JWT) counted from receipt, so a device clock that is fast or slow
 against the server no longer expires fresh sessions or keeps dead ones. The
 30-second margin stays. An entry or token without `iat` falls back to `exp`.
 
+A 403 is a refusal only when the auth service wrote it (shore#401): the body
+`{ "error": "unknown invitation" }` is `unknown` and, on the legacy lane,
+`{ "error": "invitation link replaced" }` is `replaced`. Any other 403, such as
+the WAF's `/auth/` rate-limit block with its non-JSON body, is `error`, which is
+safe to retry. This holds for `exchangeInvitationToken`, `exchangeLegacyInvite`
+and `refreshGuestSession`, so a caller may treat `unknown` as definite and sign
+the guest out of the event.
+
 ## Client error reporting (cdk#1495)
 
 `report.ts` is the one funnel every browser-side failure passes through: the

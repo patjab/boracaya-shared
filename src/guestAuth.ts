@@ -203,10 +203,26 @@ export type InvitationExchange =
   | { kind: 'ok'; token: string; userId: string; displayName?: string }
   /** The legacy grace period ended: this `?invited=` link is dead (cdk#1566 Q2). */
   | { kind: 'replaced' }
-  /** Unknown, revoked, or wrong-event — deliberately indistinguishable. */
+  /** Unknown, revoked, or wrong-event — deliberately indistinguishable. The server's own
+   *  refusal ("unknown invitation"): a definite answer, not a fault to retry (shore#401). */
   | { kind: 'unknown' }
-  /** Network or server fault; the caller may retry. */
+  /** Network or server fault, or a 403 the auth service did not write (a WAF block, whose
+   *  body is not the service's JSON); the caller may retry. */
   | { kind: 'error' };
+
+/**
+ * The auth service's own 403 refusal, read from its body (shore#401), or null for any other
+ * 403. The perimeter answers 403 too — the WAF's /auth/ rate limit blocks with a default
+ * body that is not JSON — and that is transient: reading it as a refusal would sign out a
+ * guest holding a perfectly good session. Only the service's two bodies are refusals.
+ */
+async function refusal(res: Response): Promise<'replaced' | 'unknown' | null> {
+  const body: unknown = await res.json().catch(() => null);
+  const error = body && typeof body === 'object' ? (body as { error?: unknown }).error : undefined;
+  if (error === 'invitation link replaced') return 'replaced';
+  if (error === 'unknown invitation') return 'unknown';
+  return null;
+}
 
 /**
  * The canonical userId a guest JWT was minted for, read from its own `sub`.
@@ -280,7 +296,8 @@ export async function exchangeInvitationToken(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: invitationToken }),
     });
-    if (res.status === 403) return { kind: 'unknown' };
+    // Either refusal is "no such invitation" here: `replaced` is a legacy-link answer.
+    if (res.status === 403) return (await refusal(res)) ? { kind: 'unknown' } : { kind: 'error' };
     if (!res.ok) return { kind: 'error' };
     const { token, exp, linkedEmail, displayName } = (await res.json()) as {
       token: string; exp: number; linkedEmail?: string | null; displayName?: unknown;
@@ -301,7 +318,8 @@ export async function exchangeInvitationToken(
  * Distinguishes the two 403s the old lane can now produce, which
  * `ensureGuestToken` cannot: `replaced` means the four weeks are up and this
  * link is permanently dead (the screens show "Find my invitation"), while
- * `unknown` is the pre-existing "no such invitation".
+ * `unknown` is the pre-existing "no such invitation". Both are the server's
+ * definite answer; a 403 with any other body (a WAF block) is `error`.
  *
  * On success the server also hands back a freshly minted `invitationToken` —
  * the silent swap — which the caller puts in the URL in place of the userId.
@@ -328,10 +346,8 @@ async function legacyExchange(eventId: string, userId: string): Promise<LegacyEx
       body: JSON.stringify({ userId }),
     });
     if (res.status === 403) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      return body.error === 'invitation link replaced'
-        ? { kind: 'replaced' }
-        : { kind: 'unknown' };
+      const refused = await refusal(res);
+      return refused ? { kind: refused } : { kind: 'error' };
     }
     if (!res.ok) return { kind: 'error' };
     const { token, exp, linkedEmail, invitationToken, displayName } = (await res.json()) as {
@@ -685,7 +701,8 @@ export type GuestSessionRefresh =
    *  the guest back through their invite link or sign-in (as `UnlinkResult`'s arm). */
   | { kind: 'unauthenticated' }
   /** 403: the identity is no longer on this event's list, or the host revoked its link —
-   *  deliberately indistinguishable, as `InvitationExchange`'s `unknown`. */
+   *  deliberately indistinguishable, as `InvitationExchange`'s `unknown`. A 403 the auth
+   *  service did not write (a WAF block) is `error` instead (shore#401). */
   | { kind: 'unknown' }
   /** The cached session changed while the renewal was in flight (a claim, a login, a
    *  sign-out or another exchange won). Nothing was written; the current cache stands. */
@@ -731,7 +748,7 @@ async function refresh(eventId: string, sessionToken: string): Promise<GuestSess
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
     });
     if (res.status === 401) return { kind: 'unauthenticated' };
-    if (res.status === 403) return { kind: 'unknown' };
+    if (res.status === 403) return (await refusal(res)) ? { kind: 'unknown' } : { kind: 'error' };
     if (res.status !== 200) return { kind: 'error' };
     const body: unknown = await res.json();
     if (!body || typeof body !== 'object') return { kind: 'error' };

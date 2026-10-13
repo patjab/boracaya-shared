@@ -143,11 +143,21 @@ describe('exchangeLegacyInvite (the ?invited= lane, during the grace period)', (
     expect(await exchangeLegacyInvite('evt-9', 'u1')).toEqual({ kind: 'unknown' });
   });
 
-  it('a 403 with an unreadable body is `unknown`, never `replaced`', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      status: 403, ok: false, json: async () => { throw new Error('not json'); },
-    }) as unknown as Response));
-    expect(await exchangeLegacyInvite('evt-9', 'u1')).toEqual({ kind: 'unknown' });
+  it('a 403 the auth service did not write (a WAF block) is a retryable `error`, never a refusal (shore#401)', async () => {
+    // The prod WAF's /auth/ rate limit answers 403 with its default, non-JSON body.
+    const wafBlock = { status: 403, ok: false, json: async () => { throw new SyntaxError('not json'); } } as unknown as Response;
+    for (const res of [wafBlock, ...[{}, null, { error: 'Forbidden' }, { message: 'Forbidden' }].map((body) =>
+      ({ status: 403, ok: false, json: async () => body }) as unknown as Response)]) {
+      vi.stubGlobal('fetch', vi.fn(async () => res));
+      expect(await exchangeLegacyInvite('evt-9', 'u1')).toEqual({ kind: 'error' });
+      expect(await exchangeInvitationToken('evt-9', 'raw-token')).toEqual({ kind: 'error' });
+    }
+    expect(store.size).toBe(0);
+  });
+
+  it('the token lane reads either service refusal as `unknown`', async () => {
+    stubFetch(GuestEventApi.guestToken('evt-9'), 403, { error: 'invitation link replaced' });
+    expect(await exchangeInvitationToken('evt-9', 'raw-token')).toEqual({ kind: 'unknown' });
   });
 
   it('a swap the server could not perform still returns the session', async () => {

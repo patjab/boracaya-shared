@@ -129,9 +129,12 @@ describe('refreshGuestSession (shore#395)', () => {
     expect(cached().token).toBe(old);
   });
 
-  it('5xx, a 429, a network failure and an unusable 200 are retryable errors that write nothing', async () => {
+  it('5xx, a 429, a WAF 403, a network failure and an unusable 200 are retryable errors that write nothing', async () => {
     const old = session('u1');
     const failures: Array<Response | (() => Promise<Response>)> = [
+      // shore#401: a 403 the auth service did not write — the WAF's /auth/ rate limit.
+      { status: 403, ok: false, json: async () => { throw new SyntaxError('not json'); } } as unknown as Response,
+      reply(403, { message: 'Forbidden' }),
       reply(500, { error: 'lookup failed' }),
       reply(503, {}),
       reply(429, { error: 'rate limited' }),
