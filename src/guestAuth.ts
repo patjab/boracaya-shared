@@ -36,7 +36,17 @@ interface StoredToken {
    *  responses (exchange / claim / login) echo it so the gated screens can toggle
    *  Link vs Unlink without an extra round-trip; unlink clears it in place. */
   linkedEmail?: string | null;
+  /** When the session expires on THIS DEVICE's clock, in epoch ms (shore#530): the
+   *  session's lifetime (`exp - iat`) counted from when it was received. `exp` is the
+   *  server's clock, and a device clock an hour fast would read every fresh session as
+   *  expired. Absent on an entry from before it, or a token with no usable `iat`: those
+   *  fall back to `exp`. */
+  expiresAt?: number;
 }
+
+/** The entry's expiry on this device's clock, in epoch ms (see `expiresAt`). */
+const expiryMs = (s: StoredToken): number =>
+  typeof s.expiresAt === 'number' ? s.expiresAt : s.exp * 1000;
 
 /** The event most recently written in this tab, for the event-less expiry read. */
 let lastEventId: string | null = null;
@@ -103,7 +113,7 @@ function writeStored(entry: StoredToken): void {
 
 function readValid(eventId: string, userId: string): string | null {
   const s = readStored(eventId);
-  if (s && s.userId === userId && s.token && s.exp * 1000 - SKEW_MS > Date.now()) return s.token;
+  if (s && s.userId === userId && s.token && expiryMs(s) - SKEW_MS > Date.now()) return s.token;
   return null;
 }
 
@@ -210,16 +220,31 @@ export type InvitationExchange =
  * Returns null for anything that is not a parseable JWT payload with a `sub`.
  */
 export function guestSubjectFromToken(token: string | null | undefined): string | null {
+  const sub = tokenClaims(token)?.sub;
+  return typeof sub === 'string' && sub ? sub : null;
+}
+
+/** A JWT's payload claims, unverified (the server verifies), or null when unreadable. */
+function tokenClaims(token: string | null | undefined): Record<string, unknown> | null {
   if (!token) return null;
   try {
     const payload = token.split('.')[1];
     if (!payload) return null;
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    const sub = (JSON.parse(json) as { sub?: unknown }).sub;
-    return typeof sub === 'string' && sub ? sub : null;
+    const claims: unknown = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return claims && typeof claims === 'object' ? (claims as Record<string, unknown>) : null;
   } catch {
     return null;
   }
+}
+
+/** The cache entry for a session just received (shore#530): `expiresAt` is the token's own
+ *  lifetime from its `iat` to the `exp` the server sent, counted from now, so the device's
+ *  clock offset from the server's cancels out. Without a usable `iat` it is left off. */
+function received(entry: Omit<StoredToken, 'expiresAt'>): StoredToken {
+  const iat = tokenClaims(entry.token)?.iat;
+  return typeof iat === 'number' && Number.isFinite(iat) && Number.isFinite(entry.exp) && entry.exp > iat
+    ? { ...entry, expiresAt: Date.now() + (entry.exp - iat) * 1000 }
+    : entry;
 }
 
 /** The mint body's `displayName` (shore#503), as a spreadable field: `{ displayName }` when
@@ -232,7 +257,7 @@ function displayNameField(value: unknown): { displayName?: string } {
 function cacheSession(eventId: string, userId: string, token: string, exp: number,
                       linkedEmail: string | null, generation: number): void {
   if (generation !== cacheGeneration) return;
-  writeStored({ token, exp, userId, eventId, linkedEmail });
+  writeStored(received({ token, exp, userId, eventId, linkedEmail }));
 }
 
 /**
@@ -344,8 +369,8 @@ export function guestTokenExpiresInSeconds(eventId?: string | null): number | un
       s = null;
     }
   }
-  if (!s || typeof s.exp !== 'number') return undefined;
-  return Math.max(0, Math.round(s.exp - Date.now() / 1000));
+  if (!s || (typeof s.exp !== 'number' && typeof s.expiresAt !== 'number')) return undefined;
+  return Math.max(0, Math.round((expiryMs(s) - Date.now()) / 1000));
 }
 
 /** Authorization header for a reservations call, or {} when no token is available. */
@@ -444,7 +469,7 @@ export async function claimIdentity(params: {
         displayName?: unknown;
       };
       cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
-      writeStored({ token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail ?? null });
+      writeStored(received({ token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail ?? null }));
       return {
         kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail ?? null,
         ...displayNameField(displayName),
@@ -560,7 +585,7 @@ export async function loginNoEvent(credential: string): Promise<NoEventLoginResu
         displayName?: unknown;
       };
       cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
-      writeStored({ token, exp, userId, eventId, linkedEmail: linkedEmail ?? null });
+      writeStored(received({ token, exp, userId, eventId, linkedEmail: linkedEmail ?? null }));
       return { kind: 'ok', userId, eventId, ...displayNameField(displayName) };
     }
     // 300 Multiple Choices (cdk#1617 step 1): the caller's own memberships, nothing minted.
@@ -729,7 +754,7 @@ async function refresh(eventId: string, sessionToken: string): Promise<GuestSess
     if (generation !== cacheGeneration || !current || current.token !== sessionToken) {
       return { kind: 'superseded' };
     }
-    writeStored({ token, exp, userId, eventId, linkedEmail: email });
+    writeStored(received({ token, exp, userId, eventId, linkedEmail: email }));
     return { kind: 'ok', token, userId, linkedEmail: email, ...displayNameField(displayName) };
   } catch {
     return { kind: 'error' };

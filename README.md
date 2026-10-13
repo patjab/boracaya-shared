@@ -130,6 +130,12 @@ sending it. `ensureGuestToken` and `hasGuestSession` never throw, and
 `claimIdentity`, `loginNoEvent` and `unlinkIdentity` return `ok` whenever the
 server succeeded, even if the session could not be persisted.
 
+A session's expiry is judged on the device's own clock from when it was
+received (shore#530): the cache records the token's lifetime (`exp - iat`,
+read from the JWT) counted from receipt, so a device clock that is fast or slow
+against the server no longer expires fresh sessions or keeps dead ones. The
+30-second margin stays. An entry or token without `iat` falls back to `exp`.
+
 ## Client error reporting (cdk#1495)
 
 `report.ts` is the one funnel every browser-side failure passes through: the
