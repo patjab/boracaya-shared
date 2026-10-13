@@ -7,6 +7,7 @@ import {
   hasGuestSession,
   loginNoEvent,
   refreshGuestSession,
+  unlinkIdentity,
 } from './guestAuth';
 import { GuestEventApi, PublicApi } from './publicApi';
 
@@ -259,6 +260,68 @@ describe('refreshGuestSession never clobbers a session that changed in flight (s
     release(reply(200, renewed('u1').body));
     expect(await pending).toEqual({ kind: 'superseded' });
     expect(cached()).toMatchObject({ token: fromLink, userId: 'u3' });
+  });
+});
+
+describe('refreshGuestSession and its neighbours keep one another’s writes (shore#395)', () => {
+  it('a finished renewal is forgotten: a 503 does not answer the next call', async () => {
+    session('u1');
+    const { token, body } = renewed('u1');
+    const spy = stubFetch(reply(503, {}));
+    expect(await refreshGuestSession('evt-9')).toEqual({ kind: 'error' });
+
+    spy.mockImplementation(async () => reply(200, body));
+    expect(await refreshGuestSession('evt-9')).toMatchObject({ kind: 'ok', token });
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('a claim that re-mints the very same token string is still caught by the generation', async () => {
+    const old = session('u1');
+    const { release } = deferredFetch();
+    const pending = refreshGuestSession('evt-9');
+
+    const refreshFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) =>
+      url === GuestEventApi.claim('evt-9')
+        ? reply(200, { token: old, exp: FAR, userId: 'u1', claimed: true, linkedEmail: 'bob@example.com' })
+        : (refreshFetch as typeof fetch)(url, init)));
+    expect(await claimIdentity({ eventId: 'evt-9', credential: 'c' })).toMatchObject({ kind: 'ok' });
+
+    release(reply(200, renewed('u1').body));
+    expect(await pending).toEqual({ kind: 'superseded' });
+    expect(cached()).toMatchObject({ token: old, linkedEmail: 'bob@example.com' });
+  });
+
+  it('an unlink that lands after a renewal keeps the renewed session, not the one it read first', async () => {
+    session('u1', 'evt-9', 1);
+    let releaseUnlink!: (r: Response) => void;
+    const unlinkReply = new Promise<Response>((resolve) => { releaseUnlink = resolve; });
+    const { token, body } = renewed('u1');
+    vi.stubGlobal('fetch', vi.fn(async (url: string) =>
+      url === GuestEventApi.unlink('evt-9') ? unlinkReply : reply(200, body)));
+
+    const unlinking = unlinkIdentity('evt-9');
+    expect(await refreshGuestSession('evt-9')).toMatchObject({ kind: 'ok', token });
+    releaseUnlink(reply(200, {}));
+
+    expect(await unlinking).toEqual({ kind: 'ok' });
+    expect(cached()).toEqual({ token, exp: FAR - 1, userId: 'u1', eventId: 'evt-9', linkedEmail: null });
+  });
+
+  it('a renewal that lands after an unlink does not write the pre-unlink linkedEmail back', async () => {
+    session('u1');
+    const { release } = deferredFetch();
+    const pending = refreshGuestSession('evt-9');
+
+    const refreshFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) =>
+      url === GuestEventApi.unlink('evt-9') ? reply(200, {}) : (refreshFetch as typeof fetch)(url, init)));
+    expect(await unlinkIdentity('evt-9')).toEqual({ kind: 'ok' });
+
+    const { token, body } = renewed('u1');
+    release(reply(200, body));
+    expect(await pending).toMatchObject({ kind: 'ok', token, linkedEmail: null });
+    expect(cached()).toMatchObject({ token, linkedEmail: null });
   });
 });
 

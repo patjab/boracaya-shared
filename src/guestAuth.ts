@@ -61,6 +61,9 @@ function readValid(eventId: string, userId: string): string | null {
 // the canonical one — a stale exchange must not clobber the freshly claimed cache entry.
 // Each claim bumps the generation; an exchange only writes if its snapshot still matches.
 let cacheGeneration = 0;
+/** Bumped by every successful unlink (shore#395): a refresh that started before it must not
+ *  write the pre-unlink linkedEmail back. */
+let unlinkEpoch = 0;
 
 // ONE legacy exchange per (event, userId) at a time, shared by EVERY caller (shore#353).
 //
@@ -564,7 +567,15 @@ export async function unlinkIdentity(eventId: string): Promise<UnlinkResult> {
     if (res.status === 200) {
       // Keep the session token — the guest stays signed in via their invite link; only
       // the linked-Google marker is cleared so the toggle flips back to "Link".
-      sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...stored, linkedEmail: null } as StoredToken));
+      // shore#395: clear it on the entry cached NOW, not the one read before the call — a
+      // refresh that landed meanwhile renewed the token, and writing `stored` back would
+      // restore the old, soon-expiring one. `unlinkEpoch` tells a refresh still in flight
+      // that its linkedEmail predates this unlink.
+      unlinkEpoch += 1;
+      const current = readStored();
+      if (current && current.eventId === eventId && current.userId === stored.userId) {
+        sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...current, linkedEmail: null } as StoredToken));
+      }
       return { kind: 'ok' };
     }
     if (res.status === 401) return { kind: 'unauthenticated' };
@@ -642,6 +653,7 @@ export async function refreshGuestSession(
 /** The one network call behind `refreshGuestSession`; `refreshInFlight` dedupes callers. */
 async function refresh(eventId: string, sessionToken: string): Promise<GuestSessionRefresh> {
   const generation = cacheGeneration;
+  const unlinks = unlinkEpoch;
   try {
     const res = await fetch(GuestEventApi.refresh(eventId), {
       method: 'POST',
@@ -661,7 +673,10 @@ async function refresh(eventId: string, sessionToken: string): Promise<GuestSess
     // The body carries no userId (cdk#1566): the new JWT's own `sub` names the identity.
     const userId = guestSubjectFromToken(token);
     if (!userId) return { kind: 'error' };
-    const email = typeof linkedEmail === 'string' && linkedEmail ? linkedEmail : null;
+    // An unlink that completed while this request was out wins: the server may have read
+    // the binding before it was removed.
+    const email = unlinks === unlinkEpoch && typeof linkedEmail === 'string' && linkedEmail
+      ? linkedEmail : null;
     // Supersession: an identity change (claim/login) bumped the generation, or the cache no
     // longer holds the session that was renewed (sign-out, another lane's mint).
     const current = readStored();
