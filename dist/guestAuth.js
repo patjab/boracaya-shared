@@ -27,34 +27,86 @@ exports.clearGuestToken = clearGuestToken;
 // only touched inside functions, so importing this module in Node (e2e, the contract test)
 // is safe — only calling ensureGuestToken() needs a browser.
 const publicApi_1 = require("./publicApi");
+// One cached session per EVENT (shore#529): `pdab_guest_token:<eventId>`. A guest invited to
+// two events holds both sessions in one tab, and signing out of one leaves the other alone.
+// The bare key is the single slot every event used to share; it is still READ (an entry for
+// the asked-for event, written before this change, stays usable) but never written again —
+// the event's first write moves it to its own key.
 const TOKEN_KEY = 'pdab_guest_token';
+const keyFor = (eventId) => `${TOKEN_KEY}:${eventId}`;
 // Refresh a little before the real edge so an in-flight request never carries a token that
 // expires mid-flight.
 const SKEW_MS = 30000;
-/** The cached guest token entry, or null when absent/corrupt. */
-function readStored() {
+/** The entry's expiry on this device's clock, in epoch ms (see `expiresAt`). */
+const expiryMs = (s) => typeof s.expiresAt === 'number' ? s.expiresAt : s.exp * 1000;
+/** The event most recently written in this tab, for the event-less expiry read. */
+let lastEventId = null;
+// Sessions storage would not keep (shore#491): with site data blocked, reading the
+// `sessionStorage` global itself throws, and a session minted on a 200 would be lost the
+// moment it arrived — the guest shown as signed in while every call went out without a
+// token. A write that fails lands here instead, so the session serves this tab for as long
+// as the page lives. An entry here is always newer than storage's (a write that persists
+// removes it), so a read prefers it.
+const unpersisted = new Map();
+function parseEntry(raw) {
+    if (!raw)
+        return null;
     try {
-        const raw = sessionStorage.getItem(TOKEN_KEY);
-        return raw ? JSON.parse(raw) : null;
+        const s = JSON.parse(raw);
+        return s && typeof s === 'object' ? s : null;
     }
     catch (_a) {
         return null;
     }
 }
-function readValid(eventId, userId) {
-    const raw = sessionStorage.getItem(TOKEN_KEY);
-    if (!raw)
-        return null;
+/** The legacy single-slot entry, only if it belongs to `eventId`. Throws if storage does. */
+function readLegacy(eventId) {
+    const s = parseEntry(sessionStorage.getItem(TOKEN_KEY));
+    return s && s.eventId === eventId ? s : null;
+}
+/** This event's cached session entry, or null when absent/corrupt. Never throws. */
+function readStored(eventId) {
+    const held = unpersisted.get(eventId);
+    if (held)
+        return held;
     try {
-        const s = JSON.parse(raw);
-        if (s.eventId === eventId && s.userId === userId && s.token
-            && s.exp * 1000 - SKEW_MS > Date.now())
-            return s.token;
+        const raw = sessionStorage.getItem(keyFor(eventId));
+        if (raw !== null) {
+            const s = parseEntry(raw);
+            // A corrupt entry is absent; one naming another event can only be tampering.
+            return s && s.eventId === eventId ? s : null;
+        }
+        return readLegacy(eventId);
     }
     catch (_a) {
-        /* corrupt entry -> treat as absent (a pre-#427 entry without eventId parses
-           fine and is rejected by the eventId equality check above instead) */
+        return null;
     }
+}
+/** Cache `entry` as its event's session: in storage, or in memory when storage refuses
+ *  it (shore#491). Never throws — a server success is never turned into a failure here. */
+function writeStored(entry) {
+    lastEventId = entry.eventId;
+    try {
+        sessionStorage.setItem(keyFor(entry.eventId), JSON.stringify(entry));
+    }
+    catch (_a) {
+        unpersisted.set(entry.eventId, entry);
+        return;
+    }
+    unpersisted.delete(entry.eventId);
+    // Migrated: the shared slot no longer speaks for this event.
+    try {
+        if (readLegacy(entry.eventId))
+            sessionStorage.removeItem(TOKEN_KEY);
+    }
+    catch (_b) {
+        /* the entry is written; an unreadable old slot is no reason to fail the write */
+    }
+}
+function readValid(eventId, userId) {
+    const s = readStored(eventId);
+    if (s && s.userId === userId && s.token && expiryMs(s) - SKEW_MS > Date.now())
+        return s.token;
     return null;
 }
 // A claim supersedes any in-flight exchange (#439 review): reservations calls firing on
@@ -127,6 +179,21 @@ async function ensureGuestToken(eventId, userId) {
     return result.kind === 'ok' ? result.token : null;
 }
 /**
+ * The auth service's own 403 refusal, read from its body (shore#401), or null for any other
+ * 403. The perimeter answers 403 too — the WAF's /auth/ rate limit blocks with a default
+ * body that is not JSON — and that is transient: reading it as a refusal would sign out a
+ * guest holding a perfectly good session. Only the service's two bodies are refusals.
+ */
+async function refusal(res) {
+    const body = await res.json().catch(() => null);
+    const error = body && typeof body === 'object' ? body.error : undefined;
+    if (error === 'invitation link replaced')
+        return 'replaced';
+    if (error === 'unknown invitation')
+        return 'unknown';
+    return null;
+}
+/**
  * The canonical userId a guest JWT was minted for, read from its own `sub`.
  *
  * The cdk#1566 lane deliberately does NOT echo `userId` in the response body —
@@ -138,19 +205,34 @@ async function ensureGuestToken(eventId, userId) {
  * Returns null for anything that is not a parseable JWT payload with a `sub`.
  */
 function guestSubjectFromToken(token) {
+    var _a;
+    const sub = (_a = tokenClaims(token)) === null || _a === void 0 ? void 0 : _a.sub;
+    return typeof sub === 'string' && sub ? sub : null;
+}
+/** A JWT's payload claims, unverified (the server verifies), or null when unreadable. */
+function tokenClaims(token) {
     if (!token)
         return null;
     try {
         const payload = token.split('.')[1];
         if (!payload)
             return null;
-        const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-        const sub = JSON.parse(json).sub;
-        return typeof sub === 'string' && sub ? sub : null;
+        const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+        return claims && typeof claims === 'object' ? claims : null;
     }
     catch (_a) {
         return null;
     }
+}
+/** The cache entry for a session just received (shore#530): `expiresAt` is the token's own
+ *  lifetime from its `iat` to the `exp` the server sent, counted from now, so the device's
+ *  clock offset from the server's cancels out. Without a usable `iat` it is left off. */
+function received(entry) {
+    var _a;
+    const iat = (_a = tokenClaims(entry.token)) === null || _a === void 0 ? void 0 : _a.iat;
+    return typeof iat === 'number' && Number.isFinite(iat) && Number.isFinite(entry.exp) && entry.exp > iat
+        ? { ...entry, expiresAt: Date.now() + (entry.exp - iat) * 1000 }
+        : entry;
 }
 /** The mint body's `displayName` (shore#503), as a spreadable field: `{ displayName }` when
  *  the server named the guest with a non-empty string, `{}` otherwise — so a result from a
@@ -161,7 +243,7 @@ function displayNameField(value) {
 function cacheSession(eventId, userId, token, exp, linkedEmail, generation) {
     if (generation !== cacheGeneration)
         return;
-    sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail }));
+    writeStored(received({ token, exp, userId, eventId, linkedEmail }));
 }
 /**
  * Exchange an invitation TOKEN (the `?invite=` link's credential) for an
@@ -181,23 +263,19 @@ async function exchangeInvitationToken(eventId, invitationToken) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: invitationToken }),
         });
+        // Either refusal is "no such invitation" here: `replaced` is a legacy-link answer.
         if (res.status === 403)
-            return { kind: 'unknown' };
+            return (await refusal(res)) ? { kind: 'unknown' } : { kind: 'error' };
         if (!res.ok)
             return { kind: 'error' };
         const { token, exp, linkedEmail, displayName } = (await res.json());
         const userId = guestSubjectFromToken(token);
         if (!userId)
             return { kind: 'error' };
-        try {
-            cacheSession(eventId, userId, token, exp, linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null, generation);
-        }
-        catch (_a) {
-            // storage unavailable — the session just won't survive a reload
-        }
+        cacheSession(eventId, userId, token, exp, linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null, generation);
         return { kind: 'ok', token, userId, ...displayNameField(displayName) };
     }
-    catch (_b) {
+    catch (_a) {
         return { kind: 'error' };
     }
 }
@@ -208,7 +286,8 @@ async function exchangeInvitationToken(eventId, invitationToken) {
  * Distinguishes the two 403s the old lane can now produce, which
  * `ensureGuestToken` cannot: `replaced` means the four weeks are up and this
  * link is permanently dead (the screens show "Find my invitation"), while
- * `unknown` is the pre-existing "no such invitation".
+ * `unknown` is the pre-existing "no such invitation". Both are the server's
+ * definite answer; a 403 with any other body (a WAF block) is `error`.
  *
  * On success the server also hands back a freshly minted `invitationToken` —
  * the silent swap — which the caller puts in the URL in place of the userId.
@@ -230,10 +309,8 @@ async function legacyExchange(eventId, userId) {
             body: JSON.stringify({ userId }),
         });
         if (res.status === 403) {
-            const body = (await res.json().catch(() => ({})));
-            return body.error === 'invitation link replaced'
-                ? { kind: 'replaced' }
-                : { kind: 'unknown' };
+            const refused = await refusal(res);
+            return refused ? { kind: refused } : { kind: 'error' };
         }
         if (!res.ok)
             return { kind: 'error' };
@@ -241,15 +318,10 @@ async function legacyExchange(eventId, userId) {
         // The mint's own `sub` is authoritative: a tombstoned link resolves to a
         // DIFFERENT canonical id than the one in the URL (#373 D3a).
         const canonical = (_a = guestSubjectFromToken(token)) !== null && _a !== void 0 ? _a : userId;
-        try {
-            cacheSession(eventId, canonical, token, exp, linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null, generation);
-        }
-        catch (_b) {
-            // storage unavailable
-        }
+        cacheSession(eventId, canonical, token, exp, linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null, generation);
         return { kind: 'ok', token, userId: canonical, invitationToken, ...displayNameField(displayName) };
     }
-    catch (_c) {
+    catch (_b) {
         return { kind: 'error' };
     }
 }
@@ -257,12 +329,28 @@ async function legacyExchange(eventId, userId) {
  * Seconds until the cached guest token expires, or undefined when none is
  * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client
  * error report. Exposes the expiry ONLY — never the token, userId or event.
+ *
+ * Sessions are cached per event (shore#529): pass `eventId` for that event's.
+ * Without one it reads the session this tab cached most recently (before any,
+ * the pre-#529 single slot) — what the event-less call has always meant.
  */
-function guestTokenExpiresInSeconds() {
-    const s = readStored();
-    if (!s || typeof s.exp !== 'number')
+function guestTokenExpiresInSeconds(eventId) {
+    const event = eventId || lastEventId;
+    let s;
+    if (event) {
+        s = readStored(event);
+    }
+    else {
+        try {
+            s = parseEntry(sessionStorage.getItem(TOKEN_KEY));
+        }
+        catch (_a) {
+            s = null;
+        }
+    }
+    if (!s || (typeof s.exp !== 'number' && typeof s.expiresAt !== 'number'))
         return undefined;
-    return Math.max(0, Math.round(s.exp - Date.now() / 1000));
+    return Math.max(0, Math.round((expiryMs(s) - Date.now()) / 1000));
 }
 /** Authorization header for a reservations call, or {} when no token is available. */
 async function guestAuthHeaders(eventId, userId) {
@@ -272,17 +360,20 @@ async function guestAuthHeaders(eventId, userId) {
 /**
  * The identity's single linked Google for this (event, userId), or null if none (cdk#637).
  * Ensures a token first (the exchange response carries `linkedEmail`), so the gated screens
- * can render the Link vs Unlink toggle off one call. Null when no token can be minted.
+ * can render the Link vs Unlink toggle off one call.
+ *
+ * Null is only ever a confirmed "no Google linked" (shore#483). When the link state cannot
+ * be known — no session could be minted (a 429, a 5xx, offline, a refused id) or an id is
+ * missing — this REJECTS. A caller must not offer Link on a rejection: the claim it starts
+ * binds the incoming Google, and with the current one unseen no "replace?" check can run.
  */
 async function guestLinkedEmail(eventId, userId) {
     var _a;
     const token = await ensureGuestToken(eventId, userId);
-    if (!token)
-        return null;
-    const stored = readStored();
-    return stored && stored.eventId === eventId && stored.userId === userId
-        ? (_a = stored.linkedEmail) !== null && _a !== void 0 ? _a : null
-        : null;
+    const stored = token && eventId ? readStored(eventId) : null;
+    if (!stored || stored.userId !== userId)
+        throw new Error('guest link state unavailable');
+    return (_a = stored.linkedEmail) !== null && _a !== void 0 ? _a : null;
 }
 async function claimIdentity(params) {
     try {
@@ -297,9 +388,7 @@ async function claimIdentity(params) {
             // from params.userId (the invite link's provisional id); never conflate them.
             const { token, exp, userId: canonicalUserId, claimed, linkedEmail, displayName } = (await res.json());
             cacheGeneration += 1; // invalidate any in-flight exchange for the old identity
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({
-                token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null,
-            }));
+            writeStored(received({ token, exp, userId: canonicalUserId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null }));
             return {
                 kind: 'ok', userId: canonicalUserId, claimed: claimed === true, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null,
                 ...displayNameField(displayName),
@@ -369,7 +458,7 @@ async function loginNoEvent(credential) {
         if (res.status === 200) {
             const { token, exp, userId, eventId, linkedEmail, displayName } = (await res.json());
             cacheGeneration += 1; // invalidate any in-flight exchange for a prior identity
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null }));
+            writeStored(received({ token, exp, userId, eventId, linkedEmail: linkedEmail !== null && linkedEmail !== void 0 ? linkedEmail : null }));
             return { kind: 'ok', userId, eventId, ...displayNameField(displayName) };
         }
         // 300 Multiple Choices (cdk#1617 step 1): the caller's own memberships, nothing minted.
@@ -394,10 +483,10 @@ async function loginNoEvent(credential) {
     }
 }
 async function unlinkIdentity(eventId) {
-    const stored = readStored();
+    const stored = readStored(eventId);
     // The token must be THIS event's (auth is event-scoped, cdk#427) and unexpired-ish;
     // the server re-verifies, so this is only a fast local guard against a pointless call.
-    if (!stored || !stored.token || stored.eventId !== eventId)
+    if (!stored || !stored.token)
         return { kind: 'unauthenticated' };
     try {
         const res = await fetch(publicApi_1.GuestEventApi.unlink(eventId), {
@@ -412,9 +501,9 @@ async function unlinkIdentity(eventId) {
             // restore the old, soon-expiring one. `unlinkEpoch` tells a refresh still in flight
             // that its linkedEmail predates this unlink.
             unlinkEpoch += 1;
-            const current = readStored();
-            if (current && current.eventId === eventId && current.userId === stored.userId) {
-                sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ ...current, linkedEmail: null }));
+            const current = readStored(eventId);
+            if (current && current.userId === stored.userId) {
+                writeStored({ ...current, linkedEmail: null });
             }
             return { kind: 'ok' };
         }
@@ -437,10 +526,10 @@ const refreshInFlight = new Map();
 async function refreshGuestSession(eventId) {
     if (!eventId)
         return { kind: 'noSession' };
-    const stored = readStored();
+    const stored = readStored(eventId);
     // The cache entry must be THIS event's (auth is event-scoped, cdk#427): a session for
     // another event is not one to renew here, and the server would refuse it anyway.
-    if (!stored || typeof stored.token !== 'string' || !stored.token || stored.eventId !== eventId) {
+    if (!stored || typeof stored.token !== 'string' || !stored.token) {
         return { kind: 'noSession' };
     }
     const flightKey = JSON.stringify([eventId, stored.token]);
@@ -463,7 +552,7 @@ async function refresh(eventId, sessionToken) {
         if (res.status === 401)
             return { kind: 'unauthenticated' };
         if (res.status === 403)
-            return { kind: 'unknown' };
+            return (await refusal(res)) ? { kind: 'unknown' } : { kind: 'error' };
         if (res.status !== 200)
             return { kind: 'error' };
         const body = await res.json();
@@ -483,27 +572,43 @@ async function refresh(eventId, sessionToken) {
             ? linkedEmail : null;
         // Supersession: an identity change (claim/login) bumped the generation, or the cache no
         // longer holds the session that was renewed (sign-out, another lane's mint).
-        const current = readStored();
-        if (generation !== cacheGeneration || !current || current.token !== sessionToken
-            || current.eventId !== eventId) {
+        const current = readStored(eventId);
+        if (generation !== cacheGeneration || !current || current.token !== sessionToken) {
             return { kind: 'superseded' };
         }
-        try {
-            sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp, userId, eventId, linkedEmail: email }));
-        }
-        catch (_a) {
-            // storage unavailable — the renewed session just won't survive a reload
-        }
+        writeStored(received({ token, exp, userId, eventId, linkedEmail: email }));
         return { kind: 'ok', token, userId, linkedEmail: email, ...displayNameField(displayName) };
     }
-    catch (_b) {
+    catch (_a) {
         return { kind: 'error' };
     }
 }
-/** Drop the cached guest token (e.g. on identity change / sign-out). */
-function clearGuestToken() {
+/**
+ * Drop the cached guest session (e.g. on identity change / sign-out).
+ *
+ * With `eventId`, only THAT event's session goes (shore#529): signing out of one event
+ * must not sign the guest out of another they hold a session for in this tab. Without
+ * one, every event's session goes — a sign-out everywhere, as the single slot used to.
+ */
+function clearGuestToken(eventId) {
+    if (eventId)
+        unpersisted.delete(eventId);
+    else
+        unpersisted.clear();
     try {
+        if (eventId) {
+            sessionStorage.removeItem(keyFor(eventId));
+            if (readLegacy(eventId))
+                sessionStorage.removeItem(TOKEN_KEY);
+            return;
+        }
         sessionStorage.removeItem(TOKEN_KEY);
+        const prefix = keyFor('');
+        for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+            const key = sessionStorage.key(i);
+            if (key === null || key === void 0 ? void 0 : key.startsWith(prefix))
+                sessionStorage.removeItem(key);
+        }
     }
     catch (_a) {
         /* no storage (SSR) -> nothing to clear */

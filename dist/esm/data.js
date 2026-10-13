@@ -26,12 +26,13 @@ const safeAuthHeaders = () => {
  * and error states say which call failed without URL spelunking.
  */
 export class ApiError extends Error {
-    constructor(label, message, status, retryAfter) {
+    constructor(label, message, status, retryAfter, code) {
         super(message);
         this.name = 'ApiError';
         this.label = label;
         this.status = status;
         this.retryAfterSeconds = retryAfter;
+        this.code = code;
     }
 }
 /**
@@ -199,11 +200,14 @@ export async function sendJson(url, opts) {
     if (!res.ok) {
         let serverMessage;
         let bodyRetryAfter;
+        let serverCode;
         try {
             const parsed = JSON.parse(text);
             const m = (_b = parsed === null || parsed === void 0 ? void 0 : parsed.error) !== null && _b !== void 0 ? _b : parsed === null || parsed === void 0 ? void 0 : parsed.message;
             if (typeof m === 'string' && m.trim())
                 serverMessage = m;
+            if (typeof (parsed === null || parsed === void 0 ? void 0 : parsed.code) === 'string' && parsed.code.trim())
+                serverCode = parsed.code;
             if (typeof parsed.retryAfterSeconds === 'number'
                 && Number.isSafeInteger(parsed.retryAfterSeconds)
                 && parsed.retryAfterSeconds >= 0) {
@@ -216,7 +220,7 @@ export async function sendJson(url, opts) {
         const retryHeader = res.headers && typeof res.headers.get === 'function'
             ? res.headers.get('Retry-After')
             : null;
-        const err = new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_c = parseRetryAfterSeconds(retryHeader)) !== null && _c !== void 0 ? _c : bodyRetryAfter);
+        const err = new ApiError(label, serverMessage !== null && serverMessage !== void 0 ? serverMessage : `${label}: HTTP ${res.status}`, res.status, (_c = parseRetryAfterSeconds(retryHeader)) !== null && _c !== void 0 ? _c : bodyRetryAfter, serverCode);
         throw ((_d = opts.expect) === null || _d === void 0 ? void 0 : _d.includes(res.status))
             ? expected(err, opts.method, url, res.status)
             : failed(err, opts.method, url, startedAt, res);

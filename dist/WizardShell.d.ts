@@ -20,6 +20,13 @@ import type { WizardMessages } from './formMessages';
  *  - The step index resets when the step LIST identity changes length — a
  *    definition edit mid-flight (Valet live preview) must not strand the
  *    wizard past the end.
+ *  - Back/Next move focus to the new step's content, and the "N of M" caption
+ *    is a polite live region (shore#501): the pressed button often unmounts
+ *    (Back on step 2, Next onto the final step), which dropped focus to
+ *    <body>, and nothing told a screen-reader user the step changed. The
+ *    caption is aria-live only, with no status role, so a consumer's own
+ *    role="status" stays the only one. Only a press moves focus — never the
+ *    first render, nor a clamp from a shrinking step list.
  */
 export interface WizardStep {
     /** Stable key (question key / block id). */

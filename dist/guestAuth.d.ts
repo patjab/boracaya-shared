@@ -31,11 +31,13 @@ export type InvitationExchange =
  | {
     kind: 'replaced';
 }
-/** Unknown, revoked, or wrong-event — deliberately indistinguishable. */
+/** Unknown, revoked, or wrong-event — deliberately indistinguishable. The server's own
+ *  refusal ("unknown invitation"): a definite answer, not a fault to retry (shore#401). */
  | {
     kind: 'unknown';
 }
-/** Network or server fault; the caller may retry. */
+/** Network or server fault, or a 403 the auth service did not write (a WAF block, whose
+ *  body is not the service's JSON); the caller may retry. */
  | {
     kind: 'error';
 };
@@ -67,7 +69,8 @@ export declare function exchangeInvitationToken(eventId: string | null | undefin
  * Distinguishes the two 403s the old lane can now produce, which
  * `ensureGuestToken` cannot: `replaced` means the four weeks are up and this
  * link is permanently dead (the screens show "Find my invitation"), while
- * `unknown` is the pre-existing "no such invitation".
+ * `unknown` is the pre-existing "no such invitation". Both are the server's
+ * definite answer; a 403 with any other body (a WAF block) is `error`.
  *
  * On success the server also hands back a freshly minted `invitationToken` —
  * the silent swap — which the caller puts in the URL in place of the userId.
@@ -81,14 +84,23 @@ type LegacyExchange = InvitationExchange & {
  * Seconds until the cached guest token expires, or undefined when none is
  * cached / it is corrupt (cdk#1495): Shore's auth-state field on a client
  * error report. Exposes the expiry ONLY — never the token, userId or event.
+ *
+ * Sessions are cached per event (shore#529): pass `eventId` for that event's.
+ * Without one it reads the session this tab cached most recently (before any,
+ * the pre-#529 single slot) — what the event-less call has always meant.
  */
-export declare function guestTokenExpiresInSeconds(): number | undefined;
+export declare function guestTokenExpiresInSeconds(eventId?: string | null): number | undefined;
 /** Authorization header for a reservations call, or {} when no token is available. */
 export declare function guestAuthHeaders(eventId: string | null | undefined, userId: string | null | undefined): Promise<Record<string, string>>;
 /**
  * The identity's single linked Google for this (event, userId), or null if none (cdk#637).
  * Ensures a token first (the exchange response carries `linkedEmail`), so the gated screens
- * can render the Link vs Unlink toggle off one call. Null when no token can be minted.
+ * can render the Link vs Unlink toggle off one call.
+ *
+ * Null is only ever a confirmed "no Google linked" (shore#483). When the link state cannot
+ * be known — no session could be minted (a 429, a 5xx, offline, a refused id) or an id is
+ * missing — this REJECTS. A caller must not offer Link on a rejection: the claim it starts
+ * binds the incoming Google, and with the current one unseen no "replace?" check can run.
  */
 export declare function guestLinkedEmail(eventId: string | null | undefined, userId: string | null | undefined): Promise<string | null>;
 /** One chooser option (cdk#452): label is event-scoped — this event's guest name or a generic fallback. */
@@ -213,7 +225,8 @@ export type GuestSessionRefresh =
     kind: 'unauthenticated';
 }
 /** 403: the identity is no longer on this event's list, or the host revoked its link —
- *  deliberately indistinguishable, as `InvitationExchange`'s `unknown`. */
+ *  deliberately indistinguishable, as `InvitationExchange`'s `unknown`. A 403 the auth
+ *  service did not write (a WAF block) is `error` instead (shore#401). */
  | {
     kind: 'unknown';
 }
@@ -231,6 +244,12 @@ export type GuestSessionRefresh =
  * or why there is none. Never throws. See `GuestSessionRefresh` for the outcomes.
  */
 export declare function refreshGuestSession(eventId: string | null | undefined): Promise<GuestSessionRefresh>;
-/** Drop the cached guest token (e.g. on identity change / sign-out). */
-export declare function clearGuestToken(): void;
+/**
+ * Drop the cached guest session (e.g. on identity change / sign-out).
+ *
+ * With `eventId`, only THAT event's session goes (shore#529): signing out of one event
+ * must not sign the guest out of another they hold a session for in this tab. Without
+ * one, every event's session goes — a sign-out everywhere, as the single slot used to.
+ */
+export declare function clearGuestToken(eventId?: string | null): void;
 export {};

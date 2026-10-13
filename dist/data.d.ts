@@ -9,7 +9,13 @@ export declare class ApiError extends Error {
     readonly label: string;
     readonly status?: number;
     readonly retryAfterSeconds?: number;
-    constructor(label: string, message: string, status?: number, retryAfter?: number);
+    /**
+     * The server's machine-readable `code` from a non-2xx JSON body (e.g.
+     * `ASK_CLOSED`, `RATE_LIMITED`), so a caller can choose its copy without
+     * matching the free-text message (shore#518). Undefined when the body had none.
+     */
+    readonly code?: string;
+    constructor(label: string, message: string, status?: number, retryAfter?: number, code?: string);
 }
 /**
  * A call the app itself cancelled (#167). Extends ApiError so every existing

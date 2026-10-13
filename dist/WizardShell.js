@@ -45,6 +45,8 @@ const LinearProgress_1 = __importDefault(require("@mui/material/LinearProgress")
 const Typography_1 = __importDefault(require("@mui/material/Typography"));
 const WizardShell = ({ steps, finish, messages }) => {
     const [index, setIndex] = React.useState(0);
+    const stepRef = React.useRef(null);
+    const navigated = React.useRef(false);
     // Clamp, never strand: a shrinking step list (live preview edits, a
     // definition reload) pulls the wizard back to the new end.
     const max = Math.max(0, steps.length - 1);
@@ -53,6 +55,17 @@ const WizardShell = ({ steps, finish, messages }) => {
         if (index > max)
             setIndex(max);
     }, [index, max]);
+    React.useEffect(() => {
+        var _a;
+        if (!navigated.current)
+            return;
+        navigated.current = false;
+        (_a = stepRef.current) === null || _a === void 0 ? void 0 : _a.focus();
+    }, [index]);
+    const go = (next) => {
+        navigated.current = true;
+        setIndex(next);
+    };
     if (steps.length === 0)
         return null;
     const step = steps[i];
@@ -61,10 +74,10 @@ const WizardShell = ({ steps, finish, messages }) => {
         stepNumber: i + 1,
         stepCount: steps.length,
     });
-    return ((0, jsx_runtime_1.jsxs)(Box_1.default, { children: [(0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mb: 2 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "caption", color: "text.secondary", children: stepCountLabel }), (0, jsx_runtime_1.jsx)(LinearProgress_1.default, { "aria-label": stepCountLabel, variant: "determinate", value: ((i + 1) / steps.length) * 100, sx: { mt: 0.5, height: 3, borderRadius: 3 } })] }), (0, jsx_runtime_1.jsx)(Box_1.default, { children: step.content }, step.key), (0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }, children: [i > 0 && ((0, jsx_runtime_1.jsx)(Button_1.default, { variant: "outlined", onClick: () => setIndex(i - 1), children: messages.backActionLabel })), !last && ((0, jsx_runtime_1.jsx)(Button_1.default, { variant: "contained", disabled: step.canProceed === false, onClick: () => {
+    return ((0, jsx_runtime_1.jsxs)(Box_1.default, { children: [(0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mb: 2 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "caption", color: "text.secondary", "aria-live": "polite", "aria-atomic": "true", children: stepCountLabel }), (0, jsx_runtime_1.jsx)(LinearProgress_1.default, { "aria-label": stepCountLabel, variant: "determinate", value: ((i + 1) / steps.length) * 100, sx: { mt: 0.5, height: 3, borderRadius: 3 } })] }), (0, jsx_runtime_1.jsx)(Box_1.default, { ref: stepRef, tabIndex: -1, children: step.content }, step.key), (0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }, children: [i > 0 && ((0, jsx_runtime_1.jsx)(Button_1.default, { variant: "outlined", onClick: () => go(i - 1), children: messages.backActionLabel })), !last && ((0, jsx_runtime_1.jsx)(Button_1.default, { variant: "contained", disabled: step.canProceed === false, onClick: () => {
                             if (step.validate && !step.validate())
                                 return;
-                            setIndex(i + 1);
+                            go(i + 1);
                         }, children: messages.nextActionLabel })), last && finish] })] }));
 };
 exports.WizardShell = WizardShell;
