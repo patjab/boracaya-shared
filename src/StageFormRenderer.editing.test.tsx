@@ -139,3 +139,16 @@ describe('StageFormRenderer repeating group focus (shore#571)', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Yes' }));
   });
 });
+
+describe('StageFormRenderer legacy `fields` prop (cdk#2132)', () => {
+  it('renders only `elements`: a stray `fields` list from an untyped caller is not read', () => {
+    const legacy = [{ key: 'names', label: 'Names', type: 'list' }] as StageQuestion[];
+    const props = { messages, values: {}, onChange: () => {}, fields: legacy };
+    render(<StageFormRenderer {...(props as unknown as React.ComponentProps<typeof StageFormRenderer>)} />);
+    expect(screen.queryByLabelText('Names', { selector: 'input' })).toBeNull();
+    cleanup();
+    render(<StageFormRenderer {...(props as unknown as React.ComponentProps<typeof StageFormRenderer>)}
+      elements={legacy} />);
+    expect(screen.getByLabelText('Names', { selector: 'input' })).toBeTruthy();
+  });
+});
