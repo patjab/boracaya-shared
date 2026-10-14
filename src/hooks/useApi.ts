@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { isPlatformApiUrl } from '../apiHosts';
 import { authHeaders } from '../auth';
 
 type ApiState<T> = {
@@ -13,12 +14,17 @@ export const useApi = <T>(url: string, defaultOptions?: RequestInit) => {
     const execute = useCallback(async (overrideOptions?: RequestInit): Promise<T> => {
         setState(s => ({ ...s, isLoading: true, error: null }));
         try {
-            // Attach the Cognito ID token (when signed in) so gated endpoints accept
-            // the call; callers can still override any header. #161.
+            // Attach the Google ID token (when signed in) so gated endpoints accept
+            // the call — only to a first-party API host (shared#199); callers can
+            // still override any header. #161.
             const response = await fetch(url, {
                 ...defaultOptions,
                 ...overrideOptions,
-                headers: { ...authHeaders(), ...defaultOptions?.headers, ...overrideOptions?.headers },
+                headers: {
+                    ...(isPlatformApiUrl(url) ? authHeaders() : {}),
+                    ...defaultOptions?.headers,
+                    ...overrideOptions?.headers,
+                },
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json() as T;
