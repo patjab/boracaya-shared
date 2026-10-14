@@ -1,4 +1,5 @@
 /** Browser identity and guest-token operations. UI controls live in `boracaya-shared/ui`. */
 export { authHeaders, getEmail, getIdToken, initAuth, signOut, } from '../auth.js';
 export { idTokenExpiresInSeconds } from '../authToken.js';
+export { isPlatformApiUrl } from '../apiHosts.js';
 export { claimIdentity, clearGuestToken, ensureGuestToken, hasGuestSession, exchangeInvitationToken, exchangeLegacyInvite, guestAuthHeaders, guestLinkedEmail, guestSubjectFromToken, guestTokenExpiresInSeconds, loginNoEvent, refreshGuestSession, unlinkIdentity, } from '../guestAuth.js';

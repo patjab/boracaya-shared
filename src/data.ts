@@ -4,15 +4,18 @@
 // drifting on) each of these. React binding lives in hooks/useGuardedLoad.ts;
 // this module is plain TypeScript so Node consumers (e2e, contract tests) can
 // import it safely.
+import { isPlatformApiUrl } from './apiHosts';
 import { authHeaders } from './authToken';
 import { apiCaught, apiFailed, apiSucceeded } from './apiObserver';
 import { isCancelled, isCancelledCall } from './cancelled';
 import { retryAfterSeconds as parseRetryAfterSeconds } from './security';
 
-// authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
-// contract test) — and this module must stay Node-safe like guestAuth.ts. No
-// storage simply means no token to attach.
-const safeAuthHeaders = (): Record<string, string> => {
+// The token rides only to a first-party API host (shared#199): these helpers
+// used to attach it to any url they were handed. authHeaders() must also stay
+// Node-safe (e2e, the contract test) like guestAuth.ts — no token simply means
+// nothing to attach.
+const safeAuthHeaders = (url: string): Record<string, string> => {
+  if (!isPlatformApiUrl(url)) return {};
   try {
     return authHeaders();
   } catch {
@@ -162,7 +165,7 @@ export async function getJson<T>(url: string, opts: CallOptions = {}): Promise<T
   const startedAt = Date.now();
   let res: Response;
   try {
-    res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers }, signal: opts.signal });
+    res = await fetch(url, { headers: { ...safeAuthHeaders(url), ...opts.headers }, signal: opts.signal });
   } catch (e) {
     const err = new ApiError(label, `${label}: network error (${reasonOf(e)})`);
     throw rejected(e, err, 'GET', url, startedAt, opts);
@@ -233,7 +236,7 @@ export async function sendJson<T = void>(url: string, opts: SendOptions): Promis
       signal: opts.signal,
       headers: {
         ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...safeAuthHeaders(),
+        ...safeAuthHeaders(url),
         ...opts.headers,
       },
       ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),

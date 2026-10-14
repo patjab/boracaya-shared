@@ -4,14 +4,18 @@
 // drifting on) each of these. React binding lives in hooks/useGuardedLoad.ts;
 // this module is plain TypeScript so Node consumers (e2e, contract tests) can
 // import it safely.
+import { isPlatformApiUrl } from './apiHosts.js';
 import { authHeaders } from './authToken.js';
 import { apiCaught, apiFailed, apiSucceeded } from './apiObserver.js';
 import { isCancelled, isCancelledCall } from './cancelled.js';
 import { retryAfterSeconds as parseRetryAfterSeconds } from './security.js';
-// authHeaders() reads sessionStorage, which doesn't exist in Node (e2e, the
-// contract test) — and this module must stay Node-safe like guestAuth.ts. No
-// storage simply means no token to attach.
-const safeAuthHeaders = () => {
+// The token rides only to a first-party API host (shared#199): these helpers
+// used to attach it to any url they were handed. authHeaders() must also stay
+// Node-safe (e2e, the contract test) like guestAuth.ts — no token simply means
+// nothing to attach.
+const safeAuthHeaders = (url) => {
+    if (!isPlatformApiUrl(url))
+        return {};
     try {
         return authHeaders();
     }
@@ -116,7 +120,7 @@ export async function getJson(url, opts = {}) {
     const startedAt = Date.now();
     let res;
     try {
-        res = await fetch(url, { headers: { ...safeAuthHeaders(), ...opts.headers }, signal: opts.signal });
+        res = await fetch(url, { headers: { ...safeAuthHeaders(url), ...opts.headers }, signal: opts.signal });
     }
     catch (e) {
         const err = new ApiError(label, `${label}: network error (${reasonOf(e)})`);
@@ -186,7 +190,7 @@ export async function sendJson(url, opts) {
             signal: opts.signal,
             headers: {
                 ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-                ...safeAuthHeaders(),
+                ...safeAuthHeaders(url),
                 ...opts.headers,
             },
             ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),

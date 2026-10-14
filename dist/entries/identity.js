@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.unlinkIdentity = exports.refreshGuestSession = exports.loginNoEvent = exports.guestTokenExpiresInSeconds = exports.guestSubjectFromToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.exchangeLegacyInvite = exports.exchangeInvitationToken = exports.hasGuestSession = exports.ensureGuestToken = exports.clearGuestToken = exports.claimIdentity = exports.idTokenExpiresInSeconds = exports.signOut = exports.initAuth = exports.getIdToken = exports.getEmail = exports.authHeaders = void 0;
+exports.unlinkIdentity = exports.refreshGuestSession = exports.loginNoEvent = exports.guestTokenExpiresInSeconds = exports.guestSubjectFromToken = exports.guestLinkedEmail = exports.guestAuthHeaders = exports.exchangeLegacyInvite = exports.exchangeInvitationToken = exports.hasGuestSession = exports.ensureGuestToken = exports.clearGuestToken = exports.claimIdentity = exports.isPlatformApiUrl = exports.idTokenExpiresInSeconds = exports.signOut = exports.initAuth = exports.getIdToken = exports.getEmail = exports.authHeaders = void 0;
 /** Browser identity and guest-token operations. UI controls live in `boracaya-shared/ui`. */
 var auth_1 = require("../auth");
 Object.defineProperty(exports, "authHeaders", { enumerable: true, get: function () { return auth_1.authHeaders; } });
@@ -10,6 +10,8 @@ Object.defineProperty(exports, "initAuth", { enumerable: true, get: function () 
 Object.defineProperty(exports, "signOut", { enumerable: true, get: function () { return auth_1.signOut; } });
 var authToken_1 = require("../authToken");
 Object.defineProperty(exports, "idTokenExpiresInSeconds", { enumerable: true, get: function () { return authToken_1.idTokenExpiresInSeconds; } });
+var apiHosts_1 = require("../apiHosts");
+Object.defineProperty(exports, "isPlatformApiUrl", { enumerable: true, get: function () { return apiHosts_1.isPlatformApiUrl; } });
 var guestAuth_1 = require("../guestAuth");
 Object.defineProperty(exports, "claimIdentity", { enumerable: true, get: function () { return guestAuth_1.claimIdentity; } });
 Object.defineProperty(exports, "clearGuestToken", { enumerable: true, get: function () { return guestAuth_1.clearGuestToken; } });

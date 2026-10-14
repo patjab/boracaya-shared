@@ -96,12 +96,18 @@ const valetForms = await bothConditions('valet-forms.ts');
 const nodeSurface = await bothConditions('valet-node.ts', { platform: 'node' });
 const switchboard = await bothConditions('valet-switchboard.ts');
 
+// Admin endpoint code is marked by api.ts's own names — the ApiConstants
+// ADMIN_EVENTS getter and an admin-only route — not by the `valet-api` host
+// string: apiHosts.ts names that host in its token allowlist and legitimately
+// ships with the data layer (shared#199).
+const ADMIN_ENDPOINT_CODE = /ADMIN_EVENTS|scramble\/send/;
+
 assertInputs(legacy, [
   '/dist/StageFormRenderer.js',
   '/dist/WizardShell.js',
   '/dist/api.js',
 ], 'legacy CommonJS root');
-assert.match(legacy.code, /valet-api/, 'legacy root must demonstrate retained admin endpoint code');
+assert.match(legacy.code, ADMIN_ENDPOINT_CODE, 'legacy root must demonstrate retained admin endpoint code');
 
 for (const [condition, result] of Object.entries(bootstrap)) {
   const prefix = condition === 'esm' ? '/dist/esm' : '/dist';
@@ -117,7 +123,8 @@ for (const [condition, result] of Object.entries(bootstrap)) {
     `${prefix}/ErrorBoundary.js`,
     `${prefix}/GoogleSignInButton.js`,
   ], `${condition.toUpperCase()} bootstrap`);
-  assert.doesNotMatch(result.code, /@mui|valet-api|accounts\.google\.com\/gsi/);
+  assert.doesNotMatch(result.code, /@mui|accounts\.google\.com\/gsi/);
+  assert.doesNotMatch(result.code, ADMIN_ENDPOINT_CODE);
 }
 assert(
   bootstrap.esm.gzipBytes < legacy.gzipBytes * 0.5,
@@ -139,8 +146,9 @@ assertNoInputs(identity.esm, [
 ], 'actual Shore ESM identity');
 assert.doesNotMatch(
   identity.esm.code,
-  /@mui|valet-api|accounts\.google\.com\/gsi|from\s*["']react["']/,
+  /@mui|accounts\.google\.com\/gsi|from\s*["']react["']/,
 );
+assert.doesNotMatch(identity.esm.code, ADMIN_ENDPOINT_CODE);
 
 // The compatibility identity barrel legitimately loads auth.js because it
 // publishes initAuth/signOut as well as token calls. It must still exclude all
@@ -157,7 +165,8 @@ assertNoInputs(identity.cjs, [
   '/dist/StageFormRenderer.js',
   '/dist/WizardShell.js',
 ], 'actual Shore CommonJS identity');
-assert.doesNotMatch(identity.cjs.code, /@mui|valet-api|from\s*["']react["']/);
+assert.doesNotMatch(identity.cjs.code, /@mui|from\s*["']react["']/);
+assert.doesNotMatch(identity.cjs.code, ADMIN_ENDPOINT_CODE);
 
 for (const [consumer, variants] of [
   ['Shore forms', shoreForms],
@@ -176,7 +185,7 @@ for (const [consumer, variants] of [
       `${prefix}/authToken.js`,
     ], `${consumer} ${condition.toUpperCase()}`);
     assert.match(result.code, /@mui\/material/);
-    assert.doesNotMatch(result.code, /valet-api/);
+    assert.doesNotMatch(result.code, ADMIN_ENDPOINT_CODE);
   }
 }
 
@@ -191,7 +200,7 @@ for (const [condition, result] of Object.entries(valetBrowser)) {
     `${prefix}/StageFormRenderer.js`,
     `${prefix}/WizardShell.js`,
   ], `Valet browser ${condition.toUpperCase()}`);
-  assert.match(result.code, /valet-api/);
+  assert.match(result.code, ADMIN_ENDPOINT_CODE);
   assert.doesNotMatch(result.code, /@mui|from\s*["']react["']/);
 }
 
@@ -221,7 +230,8 @@ for (const [condition, result] of Object.entries(switchboard)) {
   ], label);
   assert.equal(sharedInputCount(result), 2, `${label} retained more than the entry and the token module`);
   assert.match(result.code, /#f04e23/, `${label} must retain the Bench accent`);
-  assert.doesNotMatch(result.code, /@mui|valet-api|from\s*["']react["']/);
+  assert.doesNotMatch(result.code, /@mui|from\s*["']react["']/);
+  assert.doesNotMatch(result.code, ADMIN_ENDPOINT_CODE);
 }
 
 const expectedSubpaths = [
@@ -245,7 +255,7 @@ const expectedSubpaths = [
   './switchboard',
   './ui',
 ];
-assert.equal(packageJson.version, '11.5.1');
+assert.equal(packageJson.version, '11.6.0');
 assert.equal(packageJson.sideEffects, false);
 assert.deepEqual(Object.keys(packageJson.exports).sort(), expectedSubpaths);
 assert(!Object.keys(packageJson.exports).some((key) => key.includes('*')), 'exports must stay explicit');

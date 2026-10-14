@@ -7,6 +7,7 @@ export {
   signOut,
 } from '../auth';
 export { idTokenExpiresInSeconds } from '../authToken';
+export { isPlatformApiUrl } from '../apiHosts';
 export {
   claimIdentity,
   clearGuestToken,
