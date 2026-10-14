@@ -2,14 +2,25 @@
 //
 // The browser obtains a Google ID token directly from Google (no Cognito); the apps
 // send it on gated API calls and the API authorizer verifies it (Google JWKS, aud =
-// our client) against the RSVP guest list. One Google OAuth Web client serves test
-// and prod (its Authorized JavaScript origins list every app origin). Google-only —
-// no email OTP. Token is held in module scope (authToken.ts) and attached by useApi.
+// our client) against the RSVP guest list. Google-only — no email OTP. Token is held
+// in module scope (authToken.ts) and attached by useApi.
+//
+// One Google OAuth Web client PER ENVIRONMENT (cdk#1883): a shared client let an ID
+// token minted on any testing origin pass prod's `aud` check. The client is picked
+// at runtime from the page hostname (env.ts), the same way api.ts picks the API, and
+// must equal that environment's ENV_CONFIG[env].auth.googleClientId in the CDK.
 import { setIdToken, clearIdToken } from './authToken';
+import { getEnv, type EnvName } from './env';
 
 export { authHeaders, getEmail, getIdToken } from './authToken';
 
-const CLIENT_ID = '129809912902-gudslqiduqd2opdk7n1rat829msgtias.apps.googleusercontent.com';
+const CLIENT_ID_BY_ENV: Record<EnvName, string> = {
+  PROD: '129809912902-gudslqiduqd2opdk7n1rat829msgtias.apps.googleusercontent.com',
+  TEST: '129809912902-chmba2sh0uhjh8pasm2t2bc8houb2u32.apps.googleusercontent.com',
+};
+
+/** The GIS client id for the page's environment (cdk#1883). */
+const googleClientId = (): string => CLIENT_ID_BY_ENV[getEnv()];
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
 
 type App = 'checkin' | 'admin';
@@ -47,7 +58,7 @@ export function initAuth(_app?: App): Promise<void> {
     document.head.appendChild(s);
   }).then(() => {
     gsi()!.initialize({
-      client_id: CLIENT_ID,
+      client_id: googleClientId(),
       // TRUE since valet#640 moved the token out of sessionStorage: nothing
       // carries a session across a page load any more, so without automatic
       // selection the organizer re-clicks "Continue with Google" on every

@@ -1,0 +1,30 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "af40771f7912510b1b7de619ee9f44bf0eb1dd6a25c902a73a09925b62c52791",
+  "repo": "patjab/boracaya-shared",
+  "branch": "claude/1883-testing-oauth-client",
+  "base": "origin/main",
+  "merge_base": "6d3e946678ea4bfe31be6cd99cc770dfd85e0723",
+  "head": "3ba2d7651eae91ac9322c728cbd2a382b56e5b90",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 3,
+  "ledger": [],
+  "created_at": "2026-10-14T01:36:34Z"
+}
