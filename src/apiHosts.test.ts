@@ -95,3 +95,45 @@ describe('getJson / sendJson attach the token only to API hosts', () => {
     expect(sentAuth()).toBe('Bearer explicit');
   });
 });
+
+/** Every url the endpoint builders produce, for the env the page hostname picks. */
+const builtUrls = async (pageHost: string): Promise<string[]> => {
+  vi.resetModules();
+  vi.stubGlobal('window', { location: { hostname: pageHost } });
+  const api = await import('./api');
+  const urls: string[] = [];
+  const walk = (value: unknown): void => {
+    if (typeof value === 'string') urls.push(value);
+    else if (typeof value === 'function') walk(value('e1', 'x', 'y'));
+    else if (value && typeof value === 'object') {
+      for (const key of Object.keys(value)) walk((value as Record<string, unknown>)[key]);
+    }
+  };
+  for (const name of ['ApiConstants', 'AdminEventApi', 'AccountApi', 'FacesApi',
+    'OrganizerInviteApi', 'PublicApi', 'GuestEventApi'] as const) {
+    walk(api[name]);
+  }
+  return urls;
+};
+
+// The allowlist must stay in lockstep with the hosts the builders actually use:
+// a host missing here ships tokenless requests that 401.
+describe.each([
+  ['prod', 'valet.boracaya.com'],
+  ['testing', 'valet.test.boracaya.com'],
+])('every %s endpoint host is on the allowlist', (env, pageHost) => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('allows every built API url except the faces GPU box', async () => {
+    const urls = await builtUrls(pageHost);
+    expect(urls.length).toBeGreaterThan(40);
+    // The page host really picked the environment under test.
+    expect(urls.every((url) => new URL(url).hostname.includes('.test.'))).toBe(env === 'testing');
+    const box = urls.filter((url) => new URL(url).hostname.startsWith('faces.'));
+    const refused = urls.filter((url) => !box.includes(url) && !isPlatformApiUrl(url));
+    expect(refused).toEqual([]);
+    // The box authenticates with its own secret and never gets the user token.
+    expect(box.length).toBeGreaterThan(0);
+    expect(box.filter(isPlatformApiUrl)).toEqual([]);
+  });
+});
