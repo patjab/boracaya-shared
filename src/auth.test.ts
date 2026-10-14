@@ -27,10 +27,10 @@ interface Harness {
 }
 
 /** Fresh import with stubbed window/document; returns handles to the stub scripts. */
-const load = async (): Promise<Harness> => {
+const load = async (hostname = 'valet.boracaya.com'): Promise<Harness> => {
   vi.resetModules();
   const scripts: StubScript[] = [];
-  const win: Harness['win'] = {};
+  const win: Harness['win'] & { location: { hostname: string } } = { location: { hostname } };
   // The GIS callback dispatches `pdab-auth-change` on window — that event is how
   // the console learns to re-probe. Recording it keeps the stub faithful to the
   // code under test AND makes the notification assertable.
@@ -141,6 +141,24 @@ describe('initAuth (cdk#1278)', () => {
     expect(seen).toHaveLength(1);
     expect(seen[0].auto_select).toBe(true);
     expect(typeof seen[0].client_id).toBe('string');
+  });
+
+  // cdk#1883: prod and testing use DIFFERENT Google OAuth clients, so a token minted
+  // on a testing origin carries an `aud` prod's authorizers reject. The client is
+  // picked from the page hostname, like the API base.
+  it.each([
+    ['valet.boracaya.com', '129809912902-gudslqiduqd2opdk7n1rat829msgtias.apps.googleusercontent.com'],
+    ['boracaya.com', '129809912902-gudslqiduqd2opdk7n1rat829msgtias.apps.googleusercontent.com'],
+    ['valet.test.boracaya.com', '129809912902-chmba2sh0uhjh8pasm2t2bc8houb2u32.apps.googleusercontent.com'],
+    ['test.pdaboracay.com', '129809912902-chmba2sh0uhjh8pasm2t2bc8houb2u32.apps.googleusercontent.com'],
+  ])('initializes GIS on %s with that environment\'s client id', async (hostname, expected) => {
+    const { initAuth, scripts, win } = await load(hostname);
+    const seen: Array<Record<string, unknown>> = [];
+    const p = initAuth();
+    gsiOk(win, (cfg) => { seen.push(cfg as Record<string, unknown>); });
+    scripts[0].onload!();
+    await p;
+    expect(seen[0].client_id).toBe(expected);
   });
 
   // Codex r2 on shared#161, both of these. The suite proved setIdToken and
