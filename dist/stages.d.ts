@@ -185,10 +185,10 @@ export interface StageDefinition {
     title: string;
     description?: string;
     icon?: string;
-    /** Legacy questions-only list (pre-#976 definitions). */
-    fields?: StageField[];
-    /** cdk#976: the ordered mix of questions + display blocks. A definition
-     * carries `elements` OR `fields`, never both — read via stageElements(). */
+    /** cdk#976: the ordered mix of questions + display blocks — read via
+     * stageElements(). The pre-#976 questions-only `fields` list is retired
+     * (cdk#2132): the server refuses it on writes and no stored definition
+     * carries it. */
     elements?: StageElement[];
     settings?: Partial<Record<string, string>>;
     /** Server stamps (valet-api writes them; absent on drafts). */
@@ -196,11 +196,10 @@ export interface StageDefinition {
     updatedAt?: string;
 }
 export declare const isDisplayBlock: (el: StageElement) => el is StageDisplayBlock;
-/** A definition's ordered element list: post-#976 `elements` wins; legacy
- * `fields`-only configs read as all-questions. */
+/** A definition's ordered element list (cdk#976). The legacy `fields` list
+ * is no longer read (cdk#2132). */
 export declare const stageElements: (def: {
     elements?: ReadonlyArray<StageElement>;
-    fields?: ReadonlyArray<StageQuestion>;
 }) => ReadonlyArray<StageElement>;
 /** The askable subset, in order — what submissions, seeds, and response
  * columns are built from. */
@@ -230,19 +229,15 @@ export interface GuestRowLike {
     firstName?: unknown;
     lastName?: unknown;
     /** cdk#1169: identity promoted to the row's top level, where it outlives
-     *  any one stage. The resolvers prefer it, so they keep working once
-     *  cdk#1174 drops the `rsvp` map. */
+     *  any one stage. The legacy `rsvp` map is gone (cdk#1174/#2132). */
     preferredName?: unknown;
-    rsvp?: Record<string, unknown>;
-    /** cdk#1016: the core-stage responses map (stages.RSVP...) — the
-     *  post-cutover home the resolvers prefer. */
+    /** cdk#1016: the core-stage responses map (stages.RSVP...), the sole home
+     *  of the companions list. */
     stages?: Record<string, unknown>;
 }
 /** Mirror of the Lambda's guest_display_name: row names first, then the
- * promoted top-level preferredName (cdk#1169), then the legacy map's copies,
- * empty string when nothing is known. cdk#1173 added the promoted candidate so
- * this resolver survives #1174 dropping the map; the legacy pair stays for rows
- * the backfill has not reached. */
+ * top-level preferredName (cdk#1169), empty string when nothing is known. The
+ * legacy rsvp-map candidates are gone (cdk#2132). */
 export declare const guestDisplayName: (guest: GuestRowLike | undefined) => string;
 /** One registry source's current value from the guest's own row, or undefined
  * when the id is unknown/bare or resolves to nothing. */

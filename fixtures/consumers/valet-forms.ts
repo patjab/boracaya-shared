@@ -26,5 +26,5 @@ export const valetMessages: StageFormRendererMessages = {
 export const createValetFormSurface = (stage: StageDefinition) => ({
   Renderer: StageFormRenderer,
   messages: valetMessages,
-  displayBlocks: (stage.fields ?? []).filter(isDisplayBlock),
+  displayBlocks: (stage.elements ?? []).filter(isDisplayBlock),
 });

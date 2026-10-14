@@ -4,7 +4,7 @@ import {
     guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys,
     stageElements, stageQuestions,
 } from './stages';
-import type { StageDisplayBlock, StageElement, StageQuestion } from './stages';
+import type { GuestRowLike, StageDisplayBlock, StageElement, StageQuestion } from './stages';
 
 // Contract tests (cdk#962): the registry menu is consumed by the Valet picker
 // and validated by the stages Lambda — its shape is a cross-repo contract.
@@ -53,10 +53,11 @@ describe('stage element helpers', () => {
         expect(isDisplayBlock(Q('x', { kind: 'question' }))).toBe(false);
     });
 
-    it('stageElements prefers elements, falls back to legacy fields, then empty', () => {
+    it('stageElements reads elements only, then empty (cdk#2132)', () => {
         expect(stageElements({ elements: mixed })).toBe(mixed);
-        const fields = [Q('a')];
-        expect(stageElements({ fields })).toBe(fields);
+        // A stray legacy `fields` list is not read (cast: it is not on the type).
+        expect(stageElements({ fields: [Q('a')] } as unknown as { elements?: typeof mixed }))
+            .toEqual([]);
         expect(stageElements({})).toEqual([]);
     });
 
@@ -75,34 +76,32 @@ const RSVP = {
         'not-a-dict', { name: 7 }, { name: '  ' }, { name: 'Ash', allergies: 3 },
     ],
 };
-const ROW = { firstName: 'Sam', lastName: 'Reyes', rsvp: RSVP };
+// Companions live in the core-stage response (stages.RSVP), their sole home
+// since cdk#1016/#2132.
+const core = (c: Record<string, unknown>) => ({ stages: { RSVP: c } });
+const ROW = { firstName: 'Sam', lastName: 'Reyes', ...core(RSVP) };
+// A row as it looked before cdk#1174: the legacy `rsvp` map, which the
+// resolvers no longer read. Cast because the field is gone from GuestRowLike.
+const legacy = (rsvp: Record<string, unknown>, rest: Record<string, unknown> = {}) =>
+    ({ ...rest, rsvp }) as GuestRowLike;
 
 describe('guestDisplayName (mirror of the Lambda guest_display_name)', () => {
-    it('row names first, RSVP fallbacks second, empty when nothing known', () => {
+    it('row names first, then the top-level preferredName, empty when nothing known', () => {
         expect(guestDisplayName(ROW)).toBe('Sam Reyes');
         expect(guestDisplayName({ firstName: ' Sam ' })).toBe('Sam');
-        expect(guestDisplayName({ rsvp: { preferredName: 'Sammy', name: 'Samuel' } })).toBe('Sammy');
-        expect(guestDisplayName({ rsvp: { name: 'Samuel' } })).toBe('Samuel');
-        expect(guestDisplayName({ firstName: 7, rsvp: {} })).toBe('');
+        expect(guestDisplayName({ preferredName: ' Sammy ' })).toBe('Sammy');
+        expect(guestDisplayName({ firstName: 7, preferredName: 7 })).toBe('');
         expect(guestDisplayName(undefined)).toBe('');
-    });
-
-    // cdk#1173: identity was promoted to the row's top level at #1169, so the
-    // resolver must read it there — otherwise #1174 dropping the `rsvp` map
-    // leaves every self-entered guest nameless in the Valet drawer.
-    it('prefers the promoted top-level preferredName over the legacy map', () => {
-        expect(guestDisplayName({ preferredName: 'Promoted',
-                                  rsvp: { preferredName: 'Legacy', name: 'Older' } }))
-            .toBe('Promoted');
-        // …and resolves with no legacy map at all (the post-#1174 world).
-        expect(guestDisplayName({ preferredName: 'Promoted' })).toBe('Promoted');
-        // Invited names still outrank it — an organizer's roster reads the
-        // invitation first, unchanged.
+        // Invited names outrank it: an organizer's roster reads the invitation first.
         expect(guestDisplayName({ firstName: 'Sam', lastName: 'Reyes',
                                   preferredName: 'Promoted' })).toBe('Sam Reyes');
-        // A non-string promoted value falls through rather than throwing.
-        expect(guestDisplayName({ preferredName: 7, rsvp: { name: 'Samuel' } }))
-            .toBe('Samuel');
+    });
+
+    // cdk#2132: the legacy `rsvp` map candidates are gone.
+    it('never reads the legacy rsvp map', () => {
+        expect(guestDisplayName(legacy({ preferredName: 'Sammy', name: 'Samuel' }))).toBe('');
+        expect(guestDisplayName(legacy({ name: 'Samuel' }, { preferredName: 'Promoted' })))
+            .toBe('Promoted');
     });
 });
 
@@ -120,17 +119,17 @@ describe('resolvePrefillSource (mirror of the Lambda resolvers)', () => {
     it('partyNames = display name + companions; companions alone when nameless', () => {
         expect(resolvePrefillSource('rsvp.partyNames', ROW))
             .toEqual(['Sam Reyes', 'Jordan', 'Riley', 'Ash']);
-        expect(resolvePrefillSource('rsvp.partyNames', { rsvp: RSVP }))
+        expect(resolvePrefillSource('rsvp.partyNames', core(RSVP)))
             .toEqual(['Jordan', 'Riley', 'Ash']);
-        expect(resolvePrefillSource('rsvp.partyNames', { firstName: 'Solo', rsvp: {} }))
+        expect(resolvePrefillSource('rsvp.partyNames', { firstName: 'Solo', ...core({}) }))
             .toEqual(['Solo']);
     });
 
     it('returns undefined for bare ids, unknown ids, and empty resolutions', () => {
         expect(resolvePrefillSource('blockHotelName', ROW)).toBeUndefined();
         expect(resolvePrefillSource('rsvp.companons', ROW)).toBeUndefined();
-        expect(resolvePrefillSource('rsvp.companionNames', { rsvp: { companions: [] } })).toBeUndefined();
-        expect(resolvePrefillSource('rsvp.partyNames', { rsvp: {} })).toBeUndefined();
+        expect(resolvePrefillSource('rsvp.companionNames', core({ companions: [] }))).toBeUndefined();
+        expect(resolvePrefillSource('rsvp.partyNames', core({}))).toBeUndefined();
         expect(resolvePrefillSource('rsvp.companionNames', undefined)).toBeUndefined();
     });
 
@@ -147,7 +146,7 @@ describe('stageDriftKeys (mirror of the Lambda drift_keys)', () => {
         { key: 'hotelName', defaultFrom: 'blockHotelName' },  // bare: never compared
         { key: 'notes' },                                      // no edge: never compared
     ];
-    const guest = { rsvp: { companions: [{ name: 'Jordan', allergies: '' }, { name: 'Riley', allergies: '' }] } };
+    const guest = core({ companions: [{ name: 'Jordan', allergies: '' }, { name: 'Riley', allergies: '' }] });
 
     it('reorder + whitespace is not drift; a real difference is', () => {
         expect(stageDriftKeys(FIELDS, guest, { companions: ['Riley', ' Jordan '] })).toEqual([]);
@@ -211,14 +210,14 @@ describe('DEFAULT_CORE_STAGE (cdk#1012)', () => {
 
 // --- cdk#1016: resolvers prefer the core-stage response -----------------------
 describe('companion resolvers core precedence (cdk#1016)', () => {
-    it('stages.RSVP.companions wins; empty core list is an answer; legacy is the fallback', () => {
-        const both = { stages: { RSVP: { companions: [{ name: 'Core Kid' }] } },
-                       rsvp: { companions: [{ name: 'Legacy Kid' }] } };
+    it('stages.RSVP.companions only; empty core list is an answer; the legacy map is never read', () => {
+        const both = legacy({ companions: [{ name: 'Legacy Kid' }] },
+                            core({ companions: [{ name: 'Core Kid' }] }));
         expect(resolvePrefillSource('rsvp.companionNames', both)).toEqual(['Core Kid']);
-        const emptyCore = { stages: { RSVP: { companions: [] } },
-                            rsvp: { companions: [{ name: 'Legacy Kid' }] } };
+        const emptyCore = legacy({ companions: [{ name: 'Legacy Kid' }] },
+                                 core({ companions: [] }));
         expect(resolvePrefillSource('rsvp.companionNames', emptyCore)).toBeUndefined();
-        const legacyOnly = { rsvp: { companions: [{ name: 'Legacy Kid' }] } };
-        expect(resolvePrefillSource('rsvp.companionNames', legacyOnly)).toEqual(['Legacy Kid']);
+        const legacyOnly = legacy({ companions: [{ name: 'Legacy Kid' }] });
+        expect(resolvePrefillSource('rsvp.companionNames', legacyOnly)).toBeUndefined();
     });
 });
