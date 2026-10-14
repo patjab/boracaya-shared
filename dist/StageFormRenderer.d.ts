@@ -19,8 +19,9 @@ export type RendererField = StageQuestion;
 export type StageFormValue = string | number | boolean | string[] | RepeatingGroupEntry[];
 export type StageFormValues = Record<string, StageFormValue>;
 export interface StageFormRendererProps {
+    /** The ordered stage elements (cdk#976). The legacy `fields` prop is
+     *  retired with the stored shape (cdk#2132). */
     elements?: ReadonlyArray<StageElement>;
-    fields?: ReadonlyArray<RendererField>;
     values: StageFormValues;
     onChange: (key: string, value: StageFormValue) => void;
     resolved?: Readonly<StageFormValues>;
@@ -36,4 +37,4 @@ export interface StageFormRendererProps {
     /** All renderer-owned UI copy. Stage-authored labels/options stay in the schema. */
     messages: StageFormRendererMessages;
 }
-export declare const StageFormRenderer: ({ elements, fields, values, onChange, resolved, presentation, footer, messages, }: StageFormRendererProps) => React.ReactElement;
+export declare const StageFormRenderer: ({ elements, values, onChange, resolved, presentation, footer, messages, }: StageFormRendererProps) => React.ReactElement;

@@ -407,8 +407,9 @@ const isRevealed = (el: StageElement, values: StageFormValues): boolean =>
     isDisplayBlock(el) || !el.revealWhen || values[el.revealWhen.key] === el.revealWhen.equals;
 
 export interface StageFormRendererProps {
+    /** The ordered stage elements (cdk#976). The legacy `fields` prop is
+     *  retired with the stored shape (cdk#2132). */
     elements?: ReadonlyArray<StageElement>;
-    fields?: ReadonlyArray<RendererField>;
     values: StageFormValues;
     onChange: (key: string, value: StageFormValue) => void;
     resolved?: Readonly<StageFormValues>;
@@ -427,7 +428,6 @@ export interface StageFormRendererProps {
 
 export const StageFormRenderer = ({
     elements,
-    fields,
     values,
     onChange,
     resolved,
@@ -435,7 +435,7 @@ export const StageFormRenderer = ({
     footer,
     messages,
 }: StageFormRendererProps): React.ReactElement => {
-    const all = elements ?? fields ?? [];
+    const all = elements ?? [];
     // A question hidden by an unmet reveal condition must not submit a stale
     // answer (typed, then the trigger flipped): clear it once it hides (cdk#1204).
     React.useEffect(() => {
@@ -445,7 +445,7 @@ export const StageFormRenderer = ({
                 onChange(el.key, '');
             }
         });
-    }, [elements, fields, values, onChange]);
+    }, [elements, values, onChange]);
     const list = gateTruncated(
         all.filter((el) => (isDisplayBlock(el) || !el.adminOnly) && isRevealed(el, values)),
         values,

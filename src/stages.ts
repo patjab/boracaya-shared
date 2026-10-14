@@ -185,10 +185,10 @@ export interface StageDefinition {
     // (Valet's ContentIconPicker). The guest Attend tab strip renders EMOJI
     // only; a curated icon-name is dropped there rather than shown as raw text.
     icon?: string;
-    /** Legacy questions-only list (pre-#976 definitions). */
-    fields?: StageField[];
-    /** cdk#976: the ordered mix of questions + display blocks. A definition
-     * carries `elements` OR `fields`, never both — read via stageElements(). */
+    /** cdk#976: the ordered mix of questions + display blocks — read via
+     * stageElements(). The pre-#976 questions-only `fields` list is retired
+     * (cdk#2132): the server refuses it on writes and no stored definition
+     * carries it. */
     elements?: StageElement[];
     // Per-stage behavior knobs (cdk#528), e.g. PRECHECKIN's blockHotelName /
     // blockHotelArea — config, not guest-writable fields. Partial: an absent
@@ -202,12 +202,11 @@ export interface StageDefinition {
 export const isDisplayBlock = (el: StageElement): el is StageDisplayBlock =>
     (el as StageDisplayBlock).kind === 'display';
 
-/** A definition's ordered element list: post-#976 `elements` wins; legacy
- * `fields`-only configs read as all-questions. */
+/** A definition's ordered element list (cdk#976). The legacy `fields` list
+ * is no longer read (cdk#2132). */
 export const stageElements = (def: {
     elements?: ReadonlyArray<StageElement>;
-    fields?: ReadonlyArray<StageQuestion>;
-}): ReadonlyArray<StageElement> => def.elements ?? def.fields ?? [];
+}): ReadonlyArray<StageElement> => def.elements ?? [];
 
 /** The askable subset, in order — what submissions, seeds, and response
  * columns are built from. */
@@ -249,28 +248,24 @@ export interface GuestRowLike {
     firstName?: unknown;
     lastName?: unknown;
     /** cdk#1169: identity promoted to the row's top level, where it outlives
-     *  any one stage. The resolvers prefer it, so they keep working once
-     *  cdk#1174 drops the `rsvp` map. */
+     *  any one stage. The legacy `rsvp` map is gone (cdk#1174/#2132). */
     preferredName?: unknown;
-    rsvp?: Record<string, unknown>;
-    /** cdk#1016: the core-stage responses map (stages.RSVP...) — the
-     *  post-cutover home the resolvers prefer. */
+    /** cdk#1016: the core-stage responses map (stages.RSVP...), the sole home
+     *  of the companions list. */
     stages?: Record<string, unknown>;
 }
 
 type CompanionEntry = { name: string; allergies: string };
 
-/** cdk#1016 (mirror of the Lambda's precedence): companions come from the
- *  core-stage response first — an ARRAY there is an answer, [] included — and
- *  from the legacy rsvp map only when no core list exists. */
+/** cdk#1016 (mirror of the Lambda): companions come from the core-stage
+ *  response (stages.RSVP.companions); an ARRAY there is an answer, []
+ *  included. The legacy rsvp-map fallback is gone (cdk#2132). */
 const companionList = (guest: GuestRowLike | undefined): unknown => {
     const stages = guest?.stages;
     const core = stages && typeof stages === 'object'
         ? (stages as Record<string, unknown>).RSVP : undefined;
-    const fromCore = core && typeof core === 'object'
+    return core && typeof core === 'object'
         ? (core as Record<string, unknown>).companions : undefined;
-    if (Array.isArray(fromCore)) return fromCore;
-    return guest?.rsvp?.companions;
 };
 
 const companionEntries = (guest: GuestRowLike | undefined): CompanionEntry[] => {
@@ -291,16 +286,12 @@ const companionEntries = (guest: GuestRowLike | undefined): CompanionEntry[] => 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 
 /** Mirror of the Lambda's guest_display_name: row names first, then the
- * promoted top-level preferredName (cdk#1169), then the legacy map's copies,
- * empty string when nothing is known. cdk#1173 added the promoted candidate so
- * this resolver survives #1174 dropping the map; the legacy pair stays for rows
- * the backfill has not reached. */
+ * top-level preferredName (cdk#1169), empty string when nothing is known. The
+ * legacy rsvp-map candidates are gone (cdk#2132). */
 export const guestDisplayName = (guest: GuestRowLike | undefined): string => {
     const fromRow = [str(guest?.firstName), str(guest?.lastName)].filter(Boolean).join(' ');
     if (fromRow) return fromRow;
-    return str(guest?.preferredName)
-        || str(guest?.rsvp?.preferredName)
-        || str(guest?.rsvp?.name);
+    return str(guest?.preferredName);
 };
 
 // Prototype-less registry (cdk#1285): resolver ids are organizer-supplied

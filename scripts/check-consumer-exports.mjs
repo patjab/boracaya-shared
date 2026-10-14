@@ -255,7 +255,7 @@ const expectedSubpaths = [
   './switchboard',
   './ui',
 ];
-assert.equal(packageJson.version, '11.6.0');
+assert.equal(packageJson.version, '12.0.0');
 assert.equal(packageJson.sideEffects, false);
 assert.deepEqual(Object.keys(packageJson.exports).sort(), expectedSubpaths);
 assert(!Object.keys(packageJson.exports).some((key) => key.includes('*')), 'exports must stay explicit');

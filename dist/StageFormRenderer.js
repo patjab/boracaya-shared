@@ -237,9 +237,8 @@ const gateTruncated = (list, values) => {
  *  matches — a follow-up field (the food-restriction detail) is meaningless
  *  until the guest flags restrictions. A display block has no reveal. */
 const isRevealed = (el, values) => (0, stages_1.isDisplayBlock)(el) || !el.revealWhen || values[el.revealWhen.key] === el.revealWhen.equals;
-const StageFormRenderer = ({ elements, fields, values, onChange, resolved, presentation, footer, messages, }) => {
-    var _a;
-    const all = (_a = elements !== null && elements !== void 0 ? elements : fields) !== null && _a !== void 0 ? _a : [];
+const StageFormRenderer = ({ elements, values, onChange, resolved, presentation, footer, messages, }) => {
+    const all = elements !== null && elements !== void 0 ? elements : [];
     // A question hidden by an unmet reveal condition must not submit a stale
     // answer (typed, then the trigger flipped): clear it once it hides (cdk#1204).
     React.useEffect(() => {
@@ -249,7 +248,7 @@ const StageFormRenderer = ({ elements, fields, values, onChange, resolved, prese
                 onChange(el.key, '');
             }
         });
-    }, [elements, fields, values, onChange]);
+    }, [elements, values, onChange]);
     const list = gateTruncated(all.filter((el) => ((0, stages_1.isDisplayBlock)(el) || !el.adminOnly) && isRevealed(el, values)), values);
     const rows = [];
     for (const el of list) {

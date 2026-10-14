@@ -75,9 +75,9 @@ const stagePresentation = (def) => { var _a; return (((_a = def.settings) === nu
 exports.stagePresentation = stagePresentation;
 const isDisplayBlock = (el) => el.kind === 'display';
 exports.isDisplayBlock = isDisplayBlock;
-/** A definition's ordered element list: post-#976 `elements` wins; legacy
- * `fields`-only configs read as all-questions. */
-const stageElements = (def) => { var _a, _b; return (_b = (_a = def.elements) !== null && _a !== void 0 ? _a : def.fields) !== null && _b !== void 0 ? _b : []; };
+/** A definition's ordered element list (cdk#976). The legacy `fields` list
+ * is no longer read (cdk#2132). */
+const stageElements = (def) => { var _a; return (_a = def.elements) !== null && _a !== void 0 ? _a : []; };
 exports.stageElements = stageElements;
 /** The askable subset, in order — what submissions, seeds, and response
  * columns are built from. */
@@ -92,19 +92,15 @@ exports.PREFILL_SOURCES = [
  * body is flat (field keys at top level), so these ride beside the answers and
  * a field key may never claim them. Mirrors the Lambda's RESERVED_FIELD_KEYS. */
 exports.STAGE_RESPONSE_META_KEYS = ['defaults', 'drift'];
-/** cdk#1016 (mirror of the Lambda's precedence): companions come from the
- *  core-stage response first — an ARRAY there is an answer, [] included — and
- *  from the legacy rsvp map only when no core list exists. */
+/** cdk#1016 (mirror of the Lambda): companions come from the core-stage
+ *  response (stages.RSVP.companions); an ARRAY there is an answer, []
+ *  included. The legacy rsvp-map fallback is gone (cdk#2132). */
 const companionList = (guest) => {
-    var _a;
     const stages = guest === null || guest === void 0 ? void 0 : guest.stages;
     const core = stages && typeof stages === 'object'
         ? stages.RSVP : undefined;
-    const fromCore = core && typeof core === 'object'
+    return core && typeof core === 'object'
         ? core.companions : undefined;
-    if (Array.isArray(fromCore))
-        return fromCore;
-    return (_a = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _a === void 0 ? void 0 : _a.companions;
 };
 const companionEntries = (guest) => {
     const companions = companionList(guest);
@@ -125,18 +121,13 @@ const companionEntries = (guest) => {
 };
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 /** Mirror of the Lambda's guest_display_name: row names first, then the
- * promoted top-level preferredName (cdk#1169), then the legacy map's copies,
- * empty string when nothing is known. cdk#1173 added the promoted candidate so
- * this resolver survives #1174 dropping the map; the legacy pair stays for rows
- * the backfill has not reached. */
+ * top-level preferredName (cdk#1169), empty string when nothing is known. The
+ * legacy rsvp-map candidates are gone (cdk#2132). */
 const guestDisplayName = (guest) => {
-    var _a, _b;
     const fromRow = [str(guest === null || guest === void 0 ? void 0 : guest.firstName), str(guest === null || guest === void 0 ? void 0 : guest.lastName)].filter(Boolean).join(' ');
     if (fromRow)
         return fromRow;
-    return str(guest === null || guest === void 0 ? void 0 : guest.preferredName)
-        || str((_a = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _a === void 0 ? void 0 : _a.preferredName)
-        || str((_b = guest === null || guest === void 0 ? void 0 : guest.rsvp) === null || _b === void 0 ? void 0 : _b.name);
+    return str(guest === null || guest === void 0 ? void 0 : guest.preferredName);
 };
 exports.guestDisplayName = guestDisplayName;
 // Prototype-less registry (cdk#1285): resolver ids are organizer-supplied
