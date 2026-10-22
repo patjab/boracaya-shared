@@ -1,0 +1,40 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "3ddd50e171e6676044f64d6fafdbcf9ea006db751d77827616f64a62041041f6",
+  "repo": "patjab/boracaya-shared",
+  "branch": "decom-2381-shared",
+  "base": "origin/main",
+  "merge_base": "08450386c993276d2d22787ca37ef53820aff7ed",
+  "head": "f494a30dc074d90419d163192e7f8259a9a6a085",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 3,
+  "ledger": [
+    {
+      "id": "F1",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": "src/event.ts:89",
+      "title": "No test pins the removal of the stamp fields from the event types",
+      "disposition": "Fixed in f494a30"
+    }
+  ],
+  "created_at": "2026-10-22T16:29:47Z"
+}
