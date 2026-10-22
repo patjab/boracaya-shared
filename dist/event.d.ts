@@ -10,7 +10,7 @@
  * public read `GET /events/{id}/config` carry) plus per-lane variants — honest
  * about the real difference: the public read sanitizes (shell/style arrive
  * UNTRUSTED and the guest app re-validates), while the admin read carries
- * admin-only sections (the passport stamp lane).
+ * admin-only sections (the communicate lane and capacity).
  */
 import type { HotelAreaOption } from './types';
 import type { StageDefinition } from './stages';
@@ -74,8 +74,8 @@ export interface EventConfigCore extends EventCalendar {
 }
 /**
  * The ADMIN lane's metadata (valet-api `GET /events/{id}` / the config PATCH
- * document): the core plus admin-typed identity/style and the passport-stamp
- * section. Valet's editor carries unknown fields through unchanged so a PATCH
+ * document): the core plus admin-typed identity/style and the communicate and
+ * capacity sections. Valet's editor carries unknown fields through unchanged so a PATCH
  * never drops event settings it doesn't know about.
  */
 export interface AdminEventMetadata extends EventConfigCore {
@@ -84,16 +84,6 @@ export interface AdminEventMetadata extends EventConfigCore {
     /** Per-event guest-site copy (cdk#776 D26): sparse map — absent keys fall
      *  back to the guest engine's generic defaults. */
     vocabulary?: Record<string, string>;
-    stampImageUrl?: string;
-    /** Absent-value default follows the preset (exclusivus→redacted,
-     *  inclusivus→named); the server seeds it at create. */
-    stampNaming?: 'named' | 'redacted';
-    /** The check-in hinge: which stage + boolean field mints the stamp.
-     *  Explicit null = detach (the server treats absent/null as doorless). */
-    doorStage?: {
-        stageId: string;
-        field: string;
-    } | null;
     notificationsEmail?: string;
     replyToEmail?: string;
     /** Internal accepted-person counter and optional RSVP ceiling (#129).
@@ -109,7 +99,7 @@ export interface AdminEventMetadata extends EventConfigCore {
  * writer cannot add a field owned by another lane without a compile failure.
  * Dedicated stage/group/page/image/platform routes stay outside these types.
  */
-export type EventBrandingFields = Pick<AdminEventMetadata, 'eventDisplayName' | 'tagline' | 'eventDate' | 'eventTimeZone' | 'eventDateISOString' | 'heroImageUrl' | 'heroHeight' | 'finishedEventImageUrl' | 'stampImageUrl' | 'stampNaming' | 'doorStage' | 'vocabulary'>;
+export type EventBrandingFields = Pick<AdminEventMetadata, 'eventDisplayName' | 'tagline' | 'eventDate' | 'eventTimeZone' | 'eventDateISOString' | 'heroImageUrl' | 'heroHeight' | 'finishedEventImageUrl' | 'vocabulary'>;
 export type EventDesignFields = Pick<AdminEventMetadata, 'shell' | 'style'>;
 export type EventConfigureFields = Pick<AdminEventMetadata, 'daysBeforeEventLastDayToBook' | 'theme' | 'blockHotelName' | 'blockHotelArea' | 'extraAttendanceLabel' | 'hotelAreaOptions'>;
 /**

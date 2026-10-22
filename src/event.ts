@@ -10,7 +10,7 @@
  * public read `GET /events/{id}/config` carry) plus per-lane variants — honest
  * about the real difference: the public read sanitizes (shell/style arrive
  * UNTRUSTED and the guest app re-validates), while the admin read carries
- * admin-only sections (the passport stamp lane).
+ * admin-only sections (the communicate lane and capacity).
  */
 import type { HotelAreaOption } from './types';
 import type { StageDefinition } from './stages';
@@ -79,8 +79,8 @@ export interface EventConfigCore extends EventCalendar {
 
 /**
  * The ADMIN lane's metadata (valet-api `GET /events/{id}` / the config PATCH
- * document): the core plus admin-typed identity/style and the passport-stamp
- * section. Valet's editor carries unknown fields through unchanged so a PATCH
+ * document): the core plus admin-typed identity/style and the communicate and
+ * capacity sections. Valet's editor carries unknown fields through unchanged so a PATCH
  * never drops event settings it doesn't know about.
  */
 export interface AdminEventMetadata extends EventConfigCore {
@@ -89,14 +89,6 @@ export interface AdminEventMetadata extends EventConfigCore {
   /** Per-event guest-site copy (cdk#776 D26): sparse map — absent keys fall
    *  back to the guest engine's generic defaults. */
   vocabulary?: Record<string, string>;
-  // Passport stamp lane (cdk#755/#764) — admin-only.
-  stampImageUrl?: string;
-  /** Absent-value default follows the preset (exclusivus→redacted,
-   *  inclusivus→named); the server seeds it at create. */
-  stampNaming?: 'named' | 'redacted';
-  /** The check-in hinge: which stage + boolean field mints the stamp.
-   *  Explicit null = detach (the server treats absent/null as doorless). */
-  doorStage?: { stageId: string; field: string } | null;
   // Communicate lane — admin-only; never part of public event config.
   notificationsEmail?: string;
   replyToEmail?: string;
@@ -117,7 +109,7 @@ export interface AdminEventMetadata extends EventConfigCore {
 export type EventBrandingFields = Pick<AdminEventMetadata,
   'eventDisplayName' | 'tagline' | 'eventDate' | 'eventTimeZone' | 'eventDateISOString' |
   'heroImageUrl' | 'heroHeight' | 'finishedEventImageUrl' |
-  'stampImageUrl' | 'stampNaming' | 'doorStage' | 'vocabulary'>;
+  'vocabulary'>;
 
 export type EventDesignFields = Pick<AdminEventMetadata, 'shell' | 'style'>;
 
