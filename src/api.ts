@@ -232,6 +232,10 @@ export const FacesApi = {
     dismissUnmatched: (eventId: string, faceId: string) =>
         `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/dismiss`,
     people: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/people`,
+    // The consent act (cdk#2423): an OWNER turns face grouping on with the
+    // acknowledgment ({enabled: true, acknowledged: true, termsVersion}) or off
+    // ({enabled: false}); the faces read carries the state for every member.
+    enable: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/enable`,
     // One-click recognition runs (cdk#796): admin enqueue/status + the box's
     // queue lane (bearer = the faces-box secret, not a user token).
     run: (eventId: string) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/run`,
