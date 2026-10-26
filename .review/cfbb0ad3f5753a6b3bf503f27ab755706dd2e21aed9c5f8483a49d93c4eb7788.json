@@ -1,0 +1,58 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "cfbb0ad3f5753a6b3bf503f27ab755706dd2e21aed9c5f8483a49d93c4eb7788",
+  "repo": "patjab/boracaya-shared",
+  "branch": "claude/2423-faces-enable",
+  "base": "origin/main",
+  "merge_base": "1fa6cb0c0159debc49305e78d933538c65d298e1",
+  "head": "0fe854c59f6818a36c97575d7b2db031602fbd97",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 3,
+  "ledger": [
+    {
+      "id": "F1",
+      "round": 1,
+      "axis": "broad",
+      "severity": "nit",
+      "location": "package-lock.json:3",
+      "title": "package-lock.json still records version 13.0.0",
+      "disposition": "Fixed in d92dde6"
+    },
+    {
+      "id": "F2",
+      "round": 1,
+      "axis": "broad",
+      "severity": "nit",
+      "location": "src/api.ts:239",
+      "title": "No contract test for the new enable route",
+      "disposition": "Fixed in d92dde6"
+    },
+    {
+      "id": "F3",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": "src/api.contract.test.ts:412",
+      "title": "Enable contract test does not pin the faces-api host",
+      "disposition": "Fixed in 0fe854c"
+    }
+  ],
+  "created_at": "2026-10-26T00:06:09Z"
+}
