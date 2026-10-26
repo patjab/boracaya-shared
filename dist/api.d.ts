@@ -98,6 +98,7 @@ export declare const FacesApi: {
     readonly assignUnmatched: (eventId: string, faceId: string) => string;
     readonly dismissUnmatched: (eventId: string, faceId: string) => string;
     readonly people: (eventId: string) => string;
+    readonly enable: (eventId: string) => string;
     readonly run: (eventId: string) => string;
     readonly runCancel: (eventId: string) => string;
     readonly runs: (eventId: string) => string;

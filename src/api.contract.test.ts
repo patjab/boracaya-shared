@@ -406,3 +406,12 @@ describe('FacesApi run lane contract', () => {
         expect(resourcePath(FacesApi.runById('e-1', 'r-1')).startsWith(resourcePath(FacesApi.runs('e-1')) + '/')).toBe(true);
     });
 });
+
+describe('FacesApi consent switch contract (cdk#2423)', () => {
+    it('enable sits beside the run lane under /faces, with the eventId encoded', () => {
+        expect(resourcePath(FacesApi.enable('e-1'))).toBe('/events/e-1/faces/enable');
+        expect(new URL(FacesApi.enable('e-1')).hostname).toMatch(/^faces-api\./);     // the faces host, never valet's
+        expect(resourcePath(FacesApi.enable('a/b?c'))).toBe('/events/a%2Fb%3Fc/faces/enable');
+        expect(resourcePath(FacesApi.enable('e-1')).startsWith(resourcePath(FacesApi.base('e-1')) + '/')).toBe(true);
+    });
+});
