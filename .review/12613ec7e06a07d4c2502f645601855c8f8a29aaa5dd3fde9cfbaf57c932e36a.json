@@ -1,0 +1,40 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "12613ec7e06a07d4c2502f645601855c8f8a29aaa5dd3fde9cfbaf57c932e36a",
+  "repo": "patjab/boracaya-shared",
+  "branch": "claude/203-drop-faces-control",
+  "base": "origin/main",
+  "merge_base": "20829ef765a15b113b465d422b3198621284030a",
+  "head": "1c4114b865f3c4c0172c1c58068cda40106ecf90",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "claude-opus-5-5",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 3,
+  "ledger": [
+    {
+      "id": "F1",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": "src/api.contract.test.ts:390",
+      "title": "FacesApi.runs lost its only path pin when the runById tests were deleted",
+      "disposition": "Fixed in 1c4114b"
+    }
+  ],
+  "created_at": "2026-10-27T23:15:24Z"
+}
