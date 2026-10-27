@@ -10,6 +10,15 @@ before changing its shared dependency. The exact call sites and message fields
 are documented in
 [the renderer-message migration](docs/renderer-message-migration.md).
 
+## Version 14
+
+Version 14 removes the faces GPU box's contract, which left with the box
+(shared#203, cdk#2417): the `FACES_CONTROL` and `FACES_BOX` host getters, the
+`faces-control` host from the token allowlist, and the box-era `FacesApi`
+builders (`suggestions`, `dismissSuggestion`, `unmatched`, `assignUnmatched`,
+`dismissUnmatched`, `runById`, `queue`, `queueClaim`, `queueProgress`,
+`queueComplete`, `ingest`). No consumer imported any of them.
+
 ## Supported package surfaces
 
 The package publishes native ESM and CommonJS compatibility output. New

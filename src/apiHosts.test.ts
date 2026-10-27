@@ -17,8 +17,6 @@ describe('isPlatformApiUrl', () => {
     'https://share-api.boracaya.com/x',
     'https://moments-api.test.boracaya.com/x',
     'https://faces-api.boracaya.com/x',
-    'https://faces-control.pdaboracay.com/runs',
-    'https://faces-control.test.pdaboracay.com/runs',
     'https://VALET-API.boracaya.com/events',
   ])('allows %s', (url) => {
     expect(isPlatformApiUrl(url)).toBe(true);
@@ -30,7 +28,9 @@ describe('isPlatformApiUrl', () => {
     ['look-alike prefix', 'https://evil-valet-api.boracaya.com/x'],
     ['bare apex', 'https://boracaya.com/x'],
     ['frontend', 'https://valet.boracaya.com/x'],
-    ['faces GPU box', 'https://faces.pdaboracay.com/x'],
+    ['retired faces box', 'https://faces.pdaboracay.com/x'],
+    ['retired faces control plane', 'https://faces-control.pdaboracay.com/runs'],
+    ['retired faces control plane (testing)', 'https://faces-control.test.pdaboracay.com/runs'],
     ['unknown env marker', 'https://valet-api.staging.boracaya.com/x'],
     ['service on the wrong apex', 'https://valet-api.pdaboracay.com/x'],
     ['nested subdomain', 'https://a.valet-api.boracaya.com/x'],
@@ -124,16 +124,13 @@ describe.each([
 ])('every %s endpoint host is on the allowlist', (env, pageHost) => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('allows every built API url except the faces GPU box', async () => {
+  it('allows every built API url', async () => {
     const urls = await builtUrls(pageHost);
     expect(urls.length).toBeGreaterThan(40);
     // The page host really picked the environment under test.
     expect(urls.every((url) => new URL(url).hostname.includes('.test.'))).toBe(env === 'testing');
-    const box = urls.filter((url) => new URL(url).hostname.startsWith('faces.'));
-    const refused = urls.filter((url) => !box.includes(url) && !isPlatformApiUrl(url));
-    expect(refused).toEqual([]);
-    // The box authenticates with its own secret and never gets the user token.
-    expect(box.length).toBeGreaterThan(0);
-    expect(box.filter(isPlatformApiUrl)).toEqual([]);
+    expect(urls.filter((url) => !isPlatformApiUrl(url))).toEqual([]);
+    // shared#203: no builder names a pdaboracay.com host any more.
+    expect(urls.filter((url) => new URL(url).hostname.endsWith('pdaboracay.com'))).toEqual([]);
   });
 });

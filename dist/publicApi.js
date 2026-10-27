@@ -5,7 +5,6 @@ exports.GuestEventApi = exports.PublicApi = void 0;
 // consumers can load the public/guest surface without retaining Valet's admin
 // endpoints. Environment selection remains per call through the shared env seam.
 const env_1 = require("./env");
-const legacyHost = (subdomain) => `https://${subdomain}${(0, env_1.isTest)() ? '.test' : ''}.pdaboracay.com`;
 const boracayaHost = (subdomain) => `https://${subdomain}${(0, env_1.isTest)() ? '.test' : ''}.boracaya.com`;
 const publicApi = () => boracayaHost('public-api');
 const reservationsApi = () => boracayaHost('reservations-api');
@@ -20,8 +19,6 @@ exports.PublicApi = {
     // Client error telemetry ingest (cdk#1495/#1496): both apps POST report
     // batches here; unauthenticated, WAF + stage-throttled like every public lane.
     get TELEMETRY_ERRORS() { return `${publicApi()}/telemetry/errors`; },
-    get FACES_CONTROL() { return legacyHost('faces-control'); },
-    get FACES_BOX() { return legacyHost('faces'); },
 };
 /** Event-scoped guest and public endpoints. */
 exports.GuestEventApi = {

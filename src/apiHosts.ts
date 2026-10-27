@@ -6,13 +6,12 @@
 // paths set Authorization before that patch sees the request, so it could not help.
 //
 // The allowlist is the EXACT set of service hosts api.ts / publicApi.ts build,
-// across prod and testing. Deliberately excluded: frontends, the moments CDN, and
-// the ephemeral faces GPU box (faces.pdaboracay.com), which authenticates with
-// its own box secret. Keep in lockstep with api.ts / publicApi.ts: a too-narrow
+// across prod and testing. Deliberately excluded: frontends and the moments CDN.
+// The faces box hosts (faces-control and faces on pdaboracay.com) left with the
+// box (shared#203). Keep in lockstep with api.ts / publicApi.ts: a too-narrow
 // list ships tokenless requests that 401.
 const API_SERVICE_HOSTS: Readonly<Record<string, readonly string[]>> = {
   'boracaya.com': ['valet-api', 'public-api', 'reservations-api', 'share-api', 'moments-api', 'faces-api'],
-  'pdaboracay.com': ['faces-control'],
 };
 
 // The env marker api.ts inserts between the service label and the apex:
@@ -23,7 +22,7 @@ const ENV_MARKERS: readonly string[] = ['test'];
  * True only for a first-party API host. Matching is on the PARSED hostname,
  * decomposed exactly — never a substring — so look-alikes
  * (`valet-api.boracaya.com.evil.com`, `evil-valet-api.boracaya.com`), bare
- * apexes, the faces box, non-https urls and relative urls (the page's own
+ * apexes, the retired faces hosts, non-https urls and relative urls (the page's own
  * origin, never an API) all return false.
  */
 export function isPlatformApiUrl(url: string): boolean {
