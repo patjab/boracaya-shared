@@ -396,6 +396,25 @@ describe('FacesApi after the box (shared#203)', () => {
             expect(new URL(build('e-1', 'p-1')).hostname).toMatch(/^faces-api\./);
         }
     });
+
+    it('pins every kept builder to its route, ids encoded', () => {
+        const paths: Record<keyof typeof FacesApi, string> = {
+            base: '/events/e%2F1/faces',
+            list: '/events/e%2F1/faces',
+            merge: '/events/e%2F1/faces/merge',
+            split: '/events/e%2F1/faces/split',
+            person: '/events/e%2F1/faces/persons/p%3F1',
+            removeFaces: '/events/e%2F1/faces/persons/p%3F1/remove-faces',
+            people: '/events/e%2F1/faces/people',
+            enable: '/events/e%2F1/faces/enable',
+            run: '/events/e%2F1/faces/run',
+            runCancel: '/events/e%2F1/faces/run/cancel',
+            runs: '/events/e%2F1/faces/runs',
+        };
+        for (const [name, build] of Object.entries(FacesApi) as [keyof typeof FacesApi, (e: string, p: string) => string][]) {
+            expect([name, resourcePath(build('e/1', 'p?1'))]).toEqual([name, paths[name]]);
+        }
+    });
 });
 
 describe('FacesApi consent switch contract (cdk#2423)', () => {
