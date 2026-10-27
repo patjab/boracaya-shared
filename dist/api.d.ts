@@ -4,8 +4,6 @@ export declare const ApiConstants: {
     readonly EVENTS: string;
     readonly DISCOVER: string;
     readonly GUEST_LOGIN: string;
-    readonly FACES_CONTROL: string;
-    readonly FACES_BOX: string;
 };
 /**
  * Event-scoped admin endpoints (cdk#396 / admin#101): the URL names the TARGET event;
@@ -87,26 +85,15 @@ export declare const AccountApi: {
 export declare const FacesApi: {
     readonly base: (eventId: string) => string;
     readonly list: (eventId: string) => string;
-    readonly ingest: (eventId: string) => string;
     readonly merge: (eventId: string) => string;
     readonly split: (eventId: string) => string;
     readonly person: (eventId: string, personId: string) => string;
     readonly removeFaces: (eventId: string, personId: string) => string;
-    readonly suggestions: (eventId: string) => string;
-    readonly dismissSuggestion: (eventId: string) => string;
-    readonly unmatched: (eventId: string) => string;
-    readonly assignUnmatched: (eventId: string, faceId: string) => string;
-    readonly dismissUnmatched: (eventId: string, faceId: string) => string;
     readonly people: (eventId: string) => string;
     readonly enable: (eventId: string) => string;
     readonly run: (eventId: string) => string;
     readonly runCancel: (eventId: string) => string;
     readonly runs: (eventId: string) => string;
-    readonly runById: (eventId: string, runId: string) => string;
-    readonly queue: () => string;
-    readonly queueClaim: () => string;
-    readonly queueProgress: () => string;
-    readonly queueComplete: () => string;
 };
 export declare const OrganizerInviteApi: {
     readonly metadata: (inviteId: string) => string;

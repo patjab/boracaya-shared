@@ -52,8 +52,6 @@ async function optionsStatus(url: string): Promise<number> {
 }
 
 // Endpoints that can't be meaningfully OPTIONS-probed from here:
-//  - FACES_BOX is an on-demand instance that auto-terminates when idle, so it
-//    is usually off (a 000/connection failure is expected, not a defect).
 //  - EVENTS is a BASE, not a live route: consumers only ever use it to build
 //    `${EVENTS}/{eventId}/config|/about` (which ARE live). The bare public
 //    GET /events (list) was removed (cdk#352), so an OPTIONS probe of the base
@@ -62,7 +60,7 @@ async function optionsStatus(url: string): Promise<number> {
 // The dead FLAT admin/guest/savethedate constants that used to fail here were
 // deleted from ApiConstants outright (shared#57), so they are no longer probed.
 // Every constant's shape is still covered by the hermetic contract test.
-const SKIP_LIVE = new Set<keyof typeof ApiConstants>(['FACES_BOX', 'EVENTS']);
+const SKIP_LIVE = new Set<keyof typeof ApiConstants>(['EVENTS']);
 
 const entries = (Object.entries(ApiConstants) as [keyof typeof ApiConstants, string][])
     .filter(([key]) => !SKIP_LIVE.has(key));

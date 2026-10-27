@@ -4,8 +4,6 @@ export declare const PublicApi: {
     readonly DISCOVER: string;
     readonly GUEST_LOGIN: string;
     readonly TELEMETRY_ERRORS: string;
-    readonly FACES_CONTROL: string;
-    readonly FACES_BOX: string;
 };
 /** Event-scoped guest and public endpoints. */
 export declare const GuestEventApi: {

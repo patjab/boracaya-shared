@@ -3,9 +3,6 @@
 // endpoints. Environment selection remains per call through the shared env seam.
 import { isTest } from './env';
 
-const legacyHost = (subdomain: string): string =>
-  `https://${subdomain}${isTest() ? '.test' : ''}.pdaboracay.com`;
-
 const boracayaHost = (subdomain: string): string =>
   `https://${subdomain}${isTest() ? '.test' : ''}.boracaya.com`;
 
@@ -23,8 +20,6 @@ export const PublicApi = {
   // Client error telemetry ingest (cdk#1495/#1496): both apps POST report
   // batches here; unauthenticated, WAF + stage-throttled like every public lane.
   get TELEMETRY_ERRORS() { return `${publicApi()}/telemetry/errors`; },
-  get FACES_CONTROL() { return legacyHost('faces-control'); },
-  get FACES_BOX() { return legacyHost('faces'); },
 } as const;
 
 /** Event-scoped guest and public endpoints. */

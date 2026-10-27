@@ -6,17 +6,12 @@ exports.OrganizerInviteApi = exports.FacesApi = exports.AccountApi = exports.Adm
 // the Lambda sees stays `/events/…` (no base-path prefix — a base path would be
 // left in event.path and break the Lambdas' path-based routing). This keeps the
 // volatile execute-api IDs out of the UIs (resolves pda-boracay-cdk#2).
-// faces-control is the v2 control API on its own domain. survey / moments(-official)
-// / faces box are already stable.
 //
 // Environment (pda-boracay-cdk #6 testing rollout): the SAME UI bundle serves prod
 // and the testing mirror. The target environment is picked at RUNTIME from the
 // page hostname — a build served from *.test.pdaboracay.com targets the
 // *.test.pdaboracay.com APIs; everything else (prod, and Node/SSR/unit-test where
 // `window` is absent) targets prod. One build, no per-bundler build flags.
-// NOTE: the 5 *-api.test domains exist; survey/faces/faces-control/moments need a
-// test equivalent before those features work under test (else they fail closed —
-// test never silently hits prod data).
 // A page served from either test host (test.pdaboracay.com or test.boracaya.com,
 // cdk#500 rebrand) targets the testing APIs; everything else targets prod.
 // The check itself lives in env.ts (pda-boracay#119) so site links share it.
@@ -62,11 +57,8 @@ exports.ApiConstants = {
     // SPA redirects into /e/<eventId>/); zero/many → the guided 404. Distinct from
     // GuestEventApi.claim, which requires the target event in its path.
     get GUEST_LOGIN() { return publicApi_1.PublicApi.GUEST_LOGIN; },
-    // Faces — control plane (v2 API on its own stable domain) + box base.
-    // FACES_BOX is an EPHEMERAL on-demand instance and is usually off, so it is
-    // excluded from live smoke checks (see api.smoke.test.ts).
-    get FACES_CONTROL() { return publicApi_1.PublicApi.FACES_CONTROL; },
-    get FACES_BOX() { return publicApi_1.PublicApi.FACES_BOX; },
+    // The faces box hosts (FACES_CONTROL, FACES_BOX) were REMOVED with the box
+    // (shared#203, cdk#2417): grouping runs serverless behind faces-api.
     // The Moments "Official" gallery constants were REMOVED (cdk#1364). They named
     // static objects on moments.pdaboracay.com, a host that no longer resolves
     // (NXDOMAIN) — the surface was folded into event-scoped Moments (cdk#995) and
@@ -196,7 +188,6 @@ exports.AccountApi = {
 exports.FacesApi = {
     base: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces`,
     list: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces`,
-    ingest: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/ingest`,
     merge: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/merge`,
     // Face-level curation (epic cdk#815, SI-1 cdk#816): split faces to a new
     // person, remove faces from / delete a person — PATCH person renames,
@@ -204,37 +195,19 @@ exports.FacesApi = {
     split: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/split`,
     person: (eventId, personId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}`,
     removeFaces: (eventId, personId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/persons/${encodeURIComponent(personId)}/remove-faces`,
-    // Box-emitted curation queues (epic cdk#815, SI-2 cdk#817): merge
-    // suggestions + the unmatched-face pile, and the acts on each.
-    suggestions: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/suggestions`,
-    dismissSuggestion: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/suggestions/dismiss`,
-    unmatched: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/unmatched`,
-    assignUnmatched: (eventId, faceId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/assign`,
-    dismissUnmatched: (eventId, faceId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/unmatched/${encodeURIComponent(faceId)}/dismiss`,
     people: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/people`,
     // The consent act (cdk#2423): an OWNER turns face grouping on with the
     // acknowledgment ({enabled: true, acknowledged: true, termsVersion}) or off
     // ({enabled: false}); the faces read carries the state for every member.
     enable: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/enable`,
-    // One-click recognition runs (cdk#796): admin enqueue/status + the box's
-    // queue lane (bearer = the faces-box secret, not a user token).
+    // One-click grouping runs (cdk#796, serverless since cdk#2415): enqueue,
+    // cancel and the run history.
     run: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/run`,
-    // Cancel a QUEUED run (cdk#802/#803): self-serve recovery when the box
-    // never claimed it — body carries {runId}.
+    // Cancel a run (cdk#802; a running one too since cdk#2415) — body carries {runId}.
     runCancel: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/run/cancel`,
     runs: (eventId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/runs`,
-    // One run's stored state (cdk#1570, U19): the BOX's read-back for a
-    // completion whose response it lost -- a GET that answers with what the
-    // platform already holds instead of re-sending an outcome. Rides the box
-    // lane (bearer = the faces-box secret; no user token reaches it), so in
-    // meaning it sits with `queue*` below even though the path is run-scoped
-    // like `runs`.
-    runById: (eventId, runId) => `${facesApi()}/events/${encodeURIComponent(eventId)}/faces/runs/${encodeURIComponent(runId)}`,
-    queue: () => `${facesApi()}/faces/queue`,
-    queueClaim: () => `${facesApi()}/faces/queue/claim`,
-    // Mid-run phase heartbeat (cdk#803): the box stamps where the run is.
-    queueProgress: () => `${facesApi()}/faces/queue/progress`,
-    queueComplete: () => `${facesApi()}/faces/queue/complete`,
+    // The box-era builders (suggestions, unmatched, ingest, runById and the
+    // queue lane) left with the box (shared#203, cdk#2417).
 };
 exports.OrganizerInviteApi = {
     metadata: (inviteId) => `${adminApi()}/invites/${encodeURIComponent(inviteId)}`,
