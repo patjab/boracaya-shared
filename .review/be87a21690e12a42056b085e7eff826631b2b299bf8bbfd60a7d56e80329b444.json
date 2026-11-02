@@ -1,12 +1,12 @@
 {
   "schema": "adversarial-review-record/1",
   "engine_version": "1",
-  "patch_id": "1623282438398c2e30469656fb570bb76b8f45f1189be092dbd99758fba8485d",
+  "patch_id": "be87a21690e12a42056b085e7eff826631b2b299bf8bbfd60a7d56e80329b444",
   "repo": "patjab/boracaya-shared",
   "branch": "feat/cr-25-portable-review",
   "base": "origin/main",
   "merge_base": "b13a9982985a6802308451063905c6f9fc98efaa",
-  "head": "ea1fe0efe9fa8d01ec64dd59bb41f10c7d16be73",
+  "head": "fd2a4689b8361b8941563373f3213f414076efa9",
   "verdict": "pass",
   "author_vendor": "claude",
   "reviewer": {
@@ -24,7 +24,7 @@
     "tests",
     "final"
   ],
-  "rounds": 4,
+  "rounds": 6,
   "ledger": [
     {
       "id": "F1",
@@ -52,7 +52,16 @@
       "location": ".github/workflows/codex-review.yml:94",
       "title": "The routing and OS-guard logic has no test, so a one-token regression merges silently",
       "disposition": "Fixed in d79ff4c27d4b0def66afef986b7e8f6ad298c7d1"
+    },
+    {
+      "id": "F4",
+      "round": 5,
+      "axis": "final",
+      "severity": "nit",
+      "location": ".github/workflows/codex-review.yml:151",
+      "title": "Windows fork guard is tested under pwsh 7, but production runs Windows PowerShell 5.1, which handles a failing gh differently",
+      "disposition": "Fixed in fd2a4689b8361b8941563373f3213f414076efa9"
     }
   ],
-  "created_at": "2026-11-02T03:34:27Z"
+  "created_at": "2026-11-02T03:48:21Z"
 }
