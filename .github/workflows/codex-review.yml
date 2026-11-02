@@ -113,6 +113,8 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
       CODEX_APP_ID: ${{ secrets.CODEX_APP_ID }}
+      # Presence only (a boolean, never the key): step `if:` cannot read secrets.
+      CODEX_APP_KEY_SET: ${{ secrets.CODEX_APP_PRIVATE_KEY != '' }}
     steps:
       # The observed OS must be one the review path supports (Windows, macOS)
       # and, when route chose one, that one. Expression string comparisons
@@ -179,7 +181,7 @@ jobs:
       # The harness is private: without the App there is no way to fetch it.
       # Missing secrets are an explicit failure, never a fallback.
       - name: Guard - the App is required to fetch the private harness
-        if: env.CODEX_APP_ID == ''
+        if: env.CODEX_APP_ID == '' || env.CODEX_APP_KEY_SET != 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
