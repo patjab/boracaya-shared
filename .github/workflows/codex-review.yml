@@ -1,29 +1,40 @@
 name: codex-review
 
-# Codex reviews this repo's PRs from the desktop, unattended (cdk#1475): one
-# aimed round per push (`broad` first, then the sequence in
+# Codex reviews this repo's PRs from a self-hosted review runner, unattended
+# (cdk#1475): one aimed round per push (`broad` first, then the sequence in
 # .github/codex-review.yml, `final` after it), `/codex [axis]` on the PR for a
 # round by hand, "Run workflow" with a PR number for the same. Dispositions go
 # in the finding's thread (reply + resolve); the next round carries them.
 # Manual: patjab/codex-review docs/codex-review.md.
 #
-# THE PUBLIC-REPO EXCEPTION. The other callers are ~25-line callers of the
-# reusable `codex-review` workflow in patjab/codex-review. A public repository cannot
-# use a private repository's reusable workflows or actions - the first attempt
-# from here failed at parse time with "workflow was not found" (run
-# 33013019258) while the same reference worked from the private repos - so this
-# file carries the job itself and takes the harness from the codex-review
-# clone on the desktop (`git archive` of `origin/main:review`, after a fetch;
-# nothing in the clone's working tree is touched). Same steps as the reusable
-# workflow, same composite action, same identity rule: the Jeongyeon Reviewer App
-# when CODEX_APP_ID + CODEX_APP_PRIVATE_KEY exist here, else GITHUB_TOKEN
-# (reviews then appear as github-actions[bot]; the summary says so).
+# THE PUBLIC-REPO EXCEPTION. The other callers are short callers of the
+# reusable `codex-review` workflow in patjab/codex-review. A public repository
+# cannot use a private repository's reusable workflows or actions (run
+# 33013019258: "workflow was not found"), so this file carries the job itself.
 #
-# Public repo, desktop runner: the CI gate stays hosted (cdk#1464). This is the
-# one job that runs on the desktop (`wirel-desktop-shared`, label `codex`,
-# decision cdk#1480) and it never runs fork code - the job `if` refuses fork
-# heads before a runner is involved, the harness refuses them again, and
-# `/codex` is honoured only from the owner or a collaborator.
+# Where the harness comes from (patjab/codex-review#25 section 5): a CLEAN
+# checkout of patjab/codex-review at an audited, immutable SHA (the `ref:`
+# below - bump it deliberately, never to a branch), into `.codex-review/`
+# beside this repo's own checkout in `pr/`, on a Jeongyeon Reviewer App
+# installation token minted for patjab/codex-review with contents:read only
+# (the pattern boracaya-ops CI uses). No desktop clone, no fetch of a moving
+# main, nothing persisted on the host. The review itself is posted with a
+# second token minted for THIS repo (the App identity; GITHUB_TOKEN when the
+# App secrets are absent - but then the private harness cannot be fetched and
+# the job says so).
+#
+# Fork heads never run here: the `route` job's `if` refuses them on
+# pull_request before any runner is involved, the fork guard asks the API for
+# the head of EVERY entry point (a `/codex` comment, a dispatch) before
+# anything from the PR is checked out, and the harness refuses them again.
+# `/codex` is honoured only from the owner or a collaborator. CI stays hosted
+# (cdk#1464); this is the one self-hosted job.
+#
+# Runner: any `[self-hosted, codex]` runner registered to this repo, Windows
+# or macOS. `route` (hosted, free on a public repo) appends the OS label only
+# for a same-repo PR head named onboard/<windows|macos>/<operation>/<role>, or
+# a dispatch's `runner-os` input; the OS guard refuses an unsupported OS or one
+# other than the one asked for.
 
 on:
   pull_request:
@@ -39,6 +50,9 @@ on:
       axis:
         description: "broad | tests | coupling | chain | unexamined | final (empty = next in the sequence)"
         default: ''
+      runner-os:
+        description: "windows | macos to aim at one OS; empty = any codex runner"
+        default: ''
 
 permissions:
   contents: read
@@ -46,41 +60,134 @@ permissions:
   issues: write
 
 jobs:
-  review:
+  # Which runner OS, decided before a runner is chosen. Only a same-repo
+  # pull_request head matching ^onboard/(windows|macos)/[a-z0-9-]+/[a-z0-9-]+$
+  # selects one (the OS segment is the label), or a dispatch input; every
+  # other event and every fork selects nothing.
+  route:
     # issue_comment fires for every comment on every issue; only a `/codex`
-    # comment on a PR, written by the owner or a collaborator, reaches the
-    # runner - anyone can comment on a public repo, and the runner must not be
-    # allocated (nor the App token minted) for a stranger's comment (Codex r1
-    # on #159). Fork heads never reach it on pull_request events; on a comment
-    # the head is unknown until the harness resolves the PR and refuses it.
+    # comment on a PR, written by the owner or a collaborator, goes on - anyone
+    # can comment on a public repo, and the runner must not be allocated (nor
+    # the App token minted) for a stranger's comment (Codex r1 on #159). Fork
+    # heads never go on from pull_request events; on a comment or a dispatch
+    # the head is unknown here and the review job's fork guard refuses it.
     if: >-
       (github.event_name != 'issue_comment' || (github.event.issue.pull_request && contains(fromJSON('["/codex","/codex broad","/codex tests","/codex coupling","/codex chain","/codex unexamined","/codex final"]'), github.event.comment.body) && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)))
       && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: [self-hosted, windows, codex]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      runner-os: ${{ steps.os.outputs.runner-os }}
+    steps:
+      - name: Runner OS (onboard/ heads and dispatch input only)
+        id: os
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          INPUT_OS: ${{ inputs.runner-os }}
+        run: |
+          set -euo pipefail
+          os=''
+          if [ "$EVENT" = pull_request ]; then
+            if [ "$HEAD_REPO" = "$GITHUB_REPOSITORY" ] && [[ "$HEAD_REF" =~ ^onboard/(windows|macos)/[a-z0-9-]+/[a-z0-9-]+$ ]]; then
+              os="${BASH_REMATCH[1]}"
+            fi
+          elif [ "$EVENT" = workflow_dispatch ]; then
+            case "$INPUT_OS" in
+              ''|windows|macos) os="$INPUT_OS" ;;
+              *) echo "::error::codex-review: runner-os must be windows, macos or empty, got '$INPUT_OS'"; exit 1 ;;
+            esac
+          fi
+          echo "runner-os=$os" >> "$GITHUB_OUTPUT"
+          echo "codex-review: runner-os '${os}' (event $EVENT)"
+
+  review:
+    needs: route
+    runs-on: ${{ fromJSON(needs.route.outputs.runner-os == 'windows' && '["self-hosted","codex","windows"]' || needs.route.outputs.runner-os == 'macos' && '["self-hosted","codex","macos"]' || '["self-hosted","codex"]') }}
     timeout-minutes: 45
     concurrency:
       group: codex-${{ github.repository }}-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
       cancel-in-progress: false
-    defaults:
-      run:
-        shell: powershell
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
       CODEX_APP_ID: ${{ secrets.CODEX_APP_ID }}
-      # Where the desktop keeps its patjab/codex-review clone; override with a
-      # repository variable when the clone lives elsewhere.
-      CODEX_REVIEW_CLONE: ${{ vars.CODEX_REVIEW_CLONE || '' }}
     steps:
-      - name: Guard - Windows desktop runner
-        if: runner.os != 'Windows'
-        shell: bash
+      # The observed OS must be one the review path supports (Windows, macOS)
+      # and, when route chose one, that one. Expression string comparisons
+      # ignore case ('macos' == 'macOS'). One step per shell.
+      - name: Guard - supported runner OS (Windows)
+        if: runner.os == 'Windows' && needs.route.outputs.runner-os != '' && needs.route.outputs.runner-os != 'windows'
+        shell: powershell
+        env:
+          WANT_OS: ${{ needs.route.outputs.runner-os }}
         run: |
-          echo "::error::codex-review: runner OS '${{ runner.os }}' is not the Windows desktop that holds the Codex login"
+          Write-Output "::error::codex-review: runner-os '$env:WANT_OS' was asked for, but this round landed on Windows"
           exit 1
 
+      - name: Guard - supported runner OS
+        if: runner.os != 'Windows' && (runner.os != 'macOS' || (needs.route.outputs.runner-os != '' && needs.route.outputs.runner-os != 'macos'))
+        shell: bash
+        env:
+          OBSERVED_OS: ${{ runner.os }}
+          WANT_OS: ${{ needs.route.outputs.runner-os }}
+        run: |
+          echo "::error::codex-review: runner OS '$OBSERVED_OS' (runner-os '$WANT_OS') is not a supported review host (Windows, macOS; must match runner-os)"
+          exit 1
+
+      # Fork guard for EVERY entry point, from the API, before anything from
+      # the PR is checked out or run.
+      - name: Guard - same-repo head (every entry point)
+        if: runner.os == 'Windows'
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ env.PR_NUMBER }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = (& gh api "repos/$env:GITHUB_REPOSITORY/pulls/$env:PR" --jq '.head.repo.full_name') 2>$null
+          if ($LASTEXITCODE -ne 0 -or -not $head) {
+            Write-Output "::error::codex-review: could not resolve the head repo of PR #$env:PR - refusing"
+            exit 1
+          }
+          if ($head -ne $env:GITHUB_REPOSITORY) {
+            Write-Output "::error::codex-review: refusing a fork head ($head); Codex runs with full shell access on this box"
+            exit 1
+          }
+          Write-Output "codex-review: head is $head (same repo)"
+
+      - name: Guard - same-repo head (every entry point, macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ env.PR_NUMBER }}
+        run: |
+          set -uo pipefail
+          head="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.head.repo.full_name' 2>/dev/null)" || head=""
+          if [ -z "$head" ]; then
+            echo "::error::codex-review: could not resolve the head repo of PR #$PR - refusing"
+            exit 1
+          fi
+          if [ "$head" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::codex-review: refusing a fork head ($head); Codex runs with full shell access on this box"
+            exit 1
+          fi
+          echo "codex-review: head is $head (same repo)"
+
+      # The harness is private: without the App there is no way to fetch it.
+      # Missing secrets are an explicit failure, never a fallback.
+      - name: Guard - the App is required to fetch the private harness
+        if: env.CODEX_APP_ID == ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            core.setFailed('codex-review: CODEX_APP_ID / CODEX_APP_PRIVATE_KEY are not set here; the private patjab/codex-review harness cannot be checked out without the App');
+
+      # Posting identity: an installation token for THIS repo only.
       - name: Jeongyeon Reviewer App token
         id: app
-        if: env.CODEX_APP_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.CODEX_APP_ID }}
@@ -88,6 +195,8 @@ jobs:
 
       - name: Identity
         id: identity
+        if: runner.os == 'Windows'
+        shell: powershell
         env:
           HAS_APP_TOKEN: ${{ steps.app.outputs.token != '' }}
         run: |
@@ -97,52 +206,80 @@ jobs:
             $line = 'codex-review: posting as the Jeongyeon Reviewer App'
           } else {
             $identity = 'github-token'
-            $line = 'codex-review: no CODEX_APP_ID secret in this repo - posting as github-actions[bot] (owner: see patjab/codex-review docs/codex-review.md, and runners/check-callers.ps1 there)'
+            $line = 'codex-review: no App token - posting as github-actions[bot] (owner: see patjab/codex-review docs/codex-review.md, and runners/check-callers.ps1 there)'
             Write-Output "::warning::$line"
           }
           Add-Content -Path $env:GITHUB_OUTPUT -Value "identity=$identity"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $line
           Write-Output $line
 
+      - name: Identity (macOS/Linux)
+        id: identity-posix
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          HAS_APP_TOKEN: ${{ steps.app.outputs.token != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$HAS_APP_TOKEN" = "true" ]; then
+            identity=app
+            line='codex-review: posting as the Jeongyeon Reviewer App'
+          else
+            identity=github-token
+            line='codex-review: no App token - posting as github-actions[bot] (owner: see patjab/codex-review docs/codex-review.md, and runners/check-callers.ps1 there)'
+            echo "::warning::$line"
+          fi
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+          echo "$line" >> "$GITHUB_STEP_SUMMARY"
+          echo "$line"
+
+      # A SEPARATE installation token, scoped to patjab/codex-review and
+      # contents:read, used only for the harness checkout below.
+      - name: Jeongyeon Reviewer App token for the harness (patjab/codex-review, contents:read)
+        id: harness-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.CODEX_APP_ID }}
+          private-key: ${{ secrets.CODEX_APP_PRIVATE_KEY }}
+          owner: patjab
+          repositories: codex-review
+          permission-contents: read
+
+      # This repo, full history (run_review.py fetches the PR head and base
+      # into it and diffs base...head). Its own folder, so the harness is never
+      # inside the checkout the PR's code lands in.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          path: pr
 
-      # The harness, from codex-review main via the desktop clone: fetch, then
-      # `git archive` review/ into a folder of this checkout so the composite
-      # action can be used as a local action (`uses: ./.codex-review`). The
-      # folder is untracked here and never committed (checkout cleans it).
-      - name: Fetch the review harness from codex-review (desktop clone)
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $clone = $env:CODEX_REVIEW_CLONE
-          if (-not $clone) { $clone = Join-Path $env:USERPROFILE 'Desktop\codex-review' }
-          if (-not (Test-Path (Join-Path $clone '.git'))) { Write-Output "::error::codex-review: no patjab/codex-review clone at $clone (clone it there, or set the CODEX_REVIEW_CLONE repository variable)"; exit 1 }
-          # The clone's code runs on this desktop with the App token: it must be
-          # GitHub's patjab/codex-review, exactly (codex-review#1, Codex r5).
-          $origin = (& git -C $clone remote get-url origin | Out-String).Trim()
-          if ($origin -cnotmatch '^(git@github\.com:|ssh://git@github\.com/|https://github\.com/)patjab/codex-review(\.git)?/?$') { Write-Output "::error::codex-review: the clone at $clone has origin '$origin', not GitHub's patjab/codex-review - refusing to run its review/"; exit 1 }
-          & git -C $clone fetch -q origin main
-          if ($LASTEXITCODE -ne 0) { Write-Output "::error::codex-review: git fetch of codex-review failed in $clone"; exit 1 }
-          $sha = (& git -C $clone rev-parse origin/main).Trim()
-          $zip = Join-Path $env:RUNNER_TEMP 'codex-review.zip'
-          & git -C $clone archive --format=zip -o $zip origin/main review
-          if ($LASTEXITCODE -ne 0) { Write-Output '::error::codex-review: git archive of review/ failed'; exit 1 }
-          $dest = Join-Path $env:GITHUB_WORKSPACE '.codex-review'
-          if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-          New-Item -ItemType Directory -Path $dest | Out-Null
-          Expand-Archive -Path $zip -DestinationPath $dest -Force
-          Move-Item -Path (Join-Path $dest 'review\*') -Destination $dest
-          Remove-Item -Recurse -Force (Join-Path $dest 'review')
-          Remove-Item -Force $zip
-          Write-Output "harness from codex-review $sha"
-          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "harness: codex-review review/ at $sha"
+      # The harness, clean, at the audited SHA. Bump deliberately in a PR.
+      - name: The review harness (patjab/codex-review at the pinned SHA)
+        id: harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: patjab/codex-review
+          ref: 62962edd4eb73028f2aef8c515c3391d36f50547 # codex-review main @ 2026-11-02, the portable review (codex-review#26)
+          token: ${{ steps.harness-token.outputs.token }}
+          path: .codex-review
+          persist-credentials: false
+
+      - name: Harness provenance
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HARNESS_SHA: ${{ steps.harness.outputs.commit }}
+        with:
+          script: |
+            const line = `harness: patjab/codex-review review/ at ${process.env.HARNESS_SHA}`;
+            core.info(line);
+            await core.summary.addRaw(line + '\n').write();
 
       - name: Codex round
         id: round
-        uses: ./.codex-review
+        uses: ./.codex-review/review
         with:
           pr: ${{ env.PR_NUMBER }}
           token: ${{ steps.app.outputs.token || github.token }}
-          identity: ${{ steps.identity.outputs.identity }}
+          identity: ${{ steps.identity.outputs.identity || steps.identity-posix.outputs.identity }}
           axis: ${{ inputs.axis || '' }}
+          workspace: ${{ github.workspace }}/pr
