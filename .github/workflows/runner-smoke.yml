@@ -1,0 +1,65 @@
+name: runner-smoke
+
+# Per-registration identity smoke for the onboarding engine (ops#142 section 7;
+# epic cdk#2531 contract item 8). A NEW registration carries only its unique
+# quarantine label (`quarantine-<operationId>-<runner name>`), so no ordinary
+# selector can match it; this dispatch-only workflow is the one thing that
+# routes a job to it, proving the registration, its LaunchAgent and its service
+# PATH work before Mission Control's commit writes the real routing labels.
+#
+# Nothing here checks anything out or reads a secret: it prints who ran it and
+# probes the toolchain the way a job sees it. The verify driver correlates the
+# run by the `correlation` input (echoed in the run name) and binds the receipt
+# to the job's actual runner name. It refuses any label that is not a
+# quarantine label, so it cannot be used as a general targeting tool.
+#
+# Each repository needs its own copy (registrations are repo-scoped). This is
+# the boracaya-shared copy (patjab/boracaya-ops#143); the reference is
+# patjab/boracaya-ops .github/workflows/runner-smoke.yml. Everything below this
+# header is identical to it: change the reference first, then every copy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: The registration's quarantine label (quarantine-...)
+        required: true
+        type: string
+      correlation:
+        description: Opaque correlation id echoed in the run name (the verify driver's dedup key)
+        type: string
+        default: ''
+
+run-name: ${{ format('runner-smoke {0} {1}', inputs.label, inputs.correlation) }}
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: startsWith(inputs.label, 'quarantine-')
+    runs-on: ${{ inputs.label }}
+    timeout-minutes: 10
+    steps:
+      - name: Identity and toolchain (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          LABEL: ${{ inputs.label }}
+        run: |
+          set -uo pipefail
+          echo "runner=$RUNNER_NAME os=$RUNNER_OS arch=$RUNNER_ARCH user=$(id -un) label=$LABEL"
+          for t in node git gh python3; do
+            if command -v "$t" >/dev/null 2>&1; then echo "$t: $("$t" --version 2>&1 | head -1)"; else echo "$t: MISSING"; fi
+          done
+
+      # ASCII only: PS 5.1 reads the runner's BOM-less temp .ps1 as ANSI.
+      - name: Identity and toolchain (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Write-Output "runner=$env:RUNNER_NAME os=$env:RUNNER_OS arch=$env:RUNNER_ARCH user=$env:USERNAME"
+          foreach ($t in @('node', 'git', 'gh', 'python')) {
+            $c = Get-Command $t -ErrorAction SilentlyContinue
+            if ($c) { Write-Output "${t}: $((& $t --version 2>&1 | Select-Object -First 1))" } else { Write-Output "${t}: MISSING" }
+          }
