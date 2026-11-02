@@ -65,6 +65,26 @@ describe.skipIf(process.platform === 'win32')('route (runs on hosted Ubuntu)', (
   });
 });
 
+describe('route wiring', () => {
+  // The bash tests feed EVENT/HEAD_REPO/HEAD_REF/INPUT_OS directly; these are
+  // the bindings that feed them on GitHub and the path the answer takes out
+  // to the review job (Codex r2 on midtown-dash#384, same shape here).
+  const route = LINES.slice(LINES.indexOf('  route:'), LINES.indexOf('  review:'));
+  it.each([
+    '      runner-os: ${{ steps.os.outputs.runner-os }}',
+    '        id: os',
+    '          EVENT: ${{ github.event_name }}',
+    '          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}',
+    '          HEAD_REF: ${{ github.head_ref }}',
+    '          INPUT_OS: ${{ inputs.runner-os }}',
+  ])('route carries %s', (line) => expect(route).toContain(line));
+  it('has one step id, exports the answer, and review reads it', () => {
+    expect(route.filter((l) => /^ {8}id: /.test(l))).toHaveLength(1);
+    expect(routeScript()).toContain('echo "runner-os=$os" >> "$GITHUB_OUTPUT"');
+    expect(WF).toContain('\n  review:\n    needs: route\n');
+  });
+});
+
 // A whitelist evaluator for the guards' expressions: paths, '...' strings,
 // == != && || and parentheses.
 type V = string | boolean | null;
