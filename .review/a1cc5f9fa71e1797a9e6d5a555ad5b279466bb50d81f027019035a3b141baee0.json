@@ -1,0 +1,58 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "a1cc5f9fa71e1797a9e6d5a555ad5b279466bb50d81f027019035a3b141baee0",
+  "repo": "patjab/boracaya-shared",
+  "branch": "feat/cr-25-portable-review",
+  "base": "origin/main",
+  "merge_base": "b13a9982985a6802308451063905c6f9fc98efaa",
+  "head": "d79ff4c27d4b0def66afef986b7e8f6ad298c7d1",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 3,
+  "ledger": [
+    {
+      "id": "F1",
+      "round": 1,
+      "axis": "broad",
+      "severity": "nit",
+      "location": ".github/workflows/codex-review.yml:182",
+      "title": "App-required guard checks only CODEX_APP_ID, not the private key it names",
+      "disposition": "Fixed in 15d9e014d80581c6086857e07b1220107f8c1902"
+    },
+    {
+      "id": "F2",
+      "round": 1,
+      "axis": "broad",
+      "severity": "minor",
+      "location": ".github/workflows/review-record.yml:37",
+      "title": "review-record.yml still Windows-only + desktop-clone, diverging from this file's new portable any-codex-runner model",
+      "disposition": "Deferred: https://github.com/patjab/codex-review/issues/28"
+    },
+    {
+      "id": "F3",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": ".github/workflows/codex-review.yml:94",
+      "title": "The routing and OS-guard logic has no test, so a one-token regression merges silently",
+      "disposition": "Fixed in d79ff4c27d4b0def66afef986b7e8f6ad298c7d1"
+    }
+  ],
+  "created_at": "2026-11-02T01:56:24Z"
+}
