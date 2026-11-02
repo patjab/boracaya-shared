@@ -1,12 +1,12 @@
 {
   "schema": "adversarial-review-record/1",
   "engine_version": "1",
-  "patch_id": "a1cc5f9fa71e1797a9e6d5a555ad5b279466bb50d81f027019035a3b141baee0",
+  "patch_id": "1623282438398c2e30469656fb570bb76b8f45f1189be092dbd99758fba8485d",
   "repo": "patjab/boracaya-shared",
   "branch": "feat/cr-25-portable-review",
   "base": "origin/main",
   "merge_base": "b13a9982985a6802308451063905c6f9fc98efaa",
-  "head": "d79ff4c27d4b0def66afef986b7e8f6ad298c7d1",
+  "head": "ea1fe0efe9fa8d01ec64dd59bb41f10c7d16be73",
   "verdict": "pass",
   "author_vendor": "claude",
   "reviewer": {
@@ -24,7 +24,7 @@
     "tests",
     "final"
   ],
-  "rounds": 3,
+  "rounds": 4,
   "ledger": [
     {
       "id": "F1",
@@ -54,5 +54,5 @@
       "disposition": "Fixed in d79ff4c27d4b0def66afef986b7e8f6ad298c7d1"
     }
   ],
-  "created_at": "2026-11-02T01:56:24Z"
+  "created_at": "2026-11-02T03:34:27Z"
 }
