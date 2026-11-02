@@ -134,7 +134,104 @@ describe('the OS guard', () => {
     expect(WF).toContain(`runs-on: \${{ fromJSON(needs.route.outputs.runner-os == 'windows' && '["self-hosted","codex","windows"]' || needs.route.outputs.runner-os == 'macos' && '["self-hosted","codex","macos"]' || '["self-hosted","codex"]') }}`);
   });
 
-  it('checks the harness out at a full SHA, never a branch', () => {
-    expect(WF).toMatch(/\n {10}repository: patjab\/codex-review\n {10}ref: [0-9a-f]{40} /);
+});
+
+// One step's lines, by the start of its name, up to the next step.
+function stepBlock(name: string): string[] {
+  const start = LINES.findIndex((l) => l.startsWith(`      - name: ${name}`) || l === `      - ${name}`);
+  expect(start, name).toBeGreaterThan(0);
+  const end = LINES.findIndex((l, i) => i > start && (l.startsWith('      - ') || /^ {2}\S/.test(l)));
+  return LINES.slice(start, end < 0 ? undefined : end);
+}
+function runOf(block: string[]): string {
+  const at = block.indexOf('        run: |');
+  expect(at).toBeGreaterThan(0);
+  return block.slice(at + 1).filter((l) => l.trim() === '' || l.startsWith('          ')).map((l) => l.slice(10)).join('\n') + '\n';
+}
+
+describe('the harness handoff', () => {
+  // Codex r2 on #209: the two checkout destinations, the local action and the
+  // workspace input must agree, at the audited SHA.
+  it('checks this repo out into pr/ and the harness into .codex-review/ at the audited SHA', () => {
+    const harness = stepBlock('The review harness (patjab/codex-review at the pinned SHA)');
+    expect(harness).toContain('          repository: patjab/codex-review');
+    expect(harness).toContain('          path: .codex-review');
+    expect(harness).toContain('          token: ${{ steps.harness-token.outputs.token }}');
+    expect(harness).toContain('          persist-credentials: false');
+    expect(harness.find((l) => l.startsWith('          ref: '))).toMatch(/^ {10}ref: 62962edd4eb73028f2aef8c515c3391d36f50547 /);
+    const pr = LINES.findIndex((l) => l === '          path: pr');
+    expect(pr).toBeGreaterThan(0);
+  });
+  it('runs the harness from that folder against that checkout', () => {
+    const round = stepBlock('Codex round');
+    expect(round).toContain('        uses: ./.codex-review/review');
+    expect(round).toContain('          workspace: ${{ github.workspace }}/pr');
+  });
+  it('mints the harness token for codex-review contents:read only', () => {
+    const tok = stepBlock('Jeongyeon Reviewer App token for the harness');
+    expect(tok).toContain('          repositories: codex-review');
+    expect(tok).toContain('          permission-contents: read');
+    expect(tok.filter((l) => /^ {10}permission-/.test(l))).toHaveLength(1);
+  });
+});
+
+const GH_STUB = `#!/bin/sh
+echo "$*" >> "$GH_LOG"
+case "$GH_MODE" in
+  same) echo patjab/boracaya-shared ;;
+  fork) echo mallory/boracaya-shared ;;
+  empty) echo ;;
+  fail) echo "HTTP 404: Not Found" >&2; exit 1 ;;
+esac
+`;
+
+function forkGuard(name: string, shell: string[], mode: string) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fork-'));
+  const bin = path.join(dir, 'bin');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'gh'), GH_STUB, { mode: 0o755 });
+  const script = path.join(dir, shell[0] === 'bash' ? 'guard.sh' : 'guard.ps1');
+  fs.writeFileSync(script, runOf(stepBlock(name)));
+  const log = path.join(dir, 'gh.log');
+  const r = spawnSync(shell[0], [...shell.slice(1), script], {
+    env: { PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`, HOME: dir, GH_MODE: mode, GH_LOG: log,
+           GITHUB_REPOSITORY: 'patjab/boracaya-shared', PR: '209', GH_TOKEN: 't' },
+    encoding: 'utf8',
+  });
+  const calls = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim() : '';
+  fs.rmSync(dir, { recursive: true, force: true });
+  return { code: r.status, out: (r.stdout ?? '') + (r.stderr ?? ''), calls };
+}
+
+const hasPwsh = spawnSync('pwsh', ['-NoProfile', '-Command', 'exit 0']).status === 0;
+const guards: Array<[string, string[], boolean]> = [
+  ['Guard - same-repo head (every entry point, macOS/Linux)', ['bash', '--noprofile', '--norc', '-eo', 'pipefail'], true],
+  // The Windows step under pwsh where installed (hosted Ubuntu has it).
+  ['Guard - same-repo head (every entry point)', ['pwsh', '-NoProfile', '-File'], hasPwsh],
+];
+
+describe.skipIf(process.platform === 'win32')('the API fork guards (every entry point)', () => {
+  // Codex r2 on #209: run both guards against a stub gh for each answer.
+  for (const [name, shell, available] of guards) {
+    describe.skipIf(!available)(name, () => {
+      it.each([
+        ['same', 0, 'head is patjab/boracaya-shared (same repo)'],
+        ['fork', 1, 'refusing a fork head (mallory/boracaya-shared)'],
+        ['fail', 1, 'could not resolve the head repo of PR #209'],
+        ['empty', 1, 'could not resolve the head repo of PR #209'],
+      ])('gh answers %s -> exit %i', (mode, code, says) => {
+        const r = forkGuard(name, shell, mode);
+        expect(r.code, r.out).toBe(code);
+        expect(r.out).toContain(says);
+        expect(r.calls).toBe('api repos/patjab/boracaya-shared/pulls/209 --jq .head.repo.full_name');
+      });
+    });
+  }
+
+  it('both run before anything from the PR is checked out', () => {
+    const names = LINES.filter((l) => l.startsWith('      - ')).map((l) => l.trim());
+    const firstCheckout = names.findIndex((n) => n.includes('actions/checkout@'));
+    for (const [name] of guards) expect(names.findIndex((n) => n === `- name: ${name}`)).toBeLessThan(firstCheckout);
+    expect(firstCheckout).toBeGreaterThan(0);
   });
 });
