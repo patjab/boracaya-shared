@@ -44,6 +44,7 @@ jobs:
       # Where the box keeps its patjab/codex-review clone; override with a
       # repository variable when the clone lives elsewhere. Defaults: Desktop\ on
       # Windows; ~/boracaya on macOS, where a launchd agent may not read ~/Desktop.
+      # The variable replaces both defaults, so a path for one OS breaks the other.
       CODEX_REVIEW_CLONE: ${{ vars.CODEX_REVIEW_CLONE || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
