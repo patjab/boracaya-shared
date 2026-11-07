@@ -145,3 +145,4 @@ export type {
 } from './formMessages';
 export { SHELL_KEYS, STYLE_TIERS, CURATED_DESIGNS, TYPE_VOICES, STYLE_MODES, OCCASION_DEFAULTS, FALLBACK_DEFAULTS } from './shells';
 export type { ShellKey, StyleTier, CuratedDesignId, TypeVoice, StyleMode, ResolvedTokens, StyleConfig, ShellStyleDefaults, OccasionKey, Vocabulary } from './shells';
+// onboard op-20261102-g6y7ol shared: verification fixture; never merged (ops#142 verify driver)
