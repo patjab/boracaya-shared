@@ -1,0 +1,67 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "0af2c55da300214363c65ce31b2b383a5dff4dc21b40e47c80cec456b082947e",
+  "repo": "patjab/boracaya-shared",
+  "branch": "ci/review-record-any-codex-runner",
+  "base": "origin/main",
+  "merge_base": "43bc9d86ff86cc6a0a8a7635ffc3e69191536857",
+  "head": "b59e5702d41ccc931df93ba16bf543a41b7556e8",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 3,
+  "ledger": [
+    {
+      "id": "F1",
+      "round": 1,
+      "axis": "broad",
+      "severity": "minor",
+      "location": ".github/workflows/review-record.yml:39",
+      "title": "Widened runner selector includes boxes that nothing proves have the clone or python3.13",
+      "disposition": "Deferred: patjab/boracaya-ops#143"
+    },
+    {
+      "id": "F2",
+      "round": 1,
+      "axis": "broad",
+      "severity": "nit",
+      "location": ".github/workflows/review-record.yml:47",
+      "title": "One CODEX_REVIEW_CLONE override now applies to both Windows and macOS",
+      "disposition": "Fixed in 76f1839ed9231aca7c1b4dbf2dd6f7d70d158bad"
+    },
+    {
+      "id": "F3",
+      "round": 2,
+      "axis": "tests",
+      "severity": "major",
+      "location": ".github/workflows/review-record.yml:117",
+      "title": "No test pins that exactly one Verify step fires per OS, so a flipped guard silently passes the merge gate",
+      "disposition": "Fixed in b59e5702d41ccc931df93ba16bf543a41b7556e8"
+    },
+    {
+      "id": "F4",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": ".github/workflows/review-record.yml:91",
+      "title": "The new bash Fetch and Verify steps have no behavioural test, including the origin trust check",
+      "disposition": "Fixed in b59e5702d41ccc931df93ba16bf543a41b7556e8"
+    }
+  ],
+  "created_at": "2026-11-07T01:08:16Z"
+}
