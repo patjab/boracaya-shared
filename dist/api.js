@@ -127,6 +127,8 @@ exports.AdminEventApi = {
     // Custom-stage definitions + the responses grid (cdk#466/#513).
     stages: (eventId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages`,
     stage: (eventId, stageId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
+    /** Step-photo unlink: DELETE clears the definition's `imageUrl` + deletes the S3 object. */
+    stageImage: (eventId, stageId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/image`,
     stageResponses: (eventId, stageId) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/responses`,
     // Admin merge-write on ONE guest's stage response (cdk#529) - the room-block
     // lane (the bespoke precheckin routes retired with cdk#529).

@@ -70,6 +70,31 @@ export const DEFAULT_CORE_STAGE = {
 };
 export const stagePresentation = (def) => { var _a; return (((_a = def.settings) === null || _a === void 0 ? void 0 : _a.presentation) === 'stepped' ? 'stepped' : 'flat'); };
 export const isDisplayBlock = (el) => el.kind === 'display';
+/** The longest step-photo URL a definition may carry. Mirrors the stages
+ *  Lambda's MAX_IMAGE_URL — the Lambda is the enforcement boundary. */
+export const MAX_STAGE_IMAGE_URL = 2048;
+/**
+ * A step's photo URL, or undefined when it has none worth rendering.
+ *
+ * The one reader both apps use: a definition arrives from config, which is
+ * untrusted, so the value is honored only when it is a string that — once
+ * trimmed — is an absolute `https://` URL (lowercase scheme, no whitespace)
+ * within the length the Lambda stores: the same rule the Lambda writes by.
+ * Anything else (absent, a non-string, http:, javascript:, data:, a
+ * protocol-relative `//host`, an over-long value) reads as "no photo", so a
+ * bad value can never reach an `<img src>`.
+ */
+export const stageImageUrl = (def) => {
+    const raw = def === null || def === void 0 ? void 0 : def.imageUrl;
+    if (typeof raw !== 'string')
+        return undefined;
+    const url = raw.trim();
+    if (url.length === 0 || url.length > MAX_STAGE_IMAGE_URL)
+        return undefined;
+    if (!/^https:\/\/[^\s/]/.test(url) || /\s/.test(url))
+        return undefined;
+    return url;
+};
 /** A definition's ordered element list (cdk#976). The legacy `fields` list
  * is no longer read (cdk#2132). */
 export const stageElements = (def) => { var _a; return (_a = def.elements) !== null && _a !== void 0 ? _a : []; };

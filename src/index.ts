@@ -123,9 +123,9 @@ export type { ClaimCandidate, ClaimResult, GuestSessionRefresh, InvitationExchan
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export {
-  ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, PREFILL_SOURCES,
+  ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, MAX_STAGE_IMAGE_URL, PREFILL_SOURCES,
   STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock,
-  resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation,
+  resolvePrefillSource, stageDriftKeys, stageElements, stageImageUrl, stagePresentation,
   stageQuestions,
 } from './stages';
 export type {

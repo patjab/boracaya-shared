@@ -27,7 +27,7 @@
  *    one later is a registry entry, not a new mechanism.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.coreStageFallback = exports.stageDriftKeys = exports.resolvePrefillSource = exports.guestDisplayName = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = exports.stageQuestions = exports.stageElements = exports.isDisplayBlock = exports.stagePresentation = exports.DEFAULT_CORE_STAGE = exports.ATTENDANCE_KEY = exports.CORE_STAGE_ID = void 0;
+exports.coreStageFallback = exports.stageDriftKeys = exports.resolvePrefillSource = exports.guestDisplayName = exports.STAGE_RESPONSE_META_KEYS = exports.PREFILL_SOURCES = exports.stageQuestions = exports.stageElements = exports.stageImageUrl = exports.MAX_STAGE_IMAGE_URL = exports.isDisplayBlock = exports.stagePresentation = exports.DEFAULT_CORE_STAGE = exports.ATTENDANCE_KEY = exports.CORE_STAGE_ID = void 0;
 // --- The fixed core stage (cdk#1012, decisions cdk#1009 A8-A11) -------------
 /** The reserved id of the core stage — RSVP itself, riding the engine. Fixed
  *  so every reader uses a static path (stages.RSVP...); pre-reserved in the
@@ -75,6 +75,32 @@ const stagePresentation = (def) => { var _a; return (((_a = def.settings) === nu
 exports.stagePresentation = stagePresentation;
 const isDisplayBlock = (el) => el.kind === 'display';
 exports.isDisplayBlock = isDisplayBlock;
+/** The longest step-photo URL a definition may carry. Mirrors the stages
+ *  Lambda's MAX_IMAGE_URL — the Lambda is the enforcement boundary. */
+exports.MAX_STAGE_IMAGE_URL = 2048;
+/**
+ * A step's photo URL, or undefined when it has none worth rendering.
+ *
+ * The one reader both apps use: a definition arrives from config, which is
+ * untrusted, so the value is honored only when it is a string that — once
+ * trimmed — is an absolute `https://` URL (lowercase scheme, no whitespace)
+ * within the length the Lambda stores: the same rule the Lambda writes by.
+ * Anything else (absent, a non-string, http:, javascript:, data:, a
+ * protocol-relative `//host`, an over-long value) reads as "no photo", so a
+ * bad value can never reach an `<img src>`.
+ */
+const stageImageUrl = (def) => {
+    const raw = def === null || def === void 0 ? void 0 : def.imageUrl;
+    if (typeof raw !== 'string')
+        return undefined;
+    const url = raw.trim();
+    if (url.length === 0 || url.length > exports.MAX_STAGE_IMAGE_URL)
+        return undefined;
+    if (!/^https:\/\/[^\s/]/.test(url) || /\s/.test(url))
+        return undefined;
+    return url;
+};
+exports.stageImageUrl = stageImageUrl;
 /** A definition's ordered element list (cdk#976). The legacy `fields` list
  * is no longer read (cdk#2132). */
 const stageElements = (def) => { var _a; return (_a = def.elements) !== null && _a !== void 0 ? _a : []; };

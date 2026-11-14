@@ -71,6 +71,10 @@ export const ApiRoutes: readonly ApiRoute[] = [
   { label: 'admin', method: 'PUT', path: '/events/{eventId}/stages' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/stages/{stageId}' },
   { label: 'admin', method: 'DELETE', path: '/events/{eventId}/stages/{stageId}' },
+  // Step-photo unlink: deletes the backing share-bucket object AND clears the
+  // definition's `imageUrl`. The same explicit destructive lane the event
+  // images have (cdk#707) — the stage PATCH only ever edits the reference.
+  { label: 'admin', method: 'DELETE', path: '/events/{eventId}/stages/{stageId}/image' },
   { label: 'admin', method: 'GET', path: '/events/{eventId}/stages/{stageId}/responses' },
   { label: 'admin', method: 'PATCH', path: '/events/{eventId}/stages/{stageId}/responses/{userId}' },
   { label: 'admin', method: 'POST', path: '/events/{eventId}/assets' },

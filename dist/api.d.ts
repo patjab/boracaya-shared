@@ -38,6 +38,8 @@ export declare const AdminEventApi: {
     readonly inviteLink: (eventId: string, userId: string) => string;
     readonly stages: (eventId: string) => string;
     readonly stage: (eventId: string, stageId: string) => string;
+    /** Step-photo unlink: DELETE clears the definition's `imageUrl` + deletes the S3 object. */
+    readonly stageImage: (eventId: string, stageId: string) => string;
     readonly stageResponses: (eventId: string, stageId: string) => string;
     readonly stageResponse: (eventId: string, stageId: string, userId: string) => string;
     /** Organizer asset-upload presign (cdk#394): admin-authorized, tenant-prefixed key. */
