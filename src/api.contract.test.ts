@@ -132,7 +132,7 @@ describe('AdminEventApi contract', () => {
 
     it('covers every single-argument builder', () => {
         const singleArg = Object.keys(AdminEventApi).filter(
-            (k) => !['template', 'stage', 'stageResponses', 'stageResponse', 'organizerInvite', 'member', 'inviteLink'].includes(k));
+            (k) => !['template', 'stage', 'stageImage', 'stageResponses', 'stageResponse', 'organizerInvite', 'member', 'inviteLink'].includes(k));
         expect(singleArg.sort()).toEqual(Object.keys(EXPECTED_EVENT_PATHS).sort());
     });
 
@@ -146,6 +146,8 @@ describe('AdminEventApi contract', () => {
         expect(resourcePath(AdminEventApi.template('e-1', 't 1'))).toBe('/events/e-1/templates/t%201');
         expect(resourcePath(AdminEventApi.stage('e-1', 'PRE CHECK')))
             .toBe('/events/e-1/stages/PRE%20CHECK');
+        expect(resourcePath(AdminEventApi.stageImage('e-1', 'PRE CHECK')))
+            .toBe('/events/e-1/stages/PRE%20CHECK/image');
         expect(resourcePath(AdminEventApi.stageResponses('e-1', 'PRECHECKIN')))
             .toBe('/events/e-1/stages/PRECHECKIN/responses');
         expect(resourcePath(AdminEventApi.stageResponse('e-1', 'PRECHECKIN', 'u/1')))

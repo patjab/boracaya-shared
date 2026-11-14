@@ -221,3 +221,54 @@ describe('companion resolvers core precedence (cdk#1016)', () => {
         expect(resolvePrefillSource('rsvp.companionNames', legacyOnly)).toBeUndefined();
     });
 });
+
+// --- the step photo ----------------------------------------------------------
+import { MAX_STAGE_IMAGE_URL, coreStageFallback, stageImageUrl } from './stages';
+
+describe('stageImageUrl (the step photo reader)', () => {
+    it('returns the trimmed https URL a definition carries', () => {
+        expect(stageImageUrl({ imageUrl: 'https://cdn.example/assets/e-1/a.jpg' }))
+            .toBe('https://cdn.example/assets/e-1/a.jpg');
+        expect(stageImageUrl({ imageUrl: '  https://cdn.example/a.jpg \n' }))
+            .toBe('https://cdn.example/a.jpg');
+    });
+
+    it('reads a missing definition or a missing photo as no photo', () => {
+        expect(stageImageUrl(undefined)).toBeUndefined();
+        expect(stageImageUrl(null)).toBeUndefined();
+        expect(stageImageUrl({})).toBeUndefined();
+        expect(stageImageUrl({ imageUrl: '' })).toBeUndefined();
+        expect(stageImageUrl({ imageUrl: '   ' })).toBeUndefined();
+    });
+
+    // Config is untrusted: only an absolute lowercase-https URL may reach an
+    // <img src>. Each of these is a value a hostile or broken config could hold.
+    it.each([
+        ['a non-string', 42],
+        ['an object', { href: 'https://cdn.example/a.jpg' }],
+        ['http', 'http://cdn.example/a.jpg'],
+        ['an uppercase scheme', 'HTTPS://cdn.example/a.jpg'],
+        ['javascript:', 'javascript:alert(1)'],
+        ['data:', 'data:image/png;base64,AAAA'],
+        ['protocol-relative', '//cdn.example/a.jpg'],
+        ['a relative path', '/assets/e-1/a.jpg'],
+        ['https with no host', 'https://'],
+        ['https with an empty host', 'https:///a.jpg'],
+        ['inner whitespace', 'https://cdn.example/a b.jpg'],
+    ])('refuses %s', (_name, value) => {
+        expect(stageImageUrl({ imageUrl: value })).toBeUndefined();
+    });
+
+    it('bounds the length at MAX_STAGE_IMAGE_URL, measured after the trim', () => {
+        const head = 'https://cdn.example/';
+        const exact = head + 'a'.repeat(MAX_STAGE_IMAGE_URL - head.length);
+        expect(exact).toHaveLength(MAX_STAGE_IMAGE_URL);
+        expect(stageImageUrl({ imageUrl: exact })).toBe(exact);
+        expect(stageImageUrl({ imageUrl: `  ${exact}  ` })).toBe(exact);
+        expect(stageImageUrl({ imageUrl: `${exact}a` })).toBeUndefined();
+    });
+
+    it('the default core stage carries no photo — a host adds one', () => {
+        expect(stageImageUrl(coreStageFallback())).toBeUndefined();
+    });
+});

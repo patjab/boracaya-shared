@@ -31,7 +31,7 @@ export { idTokenExpiresInSeconds } from './authToken.js';
 export { GoogleSignInButton } from './GoogleSignInButton.js';
 export { ensureGuestToken, hasGuestSession, guestAuthHeaders, guestLinkedEmail, clearGuestToken, claimIdentity, loginNoEvent, unlinkIdentity, guestTokenExpiresInSeconds, exchangeInvitationToken, exchangeLegacyInvite, guestSubjectFromToken, refreshGuestSession, } from './guestAuth.js';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about.js';
-export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation, stageQuestions, } from './stages.js';
+export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, MAX_STAGE_IMAGE_URL, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stageImageUrl, stagePresentation, stageQuestions, } from './stages.js';
 export { StageFormRenderer } from './StageFormRenderer.js';
 export { WizardShell } from './WizardShell.js';
 export { SHELL_KEYS, STYLE_TIERS, CURATED_DESIGNS, TYPE_VOICES, STYLE_MODES, OCCASION_DEFAULTS, FALLBACK_DEFAULTS } from './shells.js';

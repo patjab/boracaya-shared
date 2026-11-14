@@ -138,6 +138,9 @@ export const AdminEventApi = {
     stages: (eventId: string) => `${adminApi()}/events/${encodeURIComponent(eventId)}/stages`,
     stage: (eventId: string, stageId: string) =>
         `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}`,
+    /** Step-photo unlink: DELETE clears the definition's `imageUrl` + deletes the S3 object. */
+    stageImage: (eventId: string, stageId: string) =>
+        `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/image`,
     stageResponses: (eventId: string, stageId: string) =>
         `${adminApi()}/events/${encodeURIComponent(eventId)}/stages/${encodeURIComponent(stageId)}/responses`,
     // Admin merge-write on ONE guest's stage response (cdk#529) - the room-block

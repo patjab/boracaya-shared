@@ -19,6 +19,23 @@ builders (`suggestions`, `dismissSuggestion`, `unmatched`, `assignUnmatched`,
 `dismissUnmatched`, `runById`, `queue`, `queueClaim`, `queueProgress`,
 `queueComplete`, `ingest`). No consumer imported any of them.
 
+## Version 14.1: the step photo
+
+A stage definition gains one optional field, `imageUrl`: a host-uploaded photo
+shown with the step's form. It belongs to the step, so the core RSVP step and
+every extra step carry it the same way; nothing about it is RSVP-specific.
+
+- `stageImageUrl(definition)` (`boracaya-shared/domain`) is the one reader.
+  Config is untrusted, so it returns the URL only when it is an absolute
+  lowercase `https://` URL with no whitespace, at most `MAX_STAGE_IMAGE_URL`
+  (2048) characters after trimming. Anything else reads as "no photo". Never
+  put `definition.imageUrl` in an `<img src>` directly.
+- The stage PATCH sets, replaces or clears the reference (`imageUrl: null`
+  clears it). `AdminEventApi.stageImage(eventId, stageId)` is the unlink
+  route, `DELETE /events/{eventId}/stages/{stageId}/image`: it deletes the
+  backing object and then clears the field, like the event-image unlink.
+- The upload is the existing organizer asset presign (`AdminEventApi.assets`).
+
 ## Supported package surfaces
 
 The package publishes native ESM and CommonJS compatibility output. New

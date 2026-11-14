@@ -185,6 +185,12 @@ export interface StageDefinition {
     title: string;
     description?: string;
     icon?: string;
+    /** Optional step photo: one host-uploaded image shown with the step's
+     * form — beside it on wide screens, above it on phones. It belongs to the
+     * STEP, so the core RSVP step and every extra step carry it the same way.
+     * Stored as an https URL (the stages Lambda refuses anything else); read
+     * it through stageImageUrl(), never directly — config is untrusted. */
+    imageUrl?: string;
     /** cdk#976: the ordered mix of questions + display blocks — read via
      * stageElements(). The pre-#976 questions-only `fields` list is retired
      * (cdk#2132): the server refuses it on writes and no stored definition
@@ -196,6 +202,23 @@ export interface StageDefinition {
     updatedAt?: string;
 }
 export declare const isDisplayBlock: (el: StageElement) => el is StageDisplayBlock;
+/** The longest step-photo URL a definition may carry. Mirrors the stages
+ *  Lambda's MAX_IMAGE_URL — the Lambda is the enforcement boundary. */
+export declare const MAX_STAGE_IMAGE_URL = 2048;
+/**
+ * A step's photo URL, or undefined when it has none worth rendering.
+ *
+ * The one reader both apps use: a definition arrives from config, which is
+ * untrusted, so the value is honored only when it is a string that — once
+ * trimmed — is an absolute `https://` URL (lowercase scheme, no whitespace)
+ * within the length the Lambda stores: the same rule the Lambda writes by.
+ * Anything else (absent, a non-string, http:, javascript:, data:, a
+ * protocol-relative `//host`, an over-long value) reads as "no photo", so a
+ * bad value can never reach an `<img src>`.
+ */
+export declare const stageImageUrl: (def: {
+    imageUrl?: unknown;
+} | null | undefined) => string | undefined;
 /** A definition's ordered element list (cdk#976). The legacy `fields` list
  * is no longer read (cdk#2132). */
 export declare const stageElements: (def: {

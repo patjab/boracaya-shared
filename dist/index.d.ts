@@ -50,7 +50,7 @@ export { ensureGuestToken, hasGuestSession, guestAuthHeaders, guestLinkedEmail, 
 export type { ClaimCandidate, ClaimResult, GuestSessionRefresh, InvitationExchange, NoEventLoginChoice, NoEventLoginResult, UnlinkResult } from './guestAuth';
 export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_ICON_NAMES } from './about';
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
-export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stagePresentation, stageQuestions, } from './stages';
+export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, MAX_STAGE_IMAGE_URL, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stageImageUrl, stagePresentation, stageQuestions, } from './stages';
 export type { DisplayPresentation, GuestRowLike, PrefillSource, RepeatingGroupEntry, StageDisplayBlock, StageElement, StageFieldType, StagePresentation, StageQuestion, StageSubField, } from './stages';
 export { StageFormRenderer } from './StageFormRenderer';
 export type { RendererField, StageFormRendererProps, StageFormValue, StageFormValues, } from './StageFormRenderer';
