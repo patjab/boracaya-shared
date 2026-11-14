@@ -254,9 +254,18 @@ describe('stageImageUrl (the step photo reader)', () => {
         ['a relative path', '/assets/e-1/a.jpg'],
         ['https with no host', 'https://'],
         ['https with an empty host', 'https:///a.jpg'],
-        ['inner whitespace', 'https://cdn.example/a b.jpg'],
+        ['an inner space', 'https://cdn.example/a b.jpg'],
+        ['an inner tab', 'https://cdn.example/a\tb.jpg'],
+        ['an inner newline', 'https://cdn.example/a\nb.jpg'],
     ])('refuses %s', (_name, value) => {
         expect(stageImageUrl({ imageUrl: value })).toBeUndefined();
+    });
+
+    // The value is a cross-repo contract: the stages Lambda's MAX_IMAGE_URL and
+    // the README both say 2048. A drift here would render URLs the Lambda
+    // refuses, or hide photos it stored.
+    it('MAX_STAGE_IMAGE_URL is 2048', () => {
+        expect(MAX_STAGE_IMAGE_URL).toBe(2048);
     });
 
     it('bounds the length at MAX_STAGE_IMAGE_URL, measured after the trim', () => {

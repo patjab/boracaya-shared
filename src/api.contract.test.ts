@@ -427,3 +427,29 @@ describe('FacesApi consent switch contract (cdk#2423)', () => {
         expect(resourcePath(FacesApi.enable('e-1')).startsWith(resourcePath(FacesApi.base('e-1')) + '/')).toBe(true);
     });
 });
+
+// ── The step-photo unlink ─────────────────────────────────────────────────────
+// A destructive route: it deletes the photo's stored object. Pin the
+// registration itself (lane, method, path) and that it is the only route on
+// that path, so deleting the row, changing its verb or moving it off the admin
+// lane fails here before it reaches cdk's topology check. The builder must
+// produce exactly the registered path.
+describe('ApiRoutes — the step-photo unlink', () => {
+    const IMAGE_PATH = '/events/{eventId}/stages/{stageId}/image';
+    const keyOf = (r: { label: string; method: string; path: string }) => `${r.label} ${r.method} ${r.path}`;
+
+    it('registers exactly DELETE on the admin lane, and nothing else on that path', () => {
+        expect(ApiRoutes.filter((r) => r.path === IMAGE_PATH).map(keyOf))
+            .toEqual([`admin DELETE ${IMAGE_PATH}`]);
+    });
+
+    it('no guest or public lane carries a stage-image route', () => {
+        const stageImage = ApiRoutes.filter((r) => /\/stages\/.*\/image$/.test(r.path));
+        expect(stageImage.map((r) => r.label)).toEqual(['admin']);
+    });
+
+    it('AdminEventApi.stageImage builds the registered path', () => {
+        const built = resourcePath(AdminEventApi.stageImage('e-1', 'RSVP'));
+        expect(built).toBe(IMAGE_PATH.replace('{eventId}', 'e-1').replace('{stageId}', 'RSVP'));
+    });
+});
