@@ -162,14 +162,21 @@ exports.guestDisplayName = guestDisplayName;
 // return an inherited FUNCTION — resolvePrefillSource would then hand back the
 // string "[object Object]" typed as string[]. Object.create(null) removes the
 // prototype, fixing the `in` guard and the indexed lookup at their one source.
+// cdk#2635: a flattened item must never carry the list separator. The list
+// input splits on commas (shore#475), so a seed like "Ana Cruz (nuts,
+// shellfish)" or "Smith, Jr." became two items the moment the guest edited the
+// box, while the box still showed the original text. Every item a resolver
+// emits passes through here; prefill.py applies the same rule.
+const listSafe = (item) => item.replace(/,/g, ';');
 const RESOLVERS = Object.assign(Object.create(null), {
-    'rsvp.companionNames': (g) => companionEntries(g).map((e) => e.name),
+    'rsvp.companionNames': (g) => companionEntries(g)
+        .map((e) => listSafe(e.name)),
     'rsvp.companionsWithAllergies': (g) => companionEntries(g)
-        .map((e) => (e.allergies ? `${e.name} (${e.allergies})` : e.name)),
+        .map((e) => listSafe(e.allergies ? `${e.name} (${e.allergies})` : e.name)),
     'rsvp.partyNames': (g) => {
         const name = (0, exports.guestDisplayName)(g);
-        const companions = companionEntries(g).map((e) => e.name);
-        return name ? [name, ...companions] : companions;
+        const companions = companionEntries(g).map((e) => listSafe(e.name));
+        return name ? [listSafe(name), ...companions] : companions;
     },
 });
 /** One registry source's current value from the guest's own row, or undefined

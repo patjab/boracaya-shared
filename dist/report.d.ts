@@ -98,8 +98,16 @@ export declare const FLUSH_DELAY_MS = 5000;
  * and is dropped. The cdk#1494 inbox's first week was mostly these.
  */
 export declare const LEAVE_GRACE_MS = 1500;
-/** Server-side cap is 32 KiB per batch; keep one report well under it. */
+/** One report's cap, in UTF-8 bytes of its JSON: well under a batch's. */
 export declare const MAX_REPORT_BYTES: number;
+/**
+ * One POST body's cap, in UTF-8 bytes (cdk#2661). The telemetry ingest
+ * (boracaya-cdk lambdas/pda-boracay-telemetry MAX_BODY_BYTES = 32 KiB) refuses
+ * a larger body whole with a 413, and the reporter never retries, so a flush
+ * splits by bytes as well as by count and stays 2 KiB under that cap. The cdk
+ * ingest tests pin the 32 KiB this depends on.
+ */
+export declare const MAX_BATCH_BYTES: number;
 /**
  * Redact anything that could identify a person or carry a credential. Applied
  * to every free-text field. Order matters: a JWT contains no '@', an email no
