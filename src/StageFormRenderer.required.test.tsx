@@ -174,6 +174,31 @@ describe('number questions take decimals (shore#716)', () => {
     expect(input.getAttribute('aria-required')).toBe('true');
   });
 
+  // jsdom implements stepMismatch: without step="any" a 2.5 is invalid there too.
+  it('a typed 2.5 and 8.5 are kept as numbers, and the inputs stay valid for native validation', () => {
+    const seen: { values: StageFormValues } = { values: {} };
+    const Capture = () => {
+      const [values, setValues] = React.useState<StageFormValues>({ feet: [{}] });
+      seen.values = values;
+      return (
+        <StageFormRenderer messages={messages} elements={numbers} values={values}
+          onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))} />
+      );
+    };
+    render(<Capture />);
+    const nights = screen.getByLabelText('How many nights', { selector: 'input' }) as HTMLInputElement;
+    const size = screen.getByLabelText(/^Shoe size/, { selector: 'input' }) as HTMLInputElement;
+    fireEvent.change(nights, { target: { value: '2.5' } });
+    fireEvent.change(size, { target: { value: '8.5' } });
+    expect(seen.values).toEqual({ nights: 2.5, feet: [{ size: 8.5 }] });
+    expect(nights.value).toBe('2.5');
+    expect(size.value).toBe('8.5');
+    for (const input of [nights, size]) {
+      expect(input.validity.stepMismatch).toBe(false);
+      expect(input.checkValidity()).toBe(true);
+    }
+  });
+
 });
 
 describe('stepped canProceed uses the shared completeness rule', () => {
