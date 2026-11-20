@@ -125,8 +125,16 @@ export const FLUSH_DELAY_MS = 5_000;
  * and is dropped. The cdk#1494 inbox's first week was mostly these.
  */
 export const LEAVE_GRACE_MS = 1_500;
-/** Server-side cap is 32 KiB per batch; keep one report well under it. */
+/** One report's cap, in UTF-8 bytes of its JSON: well under a batch's. */
 export const MAX_REPORT_BYTES = 8 * 1024;
+/**
+ * One POST body's cap, in UTF-8 bytes (cdk#2661). The telemetry ingest
+ * (boracaya-cdk lambdas/pda-boracay-telemetry MAX_BODY_BYTES = 32 KiB) refuses
+ * a larger body whole with a 413, and the reporter never retries, so a flush
+ * splits by bytes as well as by count and stays 2 KiB under that cap. The cdk
+ * ingest tests pin the 32 KiB this depends on.
+ */
+export const MAX_BATCH_BYTES = 30 * 1024;
 const MAX_STACK_FRAMES = 10;
 const MAX_TEXT = 500;
 
@@ -247,18 +255,35 @@ export const fingerprintOf = (
   return hash(parts.join('|'));
 };
 
-const bytesOf = (r: ErrorReport): number => JSON.stringify(r).length;
+/** UTF-8 length: what the ingest measures (a UTF-16 `.length` undercounts non-ASCII text). */
+const utf8Bytes = (text: string): number => {
+  const Encoder = (globalThis as { TextEncoder?: typeof TextEncoder }).TextEncoder;
+  if (Encoder) return new Encoder().encode(text).length;
+  let n = 0;
+  for (const ch of text) {
+    const c = ch.codePointAt(0) ?? 0;
+    n += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+  }
+  return n;
+};
+
+const bytesOf = (r: ErrorReport): number => utf8Bytes(JSON.stringify(r));
 
 /**
- * Shrink a report that would blow the per-report cap by dropping the oldest
- * breadcrumbs. Every other field is already bounded (frames and text are
- * capped at scrub time), so once the crumbs are gone the report fits.
+ * Shrink a report that would blow the per-report cap (UTF-8 bytes): drop the
+ * oldest breadcrumbs first, then trailing stack frames (the first frame, the
+ * one the fingerprint keys on, stays), then the component stack. Text fields
+ * are capped at scrub time, so what remains is small.
  */
 const fit = (r: ErrorReport): ErrorReport => {
   const out = { ...r };
   while (bytesOf(out) > MAX_REPORT_BYTES && out.breadcrumbs.length) {
     out.breadcrumbs = out.breadcrumbs.slice(1);
   }
+  while (bytesOf(out) > MAX_REPORT_BYTES && out.stack && out.stack.length > 1) {
+    out.stack = out.stack.slice(0, -1);
+  }
+  if (bytesOf(out) > MAX_REPORT_BYTES && out.componentStack !== undefined) delete out.componentStack;
   return out;
 };
 
@@ -291,6 +316,33 @@ export const addBreadcrumb = (crumb: Omit<Breadcrumb, 't'> & { t?: number }): vo
   const detail = scrub(crumb.detail).slice(0, 120);
   state.breadcrumbs.push({ ...crumb, detail, t: crumb.t ?? Date.now() });
   if (state.breadcrumbs.length > MAX_BREADCRUMBS) state.breadcrumbs.shift();
+};
+
+// The body is `{"reports":[` + the reports joined by `,` + `]}`.
+const ENVELOPE_BYTES = utf8Bytes('{"reports":[]}');
+
+/**
+ * Split the queue into POST bodies of at most MAX_BATCH reports and at most
+ * MAX_BATCH_BYTES (UTF-8), in order. A report too big to share a body goes
+ * alone; one at MAX_REPORT_BYTES always fits.
+ */
+const batches = (queue: ErrorReport[]): ErrorReport[][] => {
+  const out: ErrorReport[][] = [];
+  let batch: ErrorReport[] = [];
+  let bytes = ENVELOPE_BYTES;
+  for (const r of queue) {
+    const size = bytesOf(r);
+    const added = (batch.length ? 1 : 0) + size;
+    if (batch.length && (batch.length >= MAX_BATCH || bytes + added > MAX_BATCH_BYTES)) {
+      out.push(batch);
+      batch = [];
+      bytes = ENVELOPE_BYTES;
+    }
+    bytes += (batch.length ? 1 : 0) + size;
+    batch.push(r);
+  }
+  if (batch.length) out.push(batch);
+  return out;
 };
 
 const send = (batch: ErrorReport[]): void => {
@@ -336,7 +388,7 @@ export const flushReports = (): void => {
     state.timer = null;
   }
   releaseHeld(Date.now());
-  while (state.queue.length) send(state.queue.splice(0, MAX_BATCH));
+  for (const batch of batches(state.queue.splice(0))) send(batch);
   if (state.held.length) arm(LEAVE_GRACE_MS);
 };
 
