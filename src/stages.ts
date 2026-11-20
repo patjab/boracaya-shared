@@ -362,9 +362,14 @@ export const resolvePrefillSource = (
 };
 
 /** Content compare, not representation (mirrors prefill._normalized): lists as
- * stripped multisets — reordering companions is not drift — strings stripped. */
+ * stripped multisets — reordering companions is not drift — strings stripped.
+ * List items pass through the same separator rule as the seeds (cdk#2635), so
+ * an untouched answer saved before that rule ("Ana Cruz (nuts, shellfish)")
+ * still matches today's seed ("Ana Cruz (nuts; shellfish)"). */
 const normalized = (value: unknown): unknown => {
-    if (Array.isArray(value)) return JSON.stringify([...value].map((v) => String(v).trim()).sort());
+    if (Array.isArray(value)) {
+        return JSON.stringify([...value].map((v) => listSafe(String(v).trim())).sort());
+    }
     if (typeof value === 'string') return value.trim();
     return value;
 };

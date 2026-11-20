@@ -178,6 +178,22 @@ describe('separator-safe flattenings (cdk#2635, parity with prefill.py)', () => 
         expect(guestDisplayName(PARITY_ROW)).toBe('Lee, Ann');
     });
 
+    it('an untouched answer saved before the rule (with its commas) is not drift; a real change is', () => {
+        const fields = [
+            { key: 'party', defaultFrom: 'rsvp.companionsWithAllergies' },
+            { key: 'names', defaultFrom: 'rsvp.companionNames' },
+        ];
+        expect(stageDriftKeys(fields, PARITY_ROW, {
+            party: ['Ana Cruz (nuts, shellfish)', 'Smith, Jr.'],
+            names: ['Ana Cruz', 'Smith; Jr.'],
+        })).toEqual([]);
+        // The split a pre-rule edit stored is a different answer, and still drift.
+        expect(stageDriftKeys(fields, PARITY_ROW, {
+            party: ['Ana Cruz (nuts', 'shellfish)', 'Smith', 'Jr.'],
+            names: ['Ana Cruz'],
+        })).toEqual(['party', 'names']);
+    });
+
     it('a seed joined the way the list input shows it parses back to the same items', () => {
         const items = resolvePrefillSource('rsvp.companionsWithAllergies', PARITY_ROW) ?? [];
         const reparsed = items.join(', ').split(',').map((v) => v.trim()).filter(Boolean);

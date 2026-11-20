@@ -121,14 +121,17 @@ const questionInput = (f, value, onChange, messages, error = false) => {
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton
             // styling (cdk#976).
-            return (_jsxs(Box, { sx: { mt: 2, mb: 1 }, children: [_jsx(Typography, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), _jsxs(ToggleButtonGroup, { exclusive: true, size: "small", "aria-label": requiredGroupLabelFor(f, messages), "aria-describedby": errorText ? errorIdFor(f.key) : undefined, value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
+            return (_jsxs(Box, { sx: { mt: 2, mb: 1 }, children: [_jsx(Typography, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), _jsxs(ToggleButtonGroup, { exclusive: true, size: "small", "aria-label": requiredGroupLabelFor(f, messages), "aria-describedby": errorText ? errorIdFor(f.key) : undefined, "aria-invalid": error || undefined, value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
                             onChange(f.key, v === 'yes'); }, sx: {
                             // MUI's default unselected secondary text can miss
                             // 4.5:1 by a few hundredths on generated palettes.
                             '& .MuiToggleButton-root:not(.Mui-selected)': { color: 'text.primary' },
                         }, children: [_jsx(ToggleButton, { value: "yes", children: messages.yesOptionLabel }), _jsx(ToggleButton, { value: "no", children: messages.noOptionLabel })] }), errorText && (_jsx(Typography, { id: errorIdFor(f.key), variant: "caption", color: "error", sx: { display: 'block', mt: 0.5 }, children: errorText }))] }, f.key));
         case 'select':
-            return (_jsxs(FormControl, { fullWidth: true, margin: "normal", error: error, children: [_jsx(InputLabel, { id: `stage-${f.key}`, children: labelFor(f, messages) }), _jsx(Select, { labelId: `stage-${f.key}`, label: labelFor(f, messages), required: f.required, value: typeof value === 'string' ? value : '', onChange: (e) => onChange(f.key, e.target.value), children: ((_a = f.options) !== null && _a !== void 0 ? _a : []).map((o) => (_jsx(MenuItem, { value: o, children: o }, o))) }), errorText && _jsx(FormHelperText, { id: errorIdFor(f.key), children: errorText })] }, f.key));
+            return (_jsxs(FormControl, { fullWidth: true, margin: "normal", error: error, children: [_jsx(InputLabel, { id: `stage-${f.key}`, children: labelFor(f, messages) }), _jsx(Select, { labelId: `stage-${f.key}`, label: labelFor(f, messages), required: f.required,
+                        // The combobox names its inline reason (MUI 6/7/9 all
+                        // take SelectDisplayProps); `error` above sets aria-invalid.
+                        SelectDisplayProps: errorText ? { 'aria-describedby': errorIdFor(f.key) } : undefined, value: typeof value === 'string' ? value : '', onChange: (e) => onChange(f.key, e.target.value), children: ((_a = f.options) !== null && _a !== void 0 ? _a : []).map((o) => (_jsx(MenuItem, { value: o, children: o }, o))) }), errorText && _jsx(FormHelperText, { id: errorIdFor(f.key), children: errorText })] }, f.key));
         case 'number':
             // shore#716: without a step the browser applies step=1, so 2.5
             // nights or shoe size 8.5 fail native validation inside a <form>;
