@@ -108,6 +108,22 @@ describe('repeating-group required sub-fields (shore#704)', () => {
     expect(screen.getAllByText('Needed for this entry')).toHaveLength(2);
     const vegan = screen.getByRole('group', { name: /^Vegan/ });
     expect(description(vegan)).toBe('Needed for this entry');
+    expect(invalid(vegan)).toBe(true);
+    const meal = screen.getByRole('combobox');
+    expect(description(meal)).toBe('Needed for this entry');
+    expect(invalid(meal)).toBe(true);
+    cleanup();
+    // Without the optional message: still marked invalid, with no text.
+    render(<Host elements={elements} presentation="flat" copy={base} initial={{ kids: [{ name: 'Mia' }] }} />);
+    expect(invalid(screen.getByRole('group', { name: /^Vegan/ }))).toBe(true);
+    expect(invalid(screen.getByRole('combobox'))).toBe(true);
+    expect(description(screen.getByRole('combobox'))).toBe('');
+    // Filled, neither is marked.
+    cleanup();
+    render(<Host elements={elements} presentation="flat"
+      initial={{ kids: [{ name: 'Mia', vegan: false, meal: 'Fish' }] }} />);
+    expect(invalid(screen.getByRole('group', { name: /^Vegan/ }))).toBe(false);
+    expect(invalid(screen.getByRole('combobox'))).toBe(false);
   });
 });
 

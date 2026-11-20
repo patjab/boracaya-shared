@@ -239,6 +239,7 @@ const questionInput = (
                     <ToggleButtonGroup
                         exclusive size="small" aria-label={requiredGroupLabelFor(f, messages)}
                         aria-describedby={errorText ? errorIdFor(f.key) : undefined}
+                        aria-invalid={error || undefined}
                         value={value === true ? 'yes' : value === false ? 'no' : null}
                         onChange={(_, v) => { if (v !== null) onChange(f.key, v === 'yes'); }}
                         sx={{
@@ -266,6 +267,9 @@ const questionInput = (
                         labelId={`stage-${f.key}`}
                         label={labelFor(f, messages)}
                         required={f.required}
+                        // The combobox names its inline reason (MUI 6/7/9 all
+                        // take SelectDisplayProps); `error` above sets aria-invalid.
+                        SelectDisplayProps={errorText ? { 'aria-describedby': errorIdFor(f.key) } : undefined}
                         value={typeof value === 'string' ? value : ''}
                         onChange={(e) => onChange(f.key, e.target.value as string)}
                     >
