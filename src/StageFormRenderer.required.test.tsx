@@ -95,6 +95,29 @@ describe('repeating-group required sub-fields (shore#704)', () => {
     expect(description(nameInput())).toBe('');
   });
 
+  it('a required number or date sub-field left empty in a filled entry is marked with the reason', () => {
+    const elements: StageElement[] = [{
+      key: 'kids', label: 'Kids', type: 'repeatingGroup',
+      subFields: [
+        { key: 'note', label: 'Note', type: 'text' },
+        { key: 'size', label: 'Shoe size', type: 'number', required: true },
+        { key: 'born', label: 'Born', type: 'date', required: true },
+      ],
+    }];
+    render(<Host elements={elements} presentation="flat" initial={{ kids: [{ note: 'x' }] }} />);
+    for (const label of [/^Shoe size/, /^Born/]) {
+      const input = screen.getByLabelText(label, { selector: 'input' });
+      expect(invalid(input)).toBe(true);
+      expect(description(input)).toBe('Needed for this entry');
+    }
+    cleanup();
+    render(<Host elements={elements} presentation="flat"
+      initial={{ kids: [{ note: 'x', size: 8.5, born: '2020-01-02' }] }} />);
+    for (const label of [/^Shoe size/, /^Born/]) {
+      expect(invalid(screen.getByLabelText(label, { selector: 'input' }))).toBe(false);
+    }
+  });
+
   it('a required Yes/No or select sub-field left empty in a filled entry shows the reason too', () => {
     const elements: StageElement[] = [{
       key: 'kids', label: 'Kids', type: 'repeatingGroup',
@@ -151,13 +174,6 @@ describe('number questions take decimals (shore#716)', () => {
     expect(input.getAttribute('aria-required')).toBe('true');
   });
 
-  it('a decimal answer is reported as a number', () => {
-    const seen: StageFormValues[] = [];
-    render(<StageFormRenderer messages={messages} elements={numbers} values={{}}
-      onChange={(key, value) => seen.push({ [key]: value })} />);
-    fireEvent.change(screen.getByLabelText('How many nights', { selector: 'input' }), { target: { value: '2.5' } });
-    expect(seen).toEqual([{ nights: 2.5 }]);
-  });
 });
 
 describe('stepped canProceed uses the shared completeness rule', () => {

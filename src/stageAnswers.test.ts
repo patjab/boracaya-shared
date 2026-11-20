@@ -26,11 +26,14 @@ describe('stageAnswersComplete: required questions (shore#686)', () => {
         expect(stageAnswersComplete(core(), { isAttending: false })).toBe(true);
     });
 
-    it("'', [] and undefined do not answer a required question; 0 and false do", () => {
+    it("'', [], null and undefined do not answer a required question; 0 and false do", () => {
         const q = (type: StageQuestion['type']): StageElement[] =>
             [{ key: 'q', label: 'Q', type, required: true }];
         expect(stageAnswersComplete(q('text'), { q: '' })).toBe(false);
         expect(stageAnswersComplete(q('text'), {})).toBe(false);
+        // A restored draft or a server seed can carry null: it is no answer.
+        expect(stageAnswersComplete(q('text'), { q: null })).toBe(false);
+        expect(stageAnswersComplete(q('boolean'), { q: null })).toBe(false);
         expect(stageAnswersComplete(q('list'), { q: [] })).toBe(false);
         expect(stageAnswersComplete(q('number'), { q: 0 })).toBe(true);
         expect(stageAnswersComplete(q('boolean'), { q: false })).toBe(true);

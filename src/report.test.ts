@@ -455,6 +455,33 @@ describe('batch byte bound (cdk#2661)', () => {
     expect((r.stack as string[])[0].startsWith('at f0 ')).toBe(true);
   });
 
+  it('when one frame is all that is left, the component stack goes before the cap is passed', () => {
+    const wide = '界'.repeat(500);
+    // About 8.8 KB with the component stack, about 7.3 KB without it.
+    report('render', { message: wide, name: wide, requestId: wide, label: '界'.repeat(250),
+      stack: `at f0 (${'界'.repeat(490)}:1:1)
+at f1 (x.js:1:1)`, componentStack: wide });
+    flushReports();
+    const [r] = sentBatches()[0];
+    expect(utf8(JSON.stringify(r))).toBeLessThanOrEqual(MAX_REPORT_BYTES);
+    expect(r.componentStack).toBeUndefined();
+    expect((r.stack as string[])).toHaveLength(1);
+    expect(r.message).toBe(wide);
+  });
+
+  it('more than MAX_BATCH small reports in one flush go out MAX_BATCH to a body, in order', () => {
+    // Three transport failures wait out their grace while nine reports queue (no
+    // count-triggered flush below ten); the flush then sends all twelve.
+    for (let i = 1; i <= 3; i += 1) report('api', { message: 'net', label: `t${i}`, method: 'GET', url: `https://x.test/t${i}` });
+    vi.setSystemTime(Date.now() + LEAVE_GRACE_MS + 1);
+    for (let i = 1; i <= 9; i += 1) report('api', { message: 'b', label: `b${i}`, status: 500 });
+    expect(fetchMock()).not.toHaveBeenCalled();
+    flushReports();
+    const sent = sentBatches().map((b) => b.map((r) => r.label));
+    expect(sent.map((b) => b.length)).toEqual([MAX_BATCH, 2]);
+    expect(sent.flat()).toEqual([...Array.from({ length: 9 }, (_, i) => `b${i + 1}`), 't1', 't2', 't3']);
+  });
+
   it('small batches are not split: count and order hold as before', () => {
     for (let i = 1; i <= 3; i += 1) report('api', { message: 'b', label: `b${i}`, status: 500 });
     flushReports();
