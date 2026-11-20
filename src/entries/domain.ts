@@ -12,6 +12,10 @@ export * from '../security';
 export * from '../shells';
 export * from '../stageFit';
 export * from '../stages';
+export {
+  entryMissingSubFields, questionAnswerGaps, stageAnswerGaps, stageAnswersComplete, visibleStageElements,
+} from '../stageAnswers';
+export type { StageAnswerGap } from '../stageAnswers';
 export * from '../types';
 export * from '../untrusted';
 export * from '../utils';

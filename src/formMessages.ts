@@ -34,5 +34,12 @@ export interface StageFormRendererMessages {
   /** Spoken required-state copy for non-native controls (for example `Required`). */
   requiredFieldLabel: string;
   formatRemoveEntryActionLabel: (params: RemoveEntryMessageParams) => string;
+  /**
+   * Shown under a required sub-field left empty in a repeating-group entry that
+   * holds other answers (for example a companion with allergies but no name,
+   * shore#704). Optional since 14.2: without it the field is still marked
+   * invalid (`aria-invalid`), with no text.
+   */
+  requiredSubFieldMessage?: string;
   wizard: WizardMessages;
 }

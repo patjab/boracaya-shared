@@ -2,6 +2,7 @@ import * as React from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
+import FormHelperText from '@mui/material/FormHelperText';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
@@ -17,6 +18,7 @@ import type {
     DisplayPresentation, RepeatingGroupEntry, StageDisplayBlock, StageElement,
     StagePresentation, StageQuestion, StageSubField,
 } from './stages';
+import { entryMissingSubFields, isRevealed, questionAnswerGaps, visibleStageElements } from './stageAnswers';
 import { WizardShell } from './WizardShell';
 import type { WizardStep } from './WizardShell';
 import type { StageFormRendererMessages } from './formMessages';
@@ -114,6 +116,7 @@ const RepeatingGroupInput = ({ f, value, onChange, messages }: {
         setEntries(entries.filter((_, j) => j !== i), i < entries.length - 1 ? i : i - 1);
     };
     const add = () => setEntries([...entries, {}], entries.length);
+    const missingByEntry = entries.map((entry) => entryMissingSubFields(subFields, entry));
     return (
         <Box
             role="group"
@@ -148,6 +151,9 @@ const RepeatingGroupInput = ({ f, value, onChange, messages }: {
                                 (_k, v) => onChange(f.key, entries.map((e, j) =>
                                     (j === i ? { ...e, [sub.key]: v as string | number | boolean } : e))),
                                 messages,
+                                // shore#704: a required sub-field left empty in an
+                                // entry that holds other answers says so inline.
+                                missingByEntry[i].includes(sub.key),
                             ))}
                         </Box>
                     );
@@ -200,12 +206,22 @@ const ListInput = ({ f, value, onChange, messages }: {
     );
 };
 
+/** The inline-error props of a TextField-backed input (shore#704): marked
+ *  invalid, with the consumer's reason as its helper text when it has one. */
+const errorProps = (error: boolean, messages: StageFormRendererMessages) =>
+    (error ? { error: true, helperText: messages.requiredSubFieldMessage } : {});
+
+/** The id of a non-TextField input's inline error text (keys are unique per entry). */
+const errorIdFor = (key: string): string => `stage-${key}-error`;
+
 const questionInput = (
     f: StageQuestion,
     value: StageFormValue | undefined,
     onChange: (key: string, value: StageFormValue) => void,
     messages: StageFormRendererMessages,
+    error = false,
 ) => {
+    const errorText = error && messages.requiredSubFieldMessage ? messages.requiredSubFieldMessage : undefined;
     switch (f.type) {
         case 'repeatingGroup':
             return <RepeatingGroupInput key={f.key} f={f} value={value} onChange={onChange} messages={messages} />;
@@ -222,6 +238,7 @@ const questionInput = (
                     </Typography>
                     <ToggleButtonGroup
                         exclusive size="small" aria-label={requiredGroupLabelFor(f, messages)}
+                        aria-describedby={errorText ? errorIdFor(f.key) : undefined}
                         value={value === true ? 'yes' : value === false ? 'no' : null}
                         onChange={(_, v) => { if (v !== null) onChange(f.key, v === 'yes'); }}
                         sx={{
@@ -233,11 +250,17 @@ const questionInput = (
                         <ToggleButton value="yes">{messages.yesOptionLabel}</ToggleButton>
                         <ToggleButton value="no">{messages.noOptionLabel}</ToggleButton>
                     </ToggleButtonGroup>
+                    {errorText && (
+                        <Typography id={errorIdFor(f.key)} variant="caption" color="error"
+                            sx={{ display: 'block', mt: 0.5 }}>
+                            {errorText}
+                        </Typography>
+                    )}
                 </Box>
             );
         case 'select':
             return (
-                <FormControl key={f.key} fullWidth margin="normal">
+                <FormControl key={f.key} fullWidth margin="normal" error={error}>
                     <InputLabel id={`stage-${f.key}`}>{labelFor(f, messages)}</InputLabel>
                     <Select
                         labelId={`stage-${f.key}`}
@@ -250,15 +273,22 @@ const questionInput = (
                             <MenuItem key={o} value={o}>{o}</MenuItem>
                         ))}
                     </Select>
+                    {errorText && <FormHelperText id={errorIdFor(f.key)}>{errorText}</FormHelperText>}
                 </FormControl>
             );
         case 'number':
+            // shore#716: without a step the browser applies step=1, so 2.5
+            // nights or shoe size 8.5 fail native validation inside a <form>;
+            // the stages Lambda stores decimals.
             return (
                 <TextField
                     key={f.key} fullWidth margin="normal" type="number"
                     label={labelFor(f, messages)}
                     placeholder={f.placeholder}
-                    slotProps={{ htmlInput: requiredInputProps(f.required) }}
+                    {...errorProps(error, messages)}
+                    slotProps={{
+                        htmlInput: { step: 'any', inputMode: 'decimal', ...requiredInputProps(f.required) },
+                    }}
                     value={value ?? ''}
                     onChange={(e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value))}
                 />
@@ -268,6 +298,7 @@ const questionInput = (
                 <TextField
                     key={f.key} fullWidth margin="normal" type="date"
                     label={labelFor(f, messages)}
+                    {...errorProps(error, messages)}
                     slotProps={{
                         inputLabel: { shrink: true },
                         htmlInput: requiredInputProps(f.required),
@@ -284,6 +315,7 @@ const questionInput = (
                     placeholder={f.placeholder}
                     multiline={f.type === 'multiline'}
                     minRows={f.type === 'multiline' ? 3 : undefined}
+                    {...errorProps(error, messages)}
                     slotProps={{
                         htmlInput: {
                             maxLength: f.maxLength ?? 500,
@@ -378,34 +410,6 @@ const keyOf = (el: StageElement): string => (isDisplayBlock(el) ? el.id : el.key
  * (cdk#976). `resolved` carries server-resolved display-block values keyed by
  * block id (the guest GET `defaults` map; the Valet preview passes samples).
  */
-/** A required question is "answered" when it holds a real value — false and 0
- *  count (a declined boolean IS an answer); '' , [] and undefined do not. */
-const answered = (q: StageQuestion, v: StageFormValue | undefined): boolean =>
-    !q.required || (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== '');
-// (A required repeatingGroup follows the same array rule: at least one entry.)
-
-/** cdk#1015: the core gate. The machine-fixed boolean core question (cdk#1012)
- *  ends the form when the answer is "No" — everything after it never renders,
- *  in both presentations, so the consumer's footer (its submit control)
- *  surfaces immediately. Generic engine behavior keyed off the `core` marker:
- *  nothing here knows the stage is the RSVP. Unanswered leaves the full form
- *  (a required gate already blocks stepped progress until answered). */
-const gateTruncated = (
-    list: StageElement[],
-    values: StageFormValues,
-): StageElement[] => {
-    const at = list.findIndex((el) =>
-        !isDisplayBlock(el) && el.core === true && el.type === 'boolean');
-    if (at === -1 || values[(list[at] as StageQuestion).key] !== false) return list;
-    return list.slice(0, at + 1);
-};
-
-/** cdk#1204: a `revealWhen` question is shown only while its trigger answer
- *  matches — a follow-up field (the food-restriction detail) is meaningless
- *  until the guest flags restrictions. A display block has no reveal. */
-const isRevealed = (el: StageElement, values: StageFormValues): boolean =>
-    isDisplayBlock(el) || !el.revealWhen || values[el.revealWhen.key] === el.revealWhen.equals;
-
 export interface StageFormRendererProps {
     /** The ordered stage elements (cdk#976). The legacy `fields` prop is
      *  retired with the stored shape (cdk#2132). */
@@ -446,10 +450,9 @@ export const StageFormRenderer = ({
             }
         });
     }, [elements, values, onChange]);
-    const list = gateTruncated(
-        all.filter((el) => (isDisplayBlock(el) || !el.adminOnly) && isRevealed(el, values)),
-        values,
-    );
+    // What the guest sees: adminOnly and unrevealed questions dropped, the
+    // list cut after a "No" on the core gate (cdk#529, cdk#1204, cdk#1015).
+    const list = visibleStageElements(all, values);
     const rows: StageElement[][] = [];
     for (const el of list) {
         const prev = rows[rows.length - 1];
@@ -483,8 +486,10 @@ export const StageFormRenderer = ({
             .map((row) => ({
                 key: row.map(keyOf).join('+'),
                 content: renderRow(row),
+                // The shared completeness rule (shore#686, shore#704): the same
+                // one a consumer's submit asks through stageAnswersComplete.
                 canProceed: row.every((el) =>
-                    isDisplayBlock(el) || answered(el, values[el.key])),
+                    isDisplayBlock(el) || questionAnswerGaps(el, values[el.key]).length === 0),
             }));
         return <WizardShell steps={steps} finish={footer} messages={messages.wizard} />;
     }
