@@ -140,6 +140,51 @@ describe('resolvePrefillSource (mirror of the Lambda resolvers)', () => {
     });
 });
 
+// cdk#2635: the list input splits on commas (shore#475), so a seed item that
+// carries one ("Ana Cruz (nuts, shellfish)", "Smith, Jr.") split into two the
+// moment the guest edited the box. Every flattened item is separator-safe:
+// each comma becomes ";". The fixture is the one cdk's prefill.py test uses,
+// so both runtimes pin the same outputs.
+describe('separator-safe flattenings (cdk#2635, parity with prefill.py)', () => {
+    const PARITY_ROW = {
+        firstName: 'Lee,', lastName: 'Ann',
+        ...core({ companions: [
+            { name: 'Ana Cruz', allergies: 'nuts, shellfish' },
+            { name: 'Smith, Jr.' },
+        ] }),
+    };
+    const COMPANIONS = 2;
+
+    it.each(['rsvp.companionNames', 'rsvp.companionsWithAllergies'])(
+        '%s: no item carries a comma, and there is one item per companion',
+        (id) => {
+            const items = resolvePrefillSource(id, PARITY_ROW) ?? [];
+            expect(items).toHaveLength(COMPANIONS);
+            expect(items.filter((item) => item.includes(','))).toEqual([]);
+        },
+    );
+
+    it('pins the exact separator-safe items', () => {
+        expect(resolvePrefillSource('rsvp.companionNames', PARITY_ROW))
+            .toEqual(['Ana Cruz', 'Smith; Jr.']);
+        expect(resolvePrefillSource('rsvp.companionsWithAllergies', PARITY_ROW))
+            .toEqual(['Ana Cruz (nuts; shellfish)', 'Smith; Jr.']);
+    });
+
+    it("rsvp.partyNames: the guest's own name is separator-safe too", () => {
+        expect(resolvePrefillSource('rsvp.partyNames', PARITY_ROW))
+            .toEqual(['Lee; Ann', 'Ana Cruz', 'Smith; Jr.']);
+        // The display name itself is not a list item and keeps its comma.
+        expect(guestDisplayName(PARITY_ROW)).toBe('Lee, Ann');
+    });
+
+    it('a seed joined the way the list input shows it parses back to the same items', () => {
+        const items = resolvePrefillSource('rsvp.companionsWithAllergies', PARITY_ROW) ?? [];
+        const reparsed = items.join(', ').split(',').map((v) => v.trim()).filter(Boolean);
+        expect(reparsed).toEqual(items);
+    });
+});
+
 describe('stageDriftKeys (mirror of the Lambda drift_keys)', () => {
     const FIELDS = [
         { key: 'companions', defaultFrom: 'rsvp.companionNames' },
