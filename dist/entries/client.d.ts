@@ -1,7 +1,7 @@
 /** Runtime-agnostic fetch helpers. Browser identity headers are attached when available. */
 export { ApiError, CancelledError, asArray, clean, getJson, isCancelled, jsonOr, runGuarded, sendJson, } from '../data';
 export type { CallOptions, GuardedState, SendOptions } from '../data';
-export { addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from '../report';
+export { MAX_BATCH_BYTES, MAX_REPORT_BYTES, addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from '../report';
 export type { Breadcrumb, BreadcrumbType, ErrorReport, ReportContext, ReportFields, ReportKind, ReporterConfig, } from '../report';
 export { ownedContinuation } from '../ownedContinuation';
 export type { ContinuationOwner, OwnedContinuation } from '../ownedContinuation';

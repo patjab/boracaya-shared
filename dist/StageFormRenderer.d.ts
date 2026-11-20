@@ -18,6 +18,15 @@ import type { StageFormRendererMessages } from './formMessages';
 export type RendererField = StageQuestion;
 export type StageFormValue = string | number | boolean | string[] | RepeatingGroupEntry[];
 export type StageFormValues = Record<string, StageFormValue>;
+/**
+ * Renders a stage definition's guest-visible elements as controlled inputs and
+ * read-only display blocks. adminOnly questions are filtered here (cdk#529) so
+ * no consumer can forget. `elements` is the post-#976 ordered mix; `fields` is
+ * the legacy questions-only alias and keeps pre-#976 consumers rendering
+ * identically. Consecutive questions marked `sameRow` share a responsive row
+ * (cdk#976). `resolved` carries server-resolved display-block values keyed by
+ * block id (the guest GET `defaults` map; the Valet preview passes samples).
+ */
 export interface StageFormRendererProps {
     /** The ordered stage elements (cdk#976). The legacy `fields` prop is
      *  retired with the stored shape (cdk#2132). */

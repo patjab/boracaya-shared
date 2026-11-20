@@ -330,16 +330,24 @@ export const guestDisplayName = (guest: GuestRowLike | undefined): string => {
 // return an inherited FUNCTION — resolvePrefillSource would then hand back the
 // string "[object Object]" typed as string[]. Object.create(null) removes the
 // prototype, fixing the `in` guard and the indexed lookup at their one source.
+// cdk#2635: a flattened item must never carry the list separator. The list
+// input splits on commas (shore#475), so a seed like "Ana Cruz (nuts,
+// shellfish)" or "Smith, Jr." became two items the moment the guest edited the
+// box, while the box still showed the original text. Every item a resolver
+// emits passes through here; prefill.py applies the same rule.
+const listSafe = (item: string): string => item.replace(/,/g, ';');
+
 const RESOLVERS: Record<string, (guest: GuestRowLike | undefined) => string[]> = Object.assign(
     Object.create(null) as Record<string, (guest: GuestRowLike | undefined) => string[]>,
     {
-        'rsvp.companionNames': (g: GuestRowLike | undefined) => companionEntries(g).map((e) => e.name),
+        'rsvp.companionNames': (g: GuestRowLike | undefined) => companionEntries(g)
+            .map((e) => listSafe(e.name)),
         'rsvp.companionsWithAllergies': (g: GuestRowLike | undefined) => companionEntries(g)
-            .map((e) => (e.allergies ? `${e.name} (${e.allergies})` : e.name)),
+            .map((e) => listSafe(e.allergies ? `${e.name} (${e.allergies})` : e.name)),
         'rsvp.partyNames': (g: GuestRowLike | undefined) => {
             const name = guestDisplayName(g);
-            const companions = companionEntries(g).map((e) => e.name);
-            return name ? [name, ...companions] : companions;
+            const companions = companionEntries(g).map((e) => listSafe(e.name));
+            return name ? [listSafe(name), ...companions] : companions;
         },
     },
 );
@@ -354,9 +362,14 @@ export const resolvePrefillSource = (
 };
 
 /** Content compare, not representation (mirrors prefill._normalized): lists as
- * stripped multisets — reordering companions is not drift — strings stripped. */
+ * stripped multisets — reordering companions is not drift — strings stripped.
+ * List items pass through the same separator rule as the seeds (cdk#2635), so
+ * an untouched answer saved before that rule ("Ana Cruz (nuts, shellfish)")
+ * still matches today's seed ("Ana Cruz (nuts; shellfish)"). */
 const normalized = (value: unknown): unknown => {
-    if (Array.isArray(value)) return JSON.stringify([...value].map((v) => String(v).trim()).sort());
+    if (Array.isArray(value)) {
+        return JSON.stringify([...value].map((v) => listSafe(String(v).trim())).sort());
+    }
     if (typeof value === 'string') return value.trim();
     return value;
 };

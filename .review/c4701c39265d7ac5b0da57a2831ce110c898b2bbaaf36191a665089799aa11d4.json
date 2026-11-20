@@ -1,0 +1,112 @@
+{
+  "schema": "adversarial-review-record/1",
+  "engine_version": "1",
+  "patch_id": "c4701c39265d7ac5b0da57a2831ce110c898b2bbaaf36191a665089799aa11d4",
+  "repo": "patjab/boracaya-shared",
+  "branch": "claude/audit-1114-shared-14-2",
+  "base": "origin/main",
+  "merge_base": "79d3fd8e6e1f0658a9cab008813a298ece38347d",
+  "head": "ba400143b67a13a3b1c92019fd1dbc687e202d22",
+  "verdict": "pass",
+  "author_vendor": "claude",
+  "reviewer": {
+    "vendor": "claude",
+    "model": "",
+    "effort": ""
+  },
+  "policy": {
+    "source": "live",
+    "commit": "c5c71fbc566f79fa8076154e7037f6ae55702b85",
+    "revision": 9
+  },
+  "axes_run": [
+    "broad",
+    "tests",
+    "final"
+  ],
+  "rounds": 4,
+  "ledger": [
+    {
+      "id": "F1",
+      "round": 1,
+      "axis": "broad",
+      "severity": "major",
+      "location": "src/stages.ts:388",
+      "title": "listSafe makes saved pre-14.2 seeds with commas read as drift",
+      "disposition": "Fixed in f453fb4399e751c781b54d8ff65b4972dcc03f09"
+    },
+    {
+      "id": "F2",
+      "round": 1,
+      "axis": "broad",
+      "severity": "minor",
+      "location": "src/stages.ts:350",
+      "title": "Separator rewrite also changes display-block text that is never split",
+      "disposition": "Withdrawn by the reviewer: The rejection holds on the evidence. In non-test src, resolvePrefillSource is called only from stageDriftKeys (src/stages.ts:393); the renderer's display blocks read the consumer-supplied resolved map, so no code in this package shows the rewritten text in a display block. stages.ts is declared a mirror of prefill.py, and the parity fixture in src/stages.test.ts pins resolver-level output, so moving the rule to list seeding only would break the stated parity. Whether display blocks should keep commas is a decision for the server side, outside this change."
+    },
+    {
+      "id": "F3",
+      "round": 1,
+      "axis": "broad",
+      "severity": "minor",
+      "location": "src/StageFormRenderer.tsx:241",
+      "title": "Required boolean sub-field gets no invalid marking without the optional message",
+      "disposition": "Fixed in c2aec0b11ba28b64d40baba05c8fa515cbaae076"
+    },
+    {
+      "id": "F4",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": "src/stageAnswers.ts:106",
+      "title": "`null` on a required scalar question is claimed but not pinned",
+      "disposition": "Fixed in b84d35f10b28af25c59dd2b06de3c95d94956011"
+    },
+    {
+      "id": "F5",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": "src/StageFormRenderer.tsx:292",
+      "title": "Invalid marking on number and date sub-fields has no test",
+      "disposition": "Fixed in b84d35f10b28af25c59dd2b06de3c95d94956011"
+    },
+    {
+      "id": "F6",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": "src/report.ts:286",
+      "title": "The third shrink step (drop componentStack) is never reached by a test",
+      "disposition": "Fixed in b84d35f10b28af25c59dd2b06de3c95d94956011"
+    },
+    {
+      "id": "F7",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": "src/report.ts:336",
+      "title": "The rewritten splitter's count bound is not pinned",
+      "disposition": "Fixed in b84d35f10b28af25c59dd2b06de3c95d94956011"
+    },
+    {
+      "id": "F8",
+      "round": 2,
+      "axis": "tests",
+      "severity": "nit",
+      "location": "src/StageFormRenderer.required.test.tsx:154",
+      "title": "'a decimal answer is reported as a number' passes on the base commit",
+      "disposition": "Fixed in b84d35f10b28af25c59dd2b06de3c95d94956011"
+    },
+    {
+      "id": "F9",
+      "round": 2,
+      "axis": "tests",
+      "severity": "minor",
+      "location": "src/entries/forms.ts:9",
+      "title": "New public exports are not pinned at any entry point",
+      "disposition": "Fixed in b84d35f10b28af25c59dd2b06de3c95d94956011"
+    }
+  ],
+  "created_at": "2026-11-20T00:33:48Z"
+}

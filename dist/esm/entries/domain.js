@@ -12,6 +12,7 @@ export * from '../security.js';
 export * from '../shells.js';
 export * from '../stageFit.js';
 export * from '../stages.js';
+export { entryMissingSubFields, questionAnswerGaps, stageAnswerGaps, stageAnswersComplete, visibleStageElements, } from '../stageAnswers.js';
 export * from '../types.js';
 export * from '../untrusted.js';
 export * from '../utils.js';

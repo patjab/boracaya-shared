@@ -6,6 +6,10 @@ export type {
   StageFormValue,
   StageFormValues,
 } from '../StageFormRenderer';
+export {
+  entryMissingSubFields, questionAnswerGaps, stageAnswerGaps, stageAnswersComplete, visibleStageElements,
+} from '../stageAnswers';
+export type { StageAnswerGap } from '../stageAnswers';
 export { WizardShell } from '../WizardShell';
 export type { WizardShellProps, WizardStep } from '../WizardShell';
 export type {

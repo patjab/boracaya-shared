@@ -83,6 +83,7 @@ export {
   ApiError, CancelledError, asArray, clean, getJson, isCancelled, jsonOr, runGuarded, sendJson,
 } from './data';
 export {
+  MAX_BATCH_BYTES, MAX_REPORT_BYTES,
   addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot,
   resetReporter, routeTemplate, scrub,
 } from './report';
@@ -133,6 +134,10 @@ export type {
   StageDisplayBlock, StageElement, StageFieldType, StagePresentation,
   StageQuestion, StageSubField,
 } from './stages';
+export {
+  entryMissingSubFields, questionAnswerGaps, stageAnswerGaps, stageAnswersComplete, visibleStageElements,
+} from './stageAnswers';
+export type { StageAnswerGap } from './stageAnswers';
 export { StageFormRenderer } from './StageFormRenderer';
 export type {
   RendererField, StageFormRendererProps, StageFormValue, StageFormValues,

@@ -12,6 +12,7 @@ export {
 } from '../data';
 export type { CallOptions, GuardedState, SendOptions } from '../data';
 export {
+  MAX_BATCH_BYTES, MAX_REPORT_BYTES,
   addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot,
   resetReporter, routeTemplate, scrub,
 } from '../report';

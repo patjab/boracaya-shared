@@ -35,7 +35,7 @@ export type { UnsavedGuard } from './unsavedGuard';
 export { useRaceGuard, createRaceGuard, useSetupPolling, useCloseGuard, useStoredToggle, useSaveGroup, useUnsavedGuardHost, } from './hooks';
 export type { RaceGuard, RaceToken, SaveGroupResult, SaveGroupMessages } from './hooks';
 export { ApiError, CancelledError, asArray, clean, getJson, isCancelled, jsonOr, runGuarded, sendJson, } from './data';
-export { addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from './report';
+export { MAX_BATCH_BYTES, MAX_REPORT_BYTES, addBreadcrumb, flushReports, initReporter, leavePage, report, reportCaught, reporterSnapshot, resetReporter, routeTemplate, scrub, } from './report';
 export type { Breadcrumb, BreadcrumbType, ErrorReport, ReportContext, ReportFields, ReportKind, ReporterConfig, } from './report';
 export type { GuardedState } from './data';
 export { ownedContinuation } from './ownedContinuation';
@@ -52,6 +52,8 @@ export { ABOUT_BLOCK_TYPES, ABOUT_PAGE_FIELDS, ABOUT_SCHEMA, ABOUT_ICONS, ABOUT_
 export type { AboutFieldType, AboutFieldDef, AboutBlockDef, AboutBlock, AboutPage, AboutGroup, AboutTree, AboutIconDef } from './about';
 export { ATTENDANCE_KEY, CORE_STAGE_ID, DEFAULT_CORE_STAGE, MAX_STAGE_IMAGE_URL, PREFILL_SOURCES, STAGE_RESPONSE_META_KEYS, coreStageFallback, guestDisplayName, isDisplayBlock, resolvePrefillSource, stageDriftKeys, stageElements, stageImageUrl, stagePresentation, stageQuestions, } from './stages';
 export type { DisplayPresentation, GuestRowLike, PrefillSource, RepeatingGroupEntry, StageDisplayBlock, StageElement, StageFieldType, StagePresentation, StageQuestion, StageSubField, } from './stages';
+export { entryMissingSubFields, questionAnswerGaps, stageAnswerGaps, stageAnswersComplete, visibleStageElements, } from './stageAnswers';
+export type { StageAnswerGap } from './stageAnswers';
 export { StageFormRenderer } from './StageFormRenderer';
 export type { RendererField, StageFormRendererProps, StageFormValue, StageFormValues, } from './StageFormRenderer';
 export { WizardShell } from './WizardShell';

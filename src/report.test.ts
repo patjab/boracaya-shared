@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  LEAVE_GRACE_MS, MAX_BREADCRUMBS, MAX_REPORT_BYTES,
+  LEAVE_GRACE_MS, MAX_BATCH, MAX_BATCH_BYTES, MAX_BREADCRUMBS, MAX_REPORTS_PER_SESSION, MAX_REPORT_BYTES,
   addBreadcrumb, fingerprintOf, flushReports, initReporter, leavePage, report, reportCaught,
   reporterSnapshot, resetReporter, routeTemplate, scrub,
 } from './report';
@@ -356,5 +356,135 @@ describe('report', () => {
     vi.stubGlobal('crypto', {});
     resetReporter();
     expect(reporterSnapshot().sessionId).toMatch(/^s-/);
+  });
+});
+
+// cdk#2661: the ingest (boracaya-cdk lambdas/pda-boracay-telemetry MAX_BODY_BYTES)
+// refuses a body over 32 KiB whole with a 413, and the reporter never retries.
+// Ten ordinary stack-bearing reports came to 34,093 bytes in one POST, so the
+// whole burst was lost. A flush now splits by UTF-8 bytes as well as by count.
+describe('batch byte bound (cdk#2661)', () => {
+  const INGEST_MAX_BODY_BYTES = 32 * 1024; // boracaya-cdk lambda_function.py MAX_BODY_BYTES
+  const utf8 = (s: string) => new TextEncoder().encode(s).length;
+  const bodies = () => fetchMock().mock.calls.map((c) => (c[1] as RequestInit).body as string);
+  const EVENT = '2f853dbf-1111-4222-8333-944455556666';
+
+  beforeEach(() => {
+    resetReporter();
+    initReporter({
+      app: 'valet', release: 'f804d211ff8394d6ec0b263afe312799bec0415c', endpoint: ENDPOINT,
+      context: () => ({ route: `/events/${EVENT}/photos`, eventId: EVENT, auth: { hasToken: true, expiresInS: 3000 },
+        online: true,
+        ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36' }),
+    });
+  });
+
+  /** The audit's burst: a full crumb ring, then ten caught reports with ordinary 10-frame stacks. */
+  const burst = (sites: number, frameText = (site: number, f: number) =>
+    `    at view${site}_${f} (https://valet.test.boracaya.com/assets/SwitchboardShell-B3k9Qx2a.js:${1000 + f}:${20000 + f * 7})`) => {
+    for (let i = 0; i < 20; i += 1) {
+      if (i % 2) addBreadcrumb({ type: 'route', detail: `/events/${EVENT}/${['photos', 'rsvp', 'guests', 'website', 'pulse'][i % 5]}` });
+      else addBreadcrumb({ type: 'api', detail: `GET /events/{id}/${['moments', 'rsvp', 'roster', 'about', 'pulse-config'][i % 5]}`, status: 200 });
+    }
+    for (let site = 0; site < sites; site += 1) {
+      const message = `Cannot read properties of undefined (reading 'map') while building the ${site} view model`;
+      const stack = [`TypeError: ${message}`, ...Array.from({ length: 9 }, (_, f) => frameText(site, f))].join('\n');
+      report('caught', { message, name: 'TypeError', label: `Could not load screen ${site}. Please try again.`, stack });
+    }
+  };
+
+  it('MAX_BATCH_BYTES sits below the ingest cap (30 KiB < 32 KiB)', () => {
+    expect(MAX_BATCH_BYTES).toBe(30 * 1024);
+    expect(MAX_BATCH_BYTES).toBeLessThan(INGEST_MAX_BODY_BYTES);
+    // One report at the per-report cap always fits a body on its own.
+    expect(MAX_REPORT_BYTES + '{"reports":[]}'.length).toBeLessThanOrEqual(MAX_BATCH_BYTES);
+  });
+
+  it('the audit burst of ten caught reports goes out as two or more bodies, each within the cap, none lost', () => {
+    burst(10);
+    flushReports();
+    const sent = bodies();
+    expect(sent.length).toBeGreaterThanOrEqual(2);
+    for (const body of sent) expect(utf8(body)).toBeLessThanOrEqual(MAX_BATCH_BYTES);
+    const labels = sentBatches().flat().map((r) => r.label);
+    expect(labels).toEqual(Array.from({ length: 10 }, (_, s) => `Could not load screen ${s}. Please try again.`));
+  });
+
+  it('measures UTF-8 bytes, not UTF-16 length: a non-Latin burst is split by its encoded size', () => {
+    // Each frame character is three bytes in UTF-8 but one UTF-16 unit.
+    burst(MAX_BATCH, (site, f) => `    at ビュー${site}_${f} (${'表示'.repeat(60)}.js:1:1)`);
+    flushReports();
+    const sent = bodies();
+    for (const body of sent) expect(utf8(body)).toBeLessThanOrEqual(MAX_BATCH_BYTES);
+    expect(sentBatches().flat()).toHaveLength(MAX_BATCH);
+    // The bound bit: the whole burst would not have fit one body by its UTF-8 size.
+    const whole = JSON.stringify({ reports: sentBatches().flat() });
+    expect(utf8(whole)).toBeGreaterThan(MAX_BATCH_BYTES);
+  });
+
+  it('every report of a full session, each at its byte cap, is delivered within the cap', () => {
+    for (let i = 0; i < MAX_BREADCRUMBS; i += 1) addBreadcrumb({ type: 'note', detail: `${i}-${'é'.repeat(115)}` });
+    for (let i = 0; i < MAX_REPORTS_PER_SESSION; i += 1) {
+      const stack = Array.from({ length: 10 }, (_, f) => `at f${i}_${f} (${'ü'.repeat(450)}:1:1)`).join('\n');
+      report('render', { message: `big ${i}`, label: `l${i}`, stack, componentStack: 'ç'.repeat(600) });
+    }
+    flushReports();
+    const delivered = sentBatches().flat();
+    expect(delivered).toHaveLength(MAX_REPORTS_PER_SESSION);
+    for (const r of delivered) expect(utf8(JSON.stringify(r))).toBeLessThanOrEqual(MAX_REPORT_BYTES);
+    for (const body of bodies()) expect(utf8(body)).toBeLessThanOrEqual(MAX_BATCH_BYTES);
+    for (const batch of sentBatches()) expect(batch.length).toBeLessThanOrEqual(MAX_BATCH);
+  });
+
+  it('the per-report cap is UTF-8 bytes: non-ASCII crumbs are trimmed to fit it', () => {
+    for (let i = 0; i < MAX_BREADCRUMBS; i += 1) addBreadcrumb({ type: 'note', detail: `${i}-${'界'.repeat(115)}` });
+    report('caught', { message: 'one', label: 'x' });
+    flushReports();
+    const [r] = sentBatches()[0];
+    expect(utf8(JSON.stringify(r))).toBeLessThanOrEqual(MAX_REPORT_BYTES);
+    // UTF-16 length alone would have kept every crumb (20 x ~125 units is under 8 KiB).
+    expect((r.breadcrumbs as unknown[]).length).toBeLessThan(MAX_BREADCRUMBS);
+  });
+
+  it('a report whose frames alone pass the cap loses trailing frames, keeping the first', () => {
+    const stack = Array.from({ length: 10 }, (_, f) => `at f${f} (${'界'.repeat(480)}:1:1)`).join('\n');
+    report('render', { message: 'huge', stack, componentStack: '界'.repeat(600) });
+    flushReports();
+    const [r] = sentBatches()[0];
+    expect(utf8(JSON.stringify(r))).toBeLessThanOrEqual(MAX_REPORT_BYTES);
+    expect((r.stack as string[])[0].startsWith('at f0 ')).toBe(true);
+  });
+
+  it('when one frame is all that is left, the component stack goes before the cap is passed', () => {
+    const wide = '界'.repeat(500);
+    // About 8.8 KB with the component stack, about 7.3 KB without it.
+    report('render', { message: wide, name: wide, requestId: wide, label: '界'.repeat(250),
+      stack: `at f0 (${'界'.repeat(490)}:1:1)
+at f1 (x.js:1:1)`, componentStack: wide });
+    flushReports();
+    const [r] = sentBatches()[0];
+    expect(utf8(JSON.stringify(r))).toBeLessThanOrEqual(MAX_REPORT_BYTES);
+    expect(r.componentStack).toBeUndefined();
+    expect((r.stack as string[])).toHaveLength(1);
+    expect(r.message).toBe(wide);
+  });
+
+  it('more than MAX_BATCH small reports in one flush go out MAX_BATCH to a body, in order', () => {
+    // Three transport failures wait out their grace while nine reports queue (no
+    // count-triggered flush below ten); the flush then sends all twelve.
+    for (let i = 1; i <= 3; i += 1) report('api', { message: 'net', label: `t${i}`, method: 'GET', url: `https://x.test/t${i}` });
+    vi.setSystemTime(Date.now() + LEAVE_GRACE_MS + 1);
+    for (let i = 1; i <= 9; i += 1) report('api', { message: 'b', label: `b${i}`, status: 500 });
+    expect(fetchMock()).not.toHaveBeenCalled();
+    flushReports();
+    const sent = sentBatches().map((b) => b.map((r) => r.label));
+    expect(sent.map((b) => b.length)).toEqual([MAX_BATCH, 2]);
+    expect(sent.flat()).toEqual([...Array.from({ length: 9 }, (_, i) => `b${i + 1}`), 't1', 't2', 't3']);
+  });
+
+  it('small batches are not split: count and order hold as before', () => {
+    for (let i = 1; i <= 3; i += 1) report('api', { message: 'b', label: `b${i}`, status: 500 });
+    flushReports();
+    expect(sentBatches().map((b) => b.map((r) => r.label))).toEqual([['b1', 'b2', 'b3']]);
   });
 });

@@ -42,6 +42,7 @@ const React = __importStar(require("react"));
 const Avatar_1 = __importDefault(require("@mui/material/Avatar"));
 const Box_1 = __importDefault(require("@mui/material/Box"));
 const FormControl_1 = __importDefault(require("@mui/material/FormControl"));
+const FormHelperText_1 = __importDefault(require("@mui/material/FormHelperText"));
 const InputLabel_1 = __importDefault(require("@mui/material/InputLabel"));
 const MenuItem_1 = __importDefault(require("@mui/material/MenuItem"));
 const Select_1 = __importDefault(require("@mui/material/Select"));
@@ -53,6 +54,7 @@ const Typography_1 = __importDefault(require("@mui/material/Typography"));
 const Button_1 = __importDefault(require("@mui/material/Button"));
 const IconButton_1 = __importDefault(require("@mui/material/IconButton"));
 const stages_1 = require("./stages");
+const stageAnswers_1 = require("./stageAnswers");
 const WizardShell_1 = require("./WizardShell");
 /** cdk#1011: a repeating group renders its entries as bordered mini-forms —
  *  each sub-field reuses the same input vocabulary via a pseudo-question, so
@@ -112,12 +114,16 @@ const RepeatingGroupInput = ({ f, value, onChange, messages }) => {
         setEntries(entries.filter((_, j) => j !== i), i < entries.length - 1 ? i : i - 1);
     };
     const add = () => setEntries([...entries, {}], entries.length);
+    const missingByEntry = entries.map((entry) => (0, stageAnswers_1.entryMissingSubFields)(subFields, entry));
     return ((0, jsx_runtime_1.jsxs)(Box_1.default, { role: "group", "aria-label": requiredGroupLabelFor(f, messages), sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsx)(Stack_1.default, { ref: list, spacing: 1.5, children: entries.map((entry, i) => {
                     const id = ids.current[i];
                     return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5, position: 'relative' }, children: [(0, jsx_runtime_1.jsx)(IconButton_1.default, { size: "small", "aria-label": messages.formatRemoveEntryActionLabel({
                                     fieldLabel: f.label,
                                     entryNumber: i + 1,
-                                }), onClick: () => remove(i), sx: { position: 'absolute', top: 4, right: 4 }, children: "\u2715" }), subFields.map((sub) => questionInput({ ...sub, key: `${id}.${sub.key}` }, entry[sub.key], (_k, v) => onChange(f.key, entries.map((e, j) => (j === i ? { ...e, [sub.key]: v } : e))), messages))] }, id));
+                                }), onClick: () => remove(i), sx: { position: 'absolute', top: 4, right: 4 }, children: "\u2715" }), subFields.map((sub) => questionInput({ ...sub, key: `${id}.${sub.key}` }, entry[sub.key], (_k, v) => onChange(f.key, entries.map((e, j) => (j === i ? { ...e, [sub.key]: v } : e))), messages, 
+                            // shore#704: a required sub-field left empty in an
+                            // entry that holds other answers says so inline.
+                            missingByEntry[i].includes(sub.key)))] }, id));
                 }) }), entries.length < max && ((0, jsx_runtime_1.jsx)(Button_1.default, { ref: addButton, size: "small", variant: "outlined", sx: { mt: 1 }, onClick: add, children: (_c = f.addLabel) !== null && _c !== void 0 ? _c : messages.addEntryActionLabel }))] }));
 };
 const parseList = (text) => text.split(',').map((v) => v.trim()).filter(Boolean);
@@ -137,8 +143,14 @@ const ListInput = ({ f, value, onChange, messages }) => {
             onChange(f.key, parseList(e.target.value));
         }, onBlur: () => setDraft(null) }));
 };
-const questionInput = (f, value, onChange, messages) => {
+/** The inline-error props of a TextField-backed input (shore#704): marked
+ *  invalid, with the consumer's reason as its helper text when it has one. */
+const errorProps = (error, messages) => (error ? { error: true, helperText: messages.requiredSubFieldMessage } : {});
+/** The id of a non-TextField input's inline error text (keys are unique per entry). */
+const errorIdFor = (key) => `stage-${key}-error`;
+const questionInput = (f, value, onChange, messages, error = false) => {
     var _a, _b;
+    const errorText = error && messages.requiredSubFieldMessage ? messages.requiredSubFieldMessage : undefined;
     switch (f.type) {
         case 'repeatingGroup':
             return (0, jsx_runtime_1.jsx)(RepeatingGroupInput, { f: f, value: value, onChange: onChange, messages: messages }, f.key);
@@ -148,23 +160,31 @@ const questionInput = (f, value, onChange, messages) => {
             // A themed Yes/No pill, not a checkbox — hosts phrase booleans as
             // questions, and the pill picks up the app theme's ToggleButton
             // styling (cdk#976).
-            return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsxs)(ToggleButtonGroup_1.default, { exclusive: true, size: "small", "aria-label": requiredGroupLabelFor(f, messages), value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
+            return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [(0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "body2", sx: { mb: 0.75 }, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsxs)(ToggleButtonGroup_1.default, { exclusive: true, size: "small", "aria-label": requiredGroupLabelFor(f, messages), "aria-describedby": errorText ? errorIdFor(f.key) : undefined, "aria-invalid": error || undefined, value: value === true ? 'yes' : value === false ? 'no' : null, onChange: (_, v) => { if (v !== null)
                             onChange(f.key, v === 'yes'); }, sx: {
                             // MUI's default unselected secondary text can miss
                             // 4.5:1 by a few hundredths on generated palettes.
                             '& .MuiToggleButton-root:not(.Mui-selected)': { color: 'text.primary' },
-                        }, children: [(0, jsx_runtime_1.jsx)(ToggleButton_1.default, { value: "yes", children: messages.yesOptionLabel }), (0, jsx_runtime_1.jsx)(ToggleButton_1.default, { value: "no", children: messages.noOptionLabel })] })] }, f.key));
+                        }, children: [(0, jsx_runtime_1.jsx)(ToggleButton_1.default, { value: "yes", children: messages.yesOptionLabel }), (0, jsx_runtime_1.jsx)(ToggleButton_1.default, { value: "no", children: messages.noOptionLabel })] }), errorText && ((0, jsx_runtime_1.jsx)(Typography_1.default, { id: errorIdFor(f.key), variant: "caption", color: "error", sx: { display: 'block', mt: 0.5 }, children: errorText }))] }, f.key));
         case 'select':
-            return ((0, jsx_runtime_1.jsxs)(FormControl_1.default, { fullWidth: true, margin: "normal", children: [(0, jsx_runtime_1.jsx)(InputLabel_1.default, { id: `stage-${f.key}`, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsx)(Select_1.default, { labelId: `stage-${f.key}`, label: labelFor(f, messages), required: f.required, value: typeof value === 'string' ? value : '', onChange: (e) => onChange(f.key, e.target.value), children: ((_a = f.options) !== null && _a !== void 0 ? _a : []).map((o) => ((0, jsx_runtime_1.jsx)(MenuItem_1.default, { value: o, children: o }, o))) })] }, f.key));
+            return ((0, jsx_runtime_1.jsxs)(FormControl_1.default, { fullWidth: true, margin: "normal", error: error, children: [(0, jsx_runtime_1.jsx)(InputLabel_1.default, { id: `stage-${f.key}`, children: labelFor(f, messages) }), (0, jsx_runtime_1.jsx)(Select_1.default, { labelId: `stage-${f.key}`, label: labelFor(f, messages), required: f.required, 
+                        // The combobox names its inline reason (MUI 6/7/9 all
+                        // take SelectDisplayProps); `error` above sets aria-invalid.
+                        SelectDisplayProps: errorText ? { 'aria-describedby': errorIdFor(f.key) } : undefined, value: typeof value === 'string' ? value : '', onChange: (e) => onChange(f.key, e.target.value), children: ((_a = f.options) !== null && _a !== void 0 ? _a : []).map((o) => ((0, jsx_runtime_1.jsx)(MenuItem_1.default, { value: o, children: o }, o))) }), errorText && (0, jsx_runtime_1.jsx)(FormHelperText_1.default, { id: errorIdFor(f.key), children: errorText })] }, f.key));
         case 'number':
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "number", label: labelFor(f, messages), placeholder: f.placeholder, slotProps: { htmlInput: requiredInputProps(f.required) }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value)) }, f.key));
+            // shore#716: without a step the browser applies step=1, so 2.5
+            // nights or shoe size 8.5 fail native validation inside a <form>;
+            // the stages Lambda stores decimals.
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "number", label: labelFor(f, messages), placeholder: f.placeholder, ...errorProps(error, messages), slotProps: {
+                    htmlInput: { step: 'any', inputMode: 'decimal', ...requiredInputProps(f.required) },
+                }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value === '' ? '' : Number(e.target.value)) }, f.key));
         case 'date':
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "date", label: labelFor(f, messages), slotProps: {
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", type: "date", label: labelFor(f, messages), ...errorProps(error, messages), slotProps: {
                     inputLabel: { shrink: true },
                     htmlInput: requiredInputProps(f.required),
                 }, value: value !== null && value !== void 0 ? value : '', onChange: (e) => onChange(f.key, e.target.value) }, f.key));
         default: // text | multiline
-            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, multiline: f.type === 'multiline', minRows: f.type === 'multiline' ? 3 : undefined, slotProps: {
+            return ((0, jsx_runtime_1.jsx)(TextField_1.default, { fullWidth: true, margin: "normal", label: labelFor(f, messages), placeholder: f.placeholder, multiline: f.type === 'multiline', minRows: f.type === 'multiline' ? 3 : undefined, ...errorProps(error, messages), slotProps: {
                     htmlInput: {
                         maxLength: (_b = f.maxLength) !== null && _b !== void 0 ? _b : 500,
                         ...requiredInputProps(f.required),
@@ -208,48 +228,21 @@ const displayBlock = (b, resolved) => {
     return ((0, jsx_runtime_1.jsxs)(Box_1.default, { sx: { mt: 2, mb: 1 }, children: [b.label ? blockLabel(b.label) : null, (0, jsx_runtime_1.jsx)(Typography_1.default, { variant: "body1", children: value.join(' · ') })] }, b.id));
 };
 const keyOf = (el) => ((0, stages_1.isDisplayBlock)(el) ? el.id : el.key);
-/**
- * Renders a stage definition's guest-visible elements as controlled inputs and
- * read-only display blocks. adminOnly questions are filtered here (cdk#529) so
- * no consumer can forget. `elements` is the post-#976 ordered mix; `fields` is
- * the legacy questions-only alias and keeps pre-#976 consumers rendering
- * identically. Consecutive questions marked `sameRow` share a responsive row
- * (cdk#976). `resolved` carries server-resolved display-block values keyed by
- * block id (the guest GET `defaults` map; the Valet preview passes samples).
- */
-/** A required question is "answered" when it holds a real value — false and 0
- *  count (a declined boolean IS an answer); '' , [] and undefined do not. */
-const answered = (q, v) => !q.required || (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== '');
-// (A required repeatingGroup follows the same array rule: at least one entry.)
-/** cdk#1015: the core gate. The machine-fixed boolean core question (cdk#1012)
- *  ends the form when the answer is "No" — everything after it never renders,
- *  in both presentations, so the consumer's footer (its submit control)
- *  surfaces immediately. Generic engine behavior keyed off the `core` marker:
- *  nothing here knows the stage is the RSVP. Unanswered leaves the full form
- *  (a required gate already blocks stepped progress until answered). */
-const gateTruncated = (list, values) => {
-    const at = list.findIndex((el) => !(0, stages_1.isDisplayBlock)(el) && el.core === true && el.type === 'boolean');
-    if (at === -1 || values[list[at].key] !== false)
-        return list;
-    return list.slice(0, at + 1);
-};
-/** cdk#1204: a `revealWhen` question is shown only while its trigger answer
- *  matches — a follow-up field (the food-restriction detail) is meaningless
- *  until the guest flags restrictions. A display block has no reveal. */
-const isRevealed = (el, values) => (0, stages_1.isDisplayBlock)(el) || !el.revealWhen || values[el.revealWhen.key] === el.revealWhen.equals;
 const StageFormRenderer = ({ elements, values, onChange, resolved, presentation, footer, messages, }) => {
     const all = elements !== null && elements !== void 0 ? elements : [];
     // A question hidden by an unmet reveal condition must not submit a stale
     // answer (typed, then the trigger flipped): clear it once it hides (cdk#1204).
     React.useEffect(() => {
         all.forEach((el) => {
-            if (!(0, stages_1.isDisplayBlock)(el) && el.revealWhen && !isRevealed(el, values)
+            if (!(0, stages_1.isDisplayBlock)(el) && el.revealWhen && !(0, stageAnswers_1.isRevealed)(el, values)
                 && values[el.key] !== undefined && values[el.key] !== '') {
                 onChange(el.key, '');
             }
         });
     }, [elements, values, onChange]);
-    const list = gateTruncated(all.filter((el) => ((0, stages_1.isDisplayBlock)(el) || !el.adminOnly) && isRevealed(el, values)), values);
+    // What the guest sees: adminOnly and unrevealed questions dropped, the
+    // list cut after a "No" on the core gate (cdk#529, cdk#1204, cdk#1015).
+    const list = (0, stageAnswers_1.visibleStageElements)(all, values);
     const rows = [];
     for (const el of list) {
         const prev = rows[rows.length - 1];
@@ -271,7 +264,9 @@ const StageFormRenderer = ({ elements, values, onChange, resolved, presentation,
             .map((row) => ({
             key: row.map(keyOf).join('+'),
             content: renderRow(row),
-            canProceed: row.every((el) => (0, stages_1.isDisplayBlock)(el) || answered(el, values[el.key])),
+            // The shared completeness rule (shore#686, shore#704): the same
+            // one a consumer's submit asks through stageAnswersComplete.
+            canProceed: row.every((el) => (0, stages_1.isDisplayBlock)(el) || (0, stageAnswers_1.questionAnswerGaps)(el, values[el.key]).length === 0),
         }));
         return (0, jsx_runtime_1.jsx)(WizardShell_1.WizardShell, { steps: steps, finish: footer, messages: messages.wizard });
     }

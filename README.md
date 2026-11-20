@@ -36,6 +36,41 @@ every extra step carry it the same way; nothing about it is RSVP-specific.
   backing object and then clears the field, like the event-image unlink.
 - The upload is the existing organizer asset presign (`AdminEventApi.assets`).
 
+## Version 14.2: required answers, decimals, safe seeds, bounded batches
+
+Four additions from the 2026-11-14 audit (epic boracaya-cdk#2583). Nothing is
+removed or renamed, and every new message field is optional.
+
+- **Required-answer completeness** (shore#686, shore#704), exported from
+  `boracaya-shared/domain` and `boracaya-shared/forms`:
+  `stageAnswersComplete(elements, values)` is true when a stage may be
+  submitted, and `stageAnswerGaps(elements, values)` lists why not, as
+  `{ kind: 'unanswered', key }` or
+  `{ kind: 'subField', key, entry, subField }`. They look only at the
+  questions the guest can see now (`visibleStageElements`: not adminOnly,
+  revealed, not cut off by a "No" on the core gate). A required question needs
+  a real value (`false` and `0` count; `''`, `[]`, `null` and `undefined` do
+  not). A repeating-group entry that holds any value needs every sub-field its
+  definition marks `required` (`entryMissingSubFields(subFields, entry)`); an
+  entry that holds nothing is complete, because consumers drop it. A required
+  group needs one entry that holds a value. The renderer's stepped Next uses
+  the same rule, so a consumer that gates its own submit on
+  `stageAnswersComplete` agrees with it in both presentations.
+- The renderer marks a required sub-field left empty in a filled entry as
+  invalid, with `StageFormRendererMessages.requiredSubFieldMessage` as its
+  inline reason when the consumer supplies it.
+- **Decimal numbers** (shore#716): number inputs carry `step="any"` and
+  `inputmode="decimal"`, so a natively validating `<form>` accepts 2.5.
+- **Separator-safe prefill seeds** (boracaya-cdk#2635): every item the
+  `rsvp.*` resolvers emit has its commas replaced by `;`
+  (`Ana Cruz (nuts; shellfish)`), so the comma-separated list input cannot
+  split one seeded companion into two. `prefill.py` in the stages Lambda
+  applies the same rule.
+- **Byte-bounded reporter batches** (boracaya-cdk#2661): a flush splits by
+  UTF-8 bytes as well as by count, so no POST body passes `MAX_BATCH_BYTES`
+  (30 KiB, under the ingest's 32 KiB); `MAX_REPORT_BYTES` (8 KiB) is now
+  measured in UTF-8 bytes too. Both are exported from `boracaya-shared/client`.
+
 ## Supported package surfaces
 
 The package publishes native ESM and CommonJS compatibility output. New
