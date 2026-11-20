@@ -1,12 +1,12 @@
 {
   "schema": "adversarial-review-record/1",
   "engine_version": "1",
-  "patch_id": "ab3dba85718a771556dd4814938e35c02d7b4c8cf990ca60e8766a5f06d54917",
+  "patch_id": "c4701c39265d7ac5b0da57a2831ce110c898b2bbaaf36191a665089799aa11d4",
   "repo": "patjab/boracaya-shared",
   "branch": "claude/audit-1114-shared-14-2",
   "base": "origin/main",
   "merge_base": "79d3fd8e6e1f0658a9cab008813a298ece38347d",
-  "head": "b84d35f10b28af25c59dd2b06de3c95d94956011",
+  "head": "ba400143b67a13a3b1c92019fd1dbc687e202d22",
   "verdict": "pass",
   "author_vendor": "claude",
   "reviewer": {
@@ -24,7 +24,7 @@
     "tests",
     "final"
   ],
-  "rounds": 3,
+  "rounds": 4,
   "ledger": [
     {
       "id": "F1",
@@ -108,5 +108,5 @@
       "disposition": "Fixed in b84d35f10b28af25c59dd2b06de3c95d94956011"
     }
   ],
-  "created_at": "2026-11-20T00:22:09Z"
+  "created_at": "2026-11-20T00:33:48Z"
 }
